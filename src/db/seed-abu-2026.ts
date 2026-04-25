@@ -13,6 +13,14 @@
 import * as nextEnv from "@next/env";
 nextEnv.loadEnvConfig(process.cwd());
 
+// Seed-friendly Postgres pool defaults — applied BEFORE the pool is constructed
+// inside getDb(). Only sets values the operator hasn't explicitly overridden.
+// These widen timeouts to survive a cold Neon serverless compute spin-up
+// without affecting the normal app runtime (which uses the postgres.ts defaults).
+process.env.PG_CONNECTION_TIMEOUT_MS ??= "60000";
+process.env.PG_IDLE_TIMEOUT_MS ??= "30000";
+process.env.PG_POOL_MAX ??= "2";
+
 import { randomUUID } from "node:crypto";
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
@@ -1107,30 +1115,114 @@ function buildGoalJson(): Record<string, unknown> {
 /* Main                                                                       */
 /* -------------------------------------------------------------------------- */
 
+/* -------------------------------------------------------------------------- */
+/* Resilience helpers — handle Neon cold-start connection timeouts            */
+/* -------------------------------------------------------------------------- */
+
+const TRANSIENT_ERROR_PATTERNS: readonly RegExp[] = [
+  /connection terminated/i,
+  /connection timeout/i,
+  /timeout exceeded/i,
+  /timeout/i,
+  /econnreset/i,
+  /etimedout/i,
+  /enetunreach/i,
+  /enotfound/i,
+  /server.*closed/i,
+];
+
+function isTransientDbError(err: unknown): boolean {
+  // Drizzle wraps the underlying pg error in `cause` — inspect both layers.
+  const layers: unknown[] = [err];
+  const cause = (err as { cause?: unknown } | null)?.cause;
+  if (cause && cause !== err) layers.push(cause);
+
+  for (const e of layers) {
+    const code = (e as { code?: unknown } | null)?.code;
+    if (typeof code === "string" && /^E(TIMEDOUT|CONNRESET|CONNREFUSED|NOTFOUND|NETUNREACH|PIPE)$/i.test(code)) {
+      return true;
+    }
+    const msg = e instanceof Error ? e.message : String(e);
+    if (TRANSIENT_ERROR_PATTERNS.some((p) => p.test(msg))) return true;
+  }
+  return false;
+}
+
+async function withRetry<T>(
+  label: string,
+  fn: () => Promise<T>,
+  attempts = 3,
+  delaysMs: readonly number[] = [2000, 5000, 10000],
+): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    if (i > 0) {
+      const wait = delaysMs[Math.min(i - 1, delaysMs.length - 1)];
+      const detail = lastErr instanceof Error ? lastErr.message : String(lastErr);
+      console.warn(`  ↻ ${label}: attempt ${i + 1}/${attempts} after ${wait}ms (${detail})`);
+      await new Promise((r) => setTimeout(r, wait));
+    }
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (!isTransientDbError(err)) throw err;
+    }
+  }
+  throw lastErr;
+}
+
 async function main(): Promise<void> {
   validateStatic();
   console.log(`✓ static validation passed (WEEKS × ${INCLUDED_CHAPTER_NOS.length} chapters)`);
 
   const db = await getDb();
 
-  const chapterRows = await db
-    .select({ id: chapters.id, chapterNo: chapters.chapterNo })
-    .from(chapters)
-    .where(inArray(chapters.chapterNo, [...INCLUDED_CHAPTER_NOS]));
-  const chapterIdByNo = new Map<number, string>();
-  for (const r of chapterRows) chapterIdByNo.set(r.chapterNo, r.id);
+  // -------- Preflight: warm the connection + sanity-check chapters table --------
+  await withRetry("preflight SELECT 1", async () => {
+    await db.execute(sql`select 1`);
+  });
+  console.log("✓ preflight: SELECT 1 OK (Neon connection warm)");
 
-  const docRows = await db
-    .select({
-      chapterNo: noteDocuments.chapterNo,
-      docId: noteDocuments.docId,
-      generatedAt: noteDocuments.generatedAt,
-    })
-    .from(noteDocuments)
-    .where(inArray(noteDocuments.chapterNo, [...INCLUDED_CHAPTER_NOS]))
-    .orderBy(desc(noteDocuments.generatedAt));
+  const chaptersTotal = await withRetry("count chapters", async () => {
+    const [row] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(chapters);
+    return row?.n ?? 0;
+  });
+  console.log(`✓ preflight: chapters table has ${chaptersTotal} rows`);
+  if (chaptersTotal === 0) {
+    throw new Error(
+      "chapters table is empty. Run scripts/seed-campbell-chapters.ts first.",
+    );
+  }
+
+  // -------- Initial reads: select-all + filter in JS (avoids 131-param IN list) --------
+  const includedSet = new Set<number>(INCLUDED_CHAPTER_NOS);
+
+  const allChapterRows = await withRetry("load chapters", async () => {
+    return db
+      .select({ id: chapters.id, chapterNo: chapters.chapterNo })
+      .from(chapters);
+  });
+  const chapterIdByNo = new Map<number, string>();
+  for (const r of allChapterRows) {
+    if (includedSet.has(r.chapterNo)) chapterIdByNo.set(r.chapterNo, r.id);
+  }
+
+  const allDocRows = await withRetry("load noteDocuments", async () => {
+    return db
+      .select({
+        chapterNo: noteDocuments.chapterNo,
+        docId: noteDocuments.docId,
+        generatedAt: noteDocuments.generatedAt,
+      })
+      .from(noteDocuments)
+      .orderBy(desc(noteDocuments.generatedAt));
+  });
   const docIdByChapterNo = new Map<number, string>();
-  for (const r of docRows) {
+  for (const r of allDocRows) {
+    if (!includedSet.has(r.chapterNo)) continue;
     if (!docIdByChapterNo.has(r.chapterNo)) docIdByChapterNo.set(r.chapterNo, r.docId);
   }
 
