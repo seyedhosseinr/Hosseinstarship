@@ -1,0 +1,6 @@
+*
+!.gitignore
+!edge_parser.js
+!edge_parser.d.ts
+!edge_parser_bg.wasm
+!edge_parser_bg.wasm.d.ts

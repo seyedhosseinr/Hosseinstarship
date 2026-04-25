@@ -1,0 +1,9 @@
+{
+  "name": "@uro/config",
+  "version": "1.0.0",
+  "private": true,
+  "exports": {
+    "./eslint": "./eslint/index.js",
+    "./typescript": "./typescript/base.json"
+  }
+}

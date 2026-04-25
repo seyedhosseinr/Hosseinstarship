@@ -1,0 +1,66 @@
+[
+  {
+    "externalKey": "ch132-q001",
+    "chapterNo": 132,
+    "stemHtml": "<p>Which zone of the prostate is the most common site of benign prostatic hyperplasia (BPH)?</p>",
+    "stemText": "Which zone of the prostate is the most common site of benign prostatic hyperplasia (BPH)?",
+    "explanationHtml": "<p>The transition zone is the site where BPH predominantly develops. The peripheral zone is the most common site of prostate cancer, while the central zone surrounds the ejaculatory ducts.</p>",
+    "educationalObjective": "Identify the prostatic zone most commonly affected by BPH.",
+    "questionType": "single_best_answer",
+    "difficulty": "easy",
+    "subject": "Urology",
+    "system": "Genitourinary",
+    "category": "BPH",
+    "topic": "Prostate Anatomy",
+    "tags": ["BPH", "anatomy", "prostate zones"],
+    "options": [
+      { "key": "A", "contentText": "Peripheral zone", "isCorrect": false },
+      { "key": "B", "contentText": "Transition zone", "isCorrect": true },
+      { "key": "C", "contentText": "Central zone", "isCorrect": false },
+      { "key": "D", "contentText": "Anterior fibromuscular stroma", "isCorrect": false }
+    ]
+  },
+  {
+    "externalKey": "ch132-q002",
+    "chapterNo": 132,
+    "stemHtml": "<p>A 65-year-old man presents with nocturia, hesitancy, and weak stream. His prostate is 55 grams on ultrasound. Which medication class addresses the dynamic component of BPH?</p>",
+    "stemText": "A 65-year-old man presents with nocturia, hesitancy, and weak stream. His prostate is 55 grams on ultrasound. Which medication class addresses the dynamic component of BPH?",
+    "explanationHtml": "<p>Alpha-1 adrenergic blockers (e.g., tamsulosin) target the dynamic component of BPH by relaxing smooth muscle in the prostate and bladder neck. 5-alpha reductase inhibitors address the static component.</p>",
+    "educationalObjective": "Distinguish between dynamic and static components of BPH treatment.",
+    "questionType": "single_best_answer",
+    "difficulty": "medium",
+    "subject": "Urology",
+    "system": "Genitourinary",
+    "category": "BPH",
+    "topic": "Medical Management",
+    "tags": ["BPH", "pharmacology", "alpha-blockers"],
+    "options": [
+      { "key": "A", "contentText": "5-alpha reductase inhibitors", "isCorrect": false },
+      { "key": "B", "contentText": "Alpha-1 adrenergic blockers", "isCorrect": true },
+      { "key": "C", "contentText": "Anticholinergics", "isCorrect": false },
+      { "key": "D", "contentText": "PDE-5 inhibitors", "isCorrect": false },
+      { "key": "E", "contentText": "Beta-3 agonists", "isCorrect": false }
+    ]
+  },
+  {
+    "externalKey": "ch132-q003",
+    "chapterNo": 132,
+    "stemHtml": "<p>Which surgical procedure is considered the gold standard for large prostates (&gt;80g) with BPH?</p>",
+    "stemText": "Which surgical procedure is considered the gold standard for large prostates (>80g) with BPH?",
+    "explanationHtml": "<p>Open simple prostatectomy (or robotic-assisted simple prostatectomy) remains the gold standard for very large prostates (>80-100g). TURP is standard for smaller glands. HoLEP is an emerging alternative for all sizes.</p>",
+    "educationalObjective": "Select appropriate surgical management based on prostate size.",
+    "questionType": "single_best_answer",
+    "difficulty": "hard",
+    "subject": "Urology",
+    "system": "Genitourinary",
+    "category": "BPH",
+    "topic": "Surgical Management",
+    "tags": ["BPH", "surgery", "prostatectomy"],
+    "options": [
+      { "key": "A", "contentText": "TURP", "isCorrect": false },
+      { "key": "B", "contentText": "UroLift", "isCorrect": false },
+      { "key": "C", "contentText": "Open simple prostatectomy", "isCorrect": true },
+      { "key": "D", "contentText": "TUMT", "isCorrect": false }
+    ]
+  }
+]

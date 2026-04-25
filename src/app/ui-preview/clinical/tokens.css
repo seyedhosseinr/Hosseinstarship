@@ -1,0 +1,263 @@
+/*
+  CLINICAL INTELLIGENCE OS — Design Tokens
+  ─────────────────────────────────────────
+  Bilingual (fa + en). Reading-first. Local-first.
+  Near-monochrome. One accent. Density via calc().
+*/
+
+/* ═══════════════════ FONTS ═══════════════════ */
+
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('/fonts/Vazirmatn%5Bwght%5D.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+/* ═══════════════════ LIGHT ═══════════════════ */
+
+.theme-clinical {
+  color-scheme: light;
+  font-family: var(--c-font-persian);
+
+  /* ── Font stacks ── */
+  --c-font-persian:     'Vazirmatn', Tahoma, sans-serif;
+  --c-font-latin-prose: var(--font-preview-serif, 'Source Serif 4'), Georgia, serif;
+  --c-font-ui:          var(--font-preview-sans, 'Inter'), system-ui, sans-serif;
+  --c-font-mono:        ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* ── Type scale ── */
+  --c-text-display: 2rem;
+  --c-text-h1:      1.625rem;
+  --c-text-h2:      1.25rem;
+  --c-text-h3:      1.0625rem;
+  --c-text-h4:      0.9375rem;
+  --c-text-body:    1.0625rem;   /* 17px — Persian legibility sweet spot */
+  --c-text-term:    0.9375rem;   /* medical terms: slightly tighter */
+  --c-text-caption: 0.8125rem;
+  --c-text-mono:    0.875rem;
+
+  /* ── Typography weights ── */
+  --c-weight-persian:      400;
+  --c-weight-persian-bold: 700;
+  --c-weight-term:         600;
+  --c-weight-ui:           400;
+  --c-weight-ui-medium:    500;
+
+  /* ── Reading density (drives ALL spacing via calc) ── */
+  --c-reading-density: 1;
+
+  /* ── Reader ── */
+  --c-reader-measure:       42em;   /* ~65-70 Persian chars at 17px body */
+  --c-reader-line-height:   calc(1.9 * var(--c-reading-density));
+  --c-reader-paragraph-gap: calc(1.25em * var(--c-reading-density));
+  --c-reader-block-padding: calc(1rem * var(--c-reading-density));
+  --c-reader-bg:            42 20% 98%;
+  --c-reader-highlight:     48 92% 88%;
+
+  /* ── Surface system (4 levels) ── */
+  --c-surface-canvas:  220 14% 95.5%;
+  --c-surface-panel:   220 12% 98%;
+  --c-surface-raised:  0 0% 100%;
+  --c-surface-overlay: 0 0% 100%;
+
+  /* ── Border system (3 levels) ── */
+  --c-border-hairline:    220 12% 91%;
+  --c-border-structural:  220 10% 84%;
+  --c-border-emphasis:    220 8% 64%;
+
+  /* ── Text hierarchy ── */
+  --c-text-primary:    222 47% 11%;
+  --c-text-secondary:  220 12% 36%;
+  --c-text-tertiary:   220 9% 52%;
+  --c-text-quaternary: 220 7% 71%;
+
+  /* ── Accent: deep teal (ONE, committed) ── */
+  --c-accent:       181 68% 29%;
+  --c-accent-hover: 181 68% 24%;
+  --c-accent-muted: 181 35% 94%;
+  --c-accent-fg:    0 0% 100%;
+
+  /* ── Semantic ── */
+  --c-success: 152 52% 34%;
+  --c-warning: 38 80% 44%;
+  --c-error:   0 58% 48%;
+
+  /* ── Sync state (local-first, 4 states) ── */
+  --c-sync-local:   38 80% 44%;
+  --c-sync-writing: 28 85% 52%;
+  --c-sync-syncing: 210 50% 52%;
+  --c-sync-synced:  152 52% 34%;
+
+  /* ── Session ── */
+  --c-session-active: 181 68% 29%;
+  --c-session-break:  38 80% 44%;
+  --c-session-idle:   220 7% 71%;
+
+  /* ── Radius ── */
+  --c-radius-xs: 2px;
+  --c-radius-sm: 3px;
+  --c-radius-md: 5px;
+  --c-radius-lg: 8px;
+
+  /* ── Shadows ── */
+  --c-shadow-sm:      0 1px 2px rgba(0,0,0,0.04);
+  --c-shadow-md:      0 2px 8px rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.02);
+  --c-shadow-lg:      0 4px 16px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.02);
+  --c-shadow-overlay: 0 16px 48px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.04);
+
+  /* ── Motion ── */
+  --c-ease:          cubic-bezier(0.25, 0.1, 0.25, 1);
+  --c-duration-fast: 120ms;
+  --c-duration-base: 150ms;
+  --c-duration-slow: 180ms;
+
+  /* ── Rail ── */
+  --c-rail-collapsed: 52px;
+  --c-rail-expanded:  224px;
+
+  /* ── Override shadcn/tailwind inside scope ── */
+  --background:         var(--c-surface-canvas);
+  --foreground:         var(--c-text-primary);
+  --card:               var(--c-surface-raised);
+  --card-foreground:    var(--c-text-primary);
+  --popover:            var(--c-surface-overlay);
+  --popover-foreground: var(--c-text-primary);
+  --primary:            var(--c-accent);
+  --primary-foreground: var(--c-accent-fg);
+  --muted:              var(--c-surface-panel);
+  --muted-foreground:   var(--c-text-tertiary);
+  --border:             var(--c-border-hairline);
+  --ring:               var(--c-accent);
+  --radius:             var(--c-radius-md);
+}
+
+/* ═══════════════════ DARK ═══════════════════ */
+
+:root.dark .theme-clinical,
+.dark .theme-clinical {
+  color-scheme: dark;
+
+  --c-surface-canvas:  225 12% 6%;
+  --c-surface-panel:   225 10% 8.5%;
+  --c-surface-raised:  225 9% 11%;
+  --c-surface-overlay: 225 9% 13%;
+
+  --c-border-hairline:   225 8% 14%;
+  --c-border-structural: 225 7% 20%;
+  --c-border-emphasis:   225 5% 38%;
+
+  --c-text-primary:    220 10% 93%;
+  --c-text-secondary:  220 7% 66%;
+  --c-text-tertiary:   220 5% 48%;
+  --c-text-quaternary: 220 4% 33%;
+
+  --c-accent:       178 58% 42%;
+  --c-accent-hover: 178 58% 48%;
+  --c-accent-muted: 178 28% 13%;
+  --c-accent-fg:    225 12% 6%;
+
+  --c-success: 152 48% 42%;
+  --c-warning: 38 75% 50%;
+  --c-error:   0 55% 55%;
+
+  --c-sync-local:   38 75% 50%;
+  --c-sync-writing: 28 80% 56%;
+  --c-sync-syncing: 210 45% 56%;
+  --c-sync-synced:  152 48% 42%;
+
+  --c-session-active: 178 58% 42%;
+  --c-session-break:  38 75% 50%;
+  --c-session-idle:   220 4% 33%;
+
+  --c-reader-bg:        225 10% 8%;
+  --c-reader-highlight: 45 60% 18%;
+
+  --c-shadow-sm:      0 1px 2px rgba(0,0,0,0.2);
+  --c-shadow-md:      0 2px 8px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.04);
+  --c-shadow-lg:      0 4px 16px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04);
+  --c-shadow-overlay: 0 16px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06);
+}
+
+/* ═══════════════════ DENSITY MODES ═══════════════════ */
+
+.theme-clinical[data-density="compact"]     { --c-reading-density: 0.9; }
+.theme-clinical[data-density="comfortable"] { --c-reading-density: 1; }
+.theme-clinical[data-density="spacious"]    { --c-reading-density: 1.1; }
+
+/* ═══════════════════ MEDICAL TERM ═══════════════════ */
+
+.medical-term {
+  font-family: var(--c-font-latin-prose);
+  font-weight: var(--c-weight-term);
+  font-size: var(--c-text-term);
+  unicode-bidi: isolate;
+  direction: ltr;
+  color: hsl(var(--c-text-primary));
+  letter-spacing: 0.01em;
+  transition: color var(--c-duration-fast) var(--c-ease);
+}
+
+.medical-term[data-abbr] {
+  font-feature-settings: "smcp", "c2sc";
+  letter-spacing: 0.04em;
+}
+
+.medical-term:hover {
+  color: hsl(var(--c-accent));
+  cursor: help;
+}
+
+/* ═══════════════════ READER BLOCKS ═══════════════════ */
+
+.reader-block {
+  transition: opacity var(--c-duration-base) var(--c-ease);
+}
+
+.focus-active .reader-block:not(.reader-block--focused) {
+  opacity: 0.15;
+}
+
+.reader-block--focused {
+  opacity: 1;
+}
+
+/* ═══════════════════ RHYTHM BAR ═══════════════════ */
+
+.rhythm-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: hsl(var(--c-border-hairline));
+  z-index: 50;
+}
+
+.rhythm-bar-fill {
+  height: 100%;
+  background: hsl(var(--c-accent));
+  transition: width var(--c-duration-slow) var(--c-ease);
+}
+
+/* ═══════════════════ KEYFRAMES ═══════════════════ */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}

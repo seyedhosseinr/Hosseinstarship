@@ -1,0 +1,400 @@
+"use client";
+
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import {
+  BookOpen,
+  Plus,
+  Search,
+  Star,
+  Trash2,
+  Clock,
+  Tag,
+  Save,
+  Pencil,
+  ArrowRight,
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { PageHeader } from "@/components/ui/page-header";
+import { Surface } from "@/components/ui/surface";
+import { LoadingState, EmptyState } from "@/components/ui/shared-states";
+import { colorLight } from "@/lib/theme/tokens";
+import {
+  listNotebooks,
+  addNotebook,
+  updateNotebook,
+  deleteNotebook,
+  type NotebookRow,
+} from "@/lib/data";
+
+
+/* ── helpers ─────────────────────────────────────────── */
+
+function timeAgo(ts: number): string {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "\u0647\u0645\u06CC\u0646 \u0627\u0644\u0627\u0646";
+  if (mins < 60) return `${mins} \u062F\u0642\u06CC\u0642\u0647 \u067E\u06CC\u0634`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} \u0633\u0627\u0639\u062A \u067E\u06CC\u0634`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} \u0631\u0648\u0632 \u067E\u06CC\u0634`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 4) return `${weeks} \u0647\u0641\u062A\u0647 \u067E\u06CC\u0634`;
+  return `${Math.floor(days / 30)} \u0645\u0627\u0647 \u067E\u06CC\u0634`;
+}
+
+/** Strip HTML tags & decode common entities for card preview text. */
+function previewText(raw: string): string {
+  let t = raw
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+  t = t.replace(/<[^>]*>/g, "");
+  t = t.replace(/\s+/g, " ").trim();
+  return t.slice(0, 200);
+}
+
+/* ── component ───────────────────────────────────────── */
+
+export default function NotebooksPage() {
+  const router = useRouter();
+
+  const [notebooks, setNotebooks] = useState<NotebookRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [starredOnly, setStarredOnly] = useState(false);
+
+  /* editor state */
+  const [editing, setEditing] = useState<NotebookRow | null>(null);
+  const [isNew, setIsNew] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editTags, setEditTags] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    const data = await listNotebooks();
+    setNotebooks(data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const filtered = useMemo(() => {
+    let list = notebooks;
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (n) =>
+          n.title.toLowerCase().includes(q) ||
+          n.content.toLowerCase().includes(q) ||
+          (n.subject ?? "").toLowerCase().includes(q) ||
+          (n.tags ?? []).some((t) => t.toLowerCase().includes(q))
+      );
+    }
+    if (starredOnly) list = list.filter((n) => n.starred);
+    return list;
+  }, [notebooks, search, starredOnly]);
+
+  /* ── CRUD helpers ── */
+
+  async function toggleStar(id: number) {
+    const nb = notebooks.find((n) => n.id === id);
+    if (!nb) return;
+    await updateNotebook(id, { starred: !nb.starred });
+    setNotebooks((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, starred: !n.starred } : n))
+    );
+  }
+
+  async function handleDelete(id: number) {
+    await deleteNotebook(id);
+    setNotebooks((prev) => prev.filter((n) => n.id !== id));
+    if (editing?.id === id) closeEditor();
+  }
+
+  function openEditor(nb?: NotebookRow) {
+    if (nb) {
+      setEditing(nb);
+      setEditTitle(nb.title);
+      setEditContent(nb.content);
+      setEditTags((nb.tags ?? []).join(", "));
+      setIsNew(false);
+    } else {
+      setEditing(null);
+      setEditTitle("");
+      setEditContent("");
+      setEditTags("");
+      setIsNew(true);
+    }
+  }
+
+  function closeEditor() {
+    setEditing(null);
+    setIsNew(false);
+    setEditTitle("");
+    setEditContent("");
+    setEditTags("");
+  }
+
+  async function handleSave() {
+    if (!editTitle.trim()) return;
+    setSaving(true);
+
+    const tags = editTags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const now = Date.now();
+
+    try {
+      if (isNew) {
+        await addNotebook({
+          title: editTitle.trim(),
+          content: editContent,
+          tags,
+          starred: false,
+          createdAt: now,
+          updatedAt: now,
+        });
+      } else if (editing?.id != null) {
+        await updateNotebook(editing.id, {
+          title: editTitle.trim(),
+          content: editContent,
+          tags,
+          updatedAt: now,
+        });
+      }
+      await refresh();
+      closeEditor();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const isEditorOpen = isNew || editing !== null;
+
+  /* ── Editor view ────────────────────────────────────── */
+
+  if (isEditorOpen) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-4 animate-in fade-in duration-300">
+        <div className="flex items-center justify-between">
+          <button
+            onClick={closeEditor}
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition"
+          >
+            <ArrowRight className="h-4 w-4" />
+            {"\u0628\u0627\u0632\u06AF\u0634\u062A"}
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || !editTitle.trim()}
+            className="flex items-center gap-2 px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-40 hover:bg-primary/90 transition"
+          >
+            <Save className="h-4 w-4" />
+            {saving
+              ? "\u0630\u062E\u06CC\u0631\u0647..."
+              : "\u0630\u062E\u06CC\u0631\u0647"}
+          </button>
+        </div>
+
+        <input
+          value={editTitle}
+          onChange={(e) => setEditTitle(e.target.value)}
+          placeholder={"\u0639\u0646\u0648\u0627\u0646 \u062C\u0632\u0648\u0647..."}
+          className="w-full text-2xl font-black bg-transparent border-none outline-none placeholder:text-muted-foreground/40"
+        />
+
+        <div className="flex items-center gap-2">
+          <Tag className="h-4 w-4 text-muted-foreground" />
+          <input
+            value={editTags}
+            onChange={(e) => setEditTags(e.target.value)}
+            placeholder={"\u062A\u06AF\u200C\u0647\u0627 (\u0628\u0627 \u06A9\u0627\u0645\u0627 \u062C\u062F\u0627 \u06A9\u0646\u06CC\u062F)"}
+            className="flex-1 text-sm bg-transparent border-none outline-none placeholder:text-muted-foreground/40"
+          />
+        </div>
+
+        <textarea
+          value={editContent}
+          onChange={(e) => setEditContent(e.target.value)}
+          placeholder={"\u0645\u062D\u062A\u0648\u0627\u06CC \u062C\u0632\u0648\u0647 (HTML / Markdown)..."}
+          rows={20}
+          className="w-full rounded-xl bg-card border border-border p-4 text-sm font-mono leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/40"
+        />
+      </div>
+    );
+  }
+
+  /* ── Empty state ────────────────────────────────────── */
+
+  if (!loading && notebooks.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <PageHeader
+          title="جزوه‌ها"
+          description="یادداشت‌ها و خلاصه‌های مطالعاتی"
+          badge="NOTEBOOKS"
+          breadcrumb={[{ label: "خانه", href: "/" }, { label: "جزوه‌ها" }]}
+          actions={
+            <button
+              onClick={() => openEditor()}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
+              style={{ background: colorLight.accent, color: "#fff" }}
+            >
+              <Plus className="h-4 w-4" />
+              جزوه جدید
+            </button>
+          }
+        />
+        <EmptyState
+          icon={<BookOpen className="h-8 w-8" />}
+          title="هیچ جزوه‌ای وجود ندارد"
+          description="یک جزوه جدید بسازید یا از بخش «ایمپورت» وارد کنید."
+        />
+      </div>
+    );
+  }
+
+  /* ── List view ──────────────────────────────────────── */
+
+  return (
+    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <PageHeader
+        title="جزوه‌ها"
+        description={`${notebooks.length} جزوه`}
+        badge="NOTEBOOKS"
+        breadcrumb={[{ label: "خانه", href: "/" }, { label: "جزوه‌ها" }]}
+        actions={
+          <button
+            onClick={() => openEditor()}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors"
+            style={{ background: colorLight.accent, color: "#fff" }}
+          >
+            <Plus className="h-4 w-4" />
+            جزوه جدید
+          </button>
+        }
+      />
+
+      {/* Search + starred filter */}
+      <div className="flex gap-2">
+        <div className="flex-1 relative">
+          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: colorLight.textMuted }} />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="جستجوی جزوه‌ها..."
+            className="w-full pr-10 pl-4 py-2.5 rounded-xl text-sm placeholder:opacity-50 focus:outline-none focus:ring-2"
+            style={{ background: colorLight.surfaceSubtle, border: `1px solid ${colorLight.border}`, color: colorLight.text }}
+          />
+        </div>
+        <button
+          onClick={() => setStarredOnly(!starredOnly)}
+          className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm transition"
+          style={{
+            background: starredOnly ? `${colorLight.warning}10` : "transparent",
+            border: `1px solid ${starredOnly ? `${colorLight.warning}30` : colorLight.border}`,
+            color: starredOnly ? colorLight.warning : colorLight.textMuted,
+          }}
+        >
+          <Star className="h-4 w-4" />
+          ستاره‌دار
+        </button>
+      </div>
+
+      {/* Card grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {filtered.map((nb) => (
+          <motion.div
+            key={nb.id}
+            layout
+            className="rounded-xl p-4 group cursor-pointer transition-all hover:shadow-sm"
+            style={{ background: colorLight.surface, border: `1px solid ${colorLight.border}` }}
+            onClick={() => router.push(`/notebooks/${nb.id}`)}
+          >
+            <div className="flex items-start justify-between mb-2">
+              <h3 className="font-semibold text-sm line-clamp-1" style={{ color: colorLight.text }}>
+                {nb.title}
+              </h3>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleStar(nb.id!);
+                  }}
+                  className="p-1 transition"
+                  style={{ color: nb.starred ? colorLight.warning : colorLight.textMuted }}
+                >
+                  <Star
+                    className={cn(
+                      "h-3.5 w-3.5",
+                      nb.starred && "fill-current"
+                    )}
+                  />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openEditor(nb);
+                  }}
+                  className="p-1 transition"
+                  style={{ color: colorLight.textMuted }}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(nb.id!);
+                  }}
+                  className="p-1 transition hover:opacity-80"
+                  style={{ color: colorLight.danger }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+
+            <p className="text-xs line-clamp-3 leading-relaxed mb-3" style={{ color: colorLight.textMuted }}>
+              {previewText(nb.content)}
+            </p>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {(nb.tags ?? []).slice(0, 3).map((t) => (
+                  <span
+                    key={t}
+                    className="text-[10px] px-1.5 py-0.5 rounded-full"
+                    style={{ background: colorLight.surfaceSubtle, color: colorLight.textMuted }}
+                  >
+                    #{t}
+                  </span>
+                ))}
+              </div>
+              <div className="flex items-center gap-1 text-[10px]" style={{ color: colorLight.textMuted }}>
+                <Clock className="h-3 w-3" />
+                {timeAgo(nb.updatedAt)}
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {filtered.length === 0 && !loading && (
+        <EmptyState
+          icon={<Search className="h-6 w-6" />}
+          title="نتیجه‌ای یافت نشد"
+        />
+      )}
+    </div>
+  );
+}

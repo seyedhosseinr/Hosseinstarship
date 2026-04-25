@@ -1,0 +1,49 @@
+.library-theme {
+  --background: 38 23% 96%;
+  --surface: 40 22% 98%;
+  --surface-2: 36 16% 94%;
+  --card: 40 22% 98%;
+  --popover: 40 22% 98%;
+  --secondary: 36 16% 94%;
+  --muted: 36 16% 94%;
+  --border: 32 16% 86%;
+  --input: 32 16% 86%;
+  --foreground: 26 12% 18%;
+  --text: 26 12% 18%;
+  --secondary-foreground: 28 11% 31%;
+  --muted-foreground: 28 10% 39%;
+  --text-muted: 28 10% 39%;
+  --sidebar-bg: 38 23% 96%;
+  --sidebar-fg: 26 12% 18%;
+  --sidebar-hover: 36 18% 92%;
+  --reader-bg: 42 24% 98%;
+  --reader-fg: 26 12% 18%;
+  --reader-muted: 28 10% 39%;
+  --reader-border: 32 16% 88%;
+  background-color: hsl(var(--background));
+}
+
+.dark .library-theme {
+  --background: 24 8% 12%;
+  --surface: 24 8% 15%;
+  --surface-2: 24 8% 18%;
+  --card: 24 8% 15%;
+  --popover: 24 8% 15%;
+  --secondary: 24 8% 18%;
+  --muted: 24 8% 18%;
+  --border: 24 8% 24%;
+  --input: 24 8% 24%;
+  --foreground: 34 18% 90%;
+  --text: 34 18% 90%;
+  --secondary-foreground: 30 12% 76%;
+  --muted-foreground: 28 10% 64%;
+  --text-muted: 28 10% 64%;
+  --sidebar-bg: 24 8% 13%;
+  --sidebar-fg: 34 18% 90%;
+  --sidebar-hover: 24 8% 18%;
+  --reader-bg: 24 8% 14%;
+  --reader-fg: 34 18% 90%;
+  --reader-muted: 28 10% 64%;
+  --reader-border: 24 8% 24%;
+  background-color: hsl(var(--background));
+}

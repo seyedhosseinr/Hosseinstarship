@@ -1,0 +1,176 @@
+// ---- Full Card (today view) ----
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -6 }}
+    >
+      <Surface
+        variant={isDone ? "subtle" : "default"}
+        padding="md"
+        className={`
+          relative group transition-all
+          ${isDone ? "opacity-70" : ""}
+          ${isSkipped ? "opacity-50" : ""}
+          ${isOverdue ? "ring-1" : ""}
+        `}
+        style={isOverdue ? { borderColor: colorLight.danger } : undefined}
+      >
+        <div className="flex items-start gap-3">
+          {/* Left — Icon + Check */}
+          <div className="flex flex-col items-center gap-1 pt-0.5">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: statusColors.bg }}
+            >
+              <Icon size={16} style={{ color: statusColors.text }} />
+            </div>
+            {(isActionable || isActive) && (
+              <button
+                onClick={handleComplete}
+                disabled={isPending}
+                className="w-6 h-6 rounded-full border-2 flex items-center justify-center
+                           transition-colors hover:border-green-500 hover:bg-green-50"
+                style={{ borderColor: colorLight.border }}
+                title="?????"
+              >
+                <Check size={12} className="opacity-0 group-hover:opacity-60 transition-opacity" />
+              </button>
+            )}
+            {isDone && (
+              <div
+                className="w-6 h-6 rounded-full flex items-center justify-center"
+                style={{ backgroundColor: colorLight.success, color: "#fff" }}
+              >
+                <Check size={12} />
+              </div>
+            )}
+          </div>
+
+          {/* Center — Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span
+                className={`text-sm font-semibold ${isDone || isSkipped ? "line-through" : ""}`}
+                style={{ color: isDone || isSkipped ? colorLight.textMuted : colorLight.text }}
+              >
+                {task.title}
+              </span>
+              {task.priority > 0 && (
+                <span
+                  className="text-[10px] px-1.5 py-0.5 rounded font-bold"
+                  style={{
+                    backgroundColor: task.priority >= 2 ? colorLight.danger : colorLight.warning,
+                    color: "#fff",
+                  }}
+                >
+                  {task.priority >= 2 ? "????" : "???"}
+                </span>
+              )}
+            </div>
+
+            {/* Type + linked entity */}
+            <div className="flex items-center gap-2 text-[11px] mb-1" style={{ color: colorLight.textMuted }}>
+              <span
+                className="px-1.5 py-0.5 rounded"
+                style={{ backgroundColor: statusColors.bg, color: statusColors.text }}
+              >
+                {getTaskTypeLabel(task.taskType)}
+              </span>
+              {task.linkedChapter && (
+                <span>??? {n(task.linkedChapter.chapterNo)} — {task.linkedChapter.title}</span>
+              )}
+              {task.linkedChunk && task.linkedChunk.title && (
+                <span>{task.linkedChunk.title}</span>
+              )}
+            </div>
+
+            {/* Description */}
+            {task.description && !isDone && (
+              <p className="text-xs mt-1 leading-relaxed" style={{ color: colorLight.textMuted }}>
+                {task.description}
+              </p>
+            )}
+
+            {/* Progress bar */}
+            {task.targetCount != null && task.targetCount > 0 && !isDone && (
+              <div className="mt-2">
+                <div className="flex items-center justify-between text-[10px] mb-1" style={{ color: colorLight.textMuted }}>
+                  <span>{n(task.completedCount)} ?? {n(task.targetCount)}</span>
+                  <span>{n(task.progressPercent)}%</span>
+                </div>
+                <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: colorLight.border }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{
+                      width: `${task.progressPercent}%`,
+                      backgroundColor: statusColors.text,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Duration + Status */}
+            <div className="flex items-center gap-3 mt-2 text-[11px]" style={{ color: colorLight.textMuted }}>
+              {task.estimatedMinutes > 0 && (
+                <span className="flex items-center gap-1">
+                  <Clock size={11} />
+                  {formatMinutes(task.estimatedMinutes)}
+                </span>
+              )}
+              <span
+                className="flex items-center gap-1"
+                style={{ color: statusColors.text }}
+              >
+                <span
+                  className="w-1.5 h-1.5 rounded-full inline-block"
+                  style={{ backgroundColor: statusColors.dot }}
+                />
+                {getTaskStatusLabel(status)}
+              </span>
+            </div>
+          </div>
+
+          {/* Right — Action buttons */}
+          {(isActionable || isActive) && (
+            <div className="flex flex-col gap-1 items-end">
+              {isActionable && (
+                <button
+                  onClick={handleStart}
+                  disabled={isPending}
+                  className="p-1.5 rounded-md transition-colors hover:bg-teal-50"
+                  title="????"
+                >
+                  <Play size={14} style={{ color: colorLight.accent }} />
+                </button>
+              )}
+              <button
+                onClick={handleSkip}
+                disabled={isPending}
+                className="p-1.5 rounded-md transition-colors hover:bg-gray-100"
+                title="?? ????"
+              >
+                <SkipForward size={14} style={{ color: colorLight.textMuted }} />
+              </button>
+              {onReschedule && (
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onReschedule(task.id);
+                  }}
+                  className="p-1.5 rounded-md transition-colors hover:bg-gray-100"
+                  title="????? ?????"
+                >
+                  <CalendarDays size={14} style={{ color: colorLight.textMuted }} />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </Surface>
+    </motion.div>
+  );
+}

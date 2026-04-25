@@ -1,0 +1,57 @@
+{
+  "source": {
+    "id": "aua-core-test-001",
+    "title": "AUA Core - Kidney Stones (Test)",
+    "type": "guideline",
+    "tags": ["AUA", "Kidney Stones", "Nephrolithiasis"],
+    "totalCards": 5,
+    "version": "2024.1"
+  },
+  "cards": [
+    {
+      "id": "ks-001",
+      "front": "What is the most common type of kidney stone?",
+      "back": "**Calcium oxalate** stones account for approximately **80%** of all kidney stones.\n\n---\n\n### Risk factors:\n- Hypercalciuria\n- Hyperoxaluria\n- Low urine volume\n- Low citrate",
+      "tags": ["stones", "epidemiology"],
+      "chapter": "Nephrolithiasis",
+      "difficulty": "easy",
+      "source": "AUA Guidelines 2024"
+    },
+    {
+      "id": "ks-002",
+      "front": "What size kidney stone is likely to pass spontaneously?",
+      "back": "Stones **≤5mm** have a high likelihood of spontaneous passage (~68-98%).\n\nStones **5-10mm** have moderate chance (~47%).\n\nStones **>10mm** rarely pass spontaneously.\n\n---\n\n> **AUA Recommendation:** MET (Medical Expulsive Therapy) with alpha-blockers for stones 5-10mm in the distal ureter.",
+      "tags": ["stones", "management"],
+      "chapter": "Nephrolithiasis",
+      "difficulty": "medium",
+      "source": "AUA Guidelines 2024"
+    },
+    {
+      "id": "ks-003",
+      "front": "Which imaging modality is the gold standard for evaluating suspected nephrolithiasis?",
+      "back": "**Non-contrast CT abdomen/pelvis** (NCCT) is the gold standard.\n\n### Advantages:\n- Sensitivity: **>95%**\n- Specificity: **>98%**\n- Can detect non-radiopaque stones\n- Shows alternative diagnoses\n\n### When to use ultrasound:\n- Pregnant patients\n- Pediatric patients\n- Known stone formers with typical presentation",
+      "tags": ["stones", "imaging", "diagnosis"],
+      "chapter": "Nephrolithiasis",
+      "difficulty": "easy",
+      "source": "AUA Guidelines 2024"
+    },
+    {
+      "id": "ks-004",
+      "front": "What are the indications for surgical intervention in nephrolithiasis?",
+      "back": "### Absolute Indications:\n1. **Stone >10mm** unlikely to pass\n2. **Uncontrolled pain** despite analgesics\n3. **Obstruction with infection** (urological emergency!)\n4. **Renal function impairment**\n5. **Single kidney** with obstruction\n\n### Surgical Options:\n| Procedure | Best For |\n|-----------|----------|\n| SWL | <20mm renal, <10mm ureteral |\n| URS | Ureteral stones, <20mm renal |\n| PCNL | >20mm renal, staghorn |",
+      "tags": ["stones", "surgery", "management"],
+      "chapter": "Nephrolithiasis",
+      "difficulty": "hard",
+      "source": "AUA Guidelines 2024"
+    },
+    {
+      "id": "ks-005",
+      "front": "What metabolic workup should be performed for recurrent stone formers?",
+      "back": "### 24-hour Urine Collection (×2):\n- **Volume** (goal >2.5L/day)\n- **Calcium** (normal <250mg/day ♂, <200mg/day ♀)\n- **Oxalate** (normal <40mg/day)\n- **Citrate** (normal >320mg/day)\n- **Uric acid** (normal <800mg/day ♂, <750mg/day ♀)\n- **Sodium** (goal <2g/day)\n- **pH** (normal 5.8-6.2)\n\n### Serum:\n- Calcium, phosphorus, uric acid\n- PTH if hypercalcemia\n- Vitamin D\n\n> **Key:** All recurrent stone formers AND first-time formers with risk factors should have metabolic evaluation.",
+      "tags": ["stones", "workup", "metabolic"],
+      "chapter": "Nephrolithiasis",
+      "difficulty": "hard",
+      "source": "AUA Guidelines 2024"
+    }
+  ]
+}

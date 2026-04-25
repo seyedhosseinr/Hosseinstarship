@@ -1,0 +1,1496 @@
+[
+  {
+    "chapter": 1,
+    "volume": 1,
+    "part": "Clinical Decision Making",
+    "title": "Personal and Professional Development of the Urologist",
+    "start_page": 1,
+    "end_page": 7,
+    "included": false
+  },
+  {
+    "chapter": 2,
+    "volume": 1,
+    "part": "Clinical Decision Making",
+    "title": "Evaluation of the Urologic Patient: History and Physical Examination",
+    "start_page": 8,
+    "end_page": 23,
+    "included": true
+  },
+  {
+    "chapter": 3,
+    "volume": 1,
+    "part": "Clinical Decision Making",
+    "title": "Indications and Interpretation of Laboratory Testing",
+    "start_page": 24,
+    "end_page": 39,
+    "included": true
+  },
+  {
+    "chapter": 4,
+    "volume": 1,
+    "part": "Clinical Decision Making",
+    "title": "Urinary Tract Imaging: Basic Principles of Urologic Ultrasonography",
+    "start_page": 40,
+    "end_page": 65,
+    "included": true
+  },
+  {
+    "chapter": 5,
+    "volume": 1,
+    "part": "Clinical Decision Making",
+    "title": "Principles of CT and Radiographic Imaging",
+    "start_page": 66,
+    "end_page": 91,
+    "included": true
+  },
+  {
+    "chapter": 6,
+    "volume": 1,
+    "part": "Clinical Decision Making",
+    "title": "Magnetic Resonance Imaging",
+    "start_page": 92,
+    "end_page": 108,
+    "included": true
+  },
+  {
+    "chapter": 7,
+    "volume": 1,
+    "part": "Clinical Decision Making",
+    "title": "Genitourinary Tract Imaging: Basic Principles of Nuclear Medicine",
+    "start_page": 109,
+    "end_page": 119,
+    "included": true
+  },
+  {
+    "chapter": 8,
+    "volume": 1,
+    "part": "Clinical Decision Making",
+    "title": "Evaluation and Management of Hematuria",
+    "start_page": 120,
+    "end_page": 136,
+    "included": true
+  },
+  {
+    "chapter": 9,
+    "volume": 1,
+    "part": "Basics of Urologic Surgery",
+    "title": "Occupational Health in Urology",
+    "start_page": 137,
+    "end_page": 144,
+    "included": false
+  },
+  {
+    "chapter": 10,
+    "volume": 1,
+    "part": "Basics of Urologic Surgery",
+    "title": "Ethics and Informed Consent",
+    "start_page": 145,
+    "end_page": 149,
+    "included": false
+  },
+  {
+    "chapter": 11,
+    "volume": 1,
+    "part": "Basics of Urologic Surgery",
+    "title": "Perioperative Care in Urologic Surgery",
+    "start_page": 150,
+    "end_page": 166,
+    "included": true
+  },
+  {
+    "chapter": 12,
+    "volume": 1,
+    "part": "Basics of Urologic Surgery",
+    "title": "Fundamentals of Intraoperative Patient Safety",
+    "start_page": 167,
+    "end_page": 174,
+    "included": true
+  },
+  {
+    "chapter": 13,
+    "volume": 1,
+    "part": "Basics of Urologic Surgery",
+    "title": "Incisions, Exposure, and Drains",
+    "start_page": 175,
+    "end_page": 184,
+    "included": true
+  },
+  {
+    "chapter": 14,
+    "volume": 1,
+    "part": "Basics of Urologic Surgery",
+    "title": "Sutures and Suturing",
+    "start_page": 185,
+    "end_page": 190,
+    "included": true
+  },
+  {
+    "chapter": 15,
+    "volume": 1,
+    "part": "Basics of Urologic Surgery",
+    "title": "Lower Urinary Tract Catheterization",
+    "start_page": 191,
+    "end_page": 198,
+    "included": true
+  },
+  {
+    "chapter": 16,
+    "volume": 1,
+    "part": "Basics of Urologic Surgery",
+    "title": "Fundamentals of Upper Urinary Tract Drainage",
+    "start_page": 199,
+    "end_page": 214,
+    "included": true
+  },
+  {
+    "chapter": 17,
+    "volume": 1,
+    "part": "Basics of Urologic Surgery",
+    "title": "Principles of Urologic Endoscopy",
+    "start_page": 215,
+    "end_page": 228,
+    "included": true
+  },
+  {
+    "chapter": 18,
+    "volume": 1,
+    "part": "Basics of Urologic Surgery",
+    "title": "Fundamentals of Laparoscopic and Robotic Urologic Surgery",
+    "start_page": 229,
+    "end_page": 261,
+    "included": false
+  },
+  {
+    "chapter": 19,
+    "volume": 1,
+    "part": "Basics of Urologic Surgery",
+    "title": "Energy Modalities in Urology",
+    "start_page": 262,
+    "end_page": 282,
+    "included": false
+  },
+  {
+    "chapter": 20,
+    "volume": 1,
+    "part": "Basics of Urologic Surgery",
+    "title": "Complications of Urologic Surgery",
+    "start_page": 283,
+    "end_page": 306,
+    "included": true
+  },
+  {
+    "chapter": 21,
+    "volume": 1,
+    "part": "Basics of Urologic Surgery",
+    "title": "Urologic Considerations in Pregnancy",
+    "start_page": 307,
+    "end_page": 321,
+    "included": true
+  },
+  {
+    "chapter": 22,
+    "volume": 1,
+    "part": "Basics of Urologic Surgery",
+    "title": "Intraoperative Consultations",
+    "start_page": 322,
+    "end_page": 330,
+    "included": true
+  },
+  {
+    "chapter": 23,
+    "volume": 1,
+    "part": "Basics of Urologic Surgery",
+    "title": "Assessment of Urologic and Surgical Outcomes",
+    "start_page": 331,
+    "end_page": 345,
+    "included": false
+  },
+  {
+    "chapter": 24,
+    "volume": 1,
+    "part": "Molecular and Cellular Biology",
+    "title": "Basic Principles of Immunology and Immunotherapy in Urologic Oncology",
+    "start_page": 346,
+    "end_page": 359,
+    "included": false
+  },
+  {
+    "chapter": 25,
+    "volume": 1,
+    "part": "Molecular and Cellular Biology",
+    "title": "Molecular Genetics and Cancer Biology",
+    "start_page": 360,
+    "end_page": 387,
+    "included": true
+  },
+  {
+    "chapter": 26,
+    "volume": 1,
+    "part": "Infections and Inflammation",
+    "title": "Infections of the Urinary Tract",
+    "start_page": 388,
+    "end_page": 458,
+    "included": true
+  },
+  {
+    "chapter": 27,
+    "volume": 1,
+    "part": "Infections and Inflammation",
+    "title": "Inflammatory and Pain Conditions of the Lower Genitourinary Tract",
+    "start_page": 459,
+    "end_page": 479,
+    "included": true
+  },
+  {
+    "chapter": 28,
+    "volume": 1,
+    "part": "Infections and Inflammation",
+    "title": "Interstitial Cystitis/Bladder Pain Syndrome",
+    "start_page": 480,
+    "end_page": 510,
+    "included": true
+  },
+  {
+    "chapter": 29,
+    "volume": 1,
+    "part": "Infections and Inflammation",
+    "title": "Sexually Transmitted Diseases",
+    "start_page": 511,
+    "end_page": 529,
+    "included": true
+  },
+  {
+    "chapter": 30,
+    "volume": 1,
+    "part": "Infections and Inflammation",
+    "title": "Cutaneous Diseases of the External Genitalia",
+    "start_page": 530,
+    "end_page": 557,
+    "included": true
+  },
+  {
+    "chapter": 31,
+    "volume": 1,
+    "part": "Infections and Inflammation",
+    "title": "Tuberculosis and Parasitic Infections of the Genitourinary Tract",
+    "start_page": 558,
+    "end_page": 583,
+    "included": true
+  },
+  {
+    "chapter": 32,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Embryology of the Human Genitourinary Tract",
+    "start_page": 584,
+    "end_page": 617,
+    "included": true
+  },
+  {
+    "chapter": 33,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Urologic Aspects of Pediatric Nephrology",
+    "start_page": 618,
+    "end_page": 627,
+    "included": false
+  },
+  {
+    "chapter": 34,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Perinatal Urology",
+    "start_page": 628,
+    "end_page": 657,
+    "included": true
+  },
+  {
+    "chapter": 35,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Urologic Evaluation of the Child",
+    "start_page": 658,
+    "end_page": 671,
+    "included": true
+  },
+  {
+    "chapter": 36,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Pediatric Urogenital Imaging",
+    "start_page": 672,
+    "end_page": 695,
+    "included": true
+  },
+  {
+    "chapter": 37,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Infection and Inflammation of the Pediatric Genitourinary Tract",
+    "start_page": 696,
+    "end_page": 717,
+    "included": true
+  },
+  {
+    "chapter": 38,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Core Principles of Perioperative Management in Children",
+    "start_page": 718,
+    "end_page": 730,
+    "included": true
+  },
+  {
+    "chapter": 39,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Principles of Laparoscopic and Robotic Surgery in Children",
+    "start_page": 731,
+    "end_page": 743,
+    "included": false
+  },
+  {
+    "chapter": 40,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Clinical and Urodynamic Evaluation of Lower Urinary Tract Dysfunction in Children",
+    "start_page": 744,
+    "end_page": 759,
+    "included": true
+  },
+  {
+    "chapter": 41,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Management Strategies for Vesicoureteral Reflux",
+    "start_page": 760,
+    "end_page": 784,
+    "included": true
+  },
+  {
+    "chapter": 42,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Bladder Anomalies in Children",
+    "start_page": 785,
+    "end_page": 794,
+    "included": true
+  },
+  {
+    "chapter": 43,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Exstrophy-Epispadias Complex",
+    "start_page": 795,
+    "end_page": 854,
+    "included": true
+  },
+  {
+    "chapter": 44,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Prune-Belly Syndrome",
+    "start_page": 855,
+    "end_page": 876,
+    "included": true
+  },
+  {
+    "chapter": 45,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Posterior Urethral Valves",
+    "start_page": 877,
+    "end_page": 899,
+    "included": true
+  },
+  {
+    "chapter": 46,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Neuromuscular Dysfunction of the Lower Urinary Tract in Children",
+    "start_page": 900,
+    "end_page": 920,
+    "included": true
+  },
+  {
+    "chapter": 47,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Functional Disorders of the Bladder and Bowel in Children",
+    "start_page": 921,
+    "end_page": 940,
+    "included": true
+  },
+  {
+    "chapter": 48,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Lower Urinary Tract Reconstruction in Children",
+    "start_page": 941,
+    "end_page": 973,
+    "included": true
+  },
+  {
+    "chapter": 49,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Anomalies of the Kidney and Collecting System",
+    "start_page": 974,
+    "end_page": 1000,
+    "included": true
+  },
+  {
+    "chapter": 50,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Renal Dysgenesis and Cystic Disease of the Kidney",
+    "start_page": 1001,
+    "end_page": 1026,
+    "included": true
+  },
+  {
+    "chapter": 51,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Pathophysiology of Urinary Tract Obstruction",
+    "start_page": 1027,
+    "end_page": 1037,
+    "included": true
+  },
+  {
+    "chapter": 52,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Ectopic Ureter, Ureterocele, and Ureteral Anomalies",
+    "start_page": 1038,
+    "end_page": 1063,
+    "included": true
+  },
+  {
+    "chapter": 53,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Surgery of the Ureter in Children",
+    "start_page": 1064,
+    "end_page": 1090,
+    "included": true
+  },
+  {
+    "chapter": 54,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Management of Pediatric Kidney Stone Disease",
+    "start_page": 1091,
+    "end_page": 1106,
+    "included": true
+  },
+  {
+    "chapter": 55,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Management of Abnormalities of the External Genitalia in Males",
+    "start_page": 1107,
+    "end_page": 1140,
+    "included": true
+  },
+  {
+    "chapter": 56,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Hypospadias",
+    "start_page": 1141,
+    "end_page": 1185,
+    "included": true
+  },
+  {
+    "chapter": 57,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Undescended Testis",
+    "start_page": 1186,
+    "end_page": 1210,
+    "included": true
+  },
+  {
+    "chapter": 58,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Management of Abnormalities of the Genitalia in Girls",
+    "start_page": 1211,
+    "end_page": 1229,
+    "included": true
+  },
+  {
+    "chapter": 59,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Differences of Sexual Development",
+    "start_page": 1230,
+    "end_page": 1253,
+    "included": true
+  },
+  {
+    "chapter": 60,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Surgical Management of Differences of Sexual Differentiation",
+    "start_page": 1254,
+    "end_page": 1278,
+    "included": false
+  },
+  {
+    "chapter": 61,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Pediatric Renal Transplantation",
+    "start_page": 1279,
+    "end_page": 1288,
+    "included": false
+  },
+  {
+    "chapter": 62,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Pediatric Genitourinary Trauma",
+    "start_page": 1289,
+    "end_page": 1310,
+    "included": true
+  },
+  {
+    "chapter": 63,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Pediatric Urologic Oncology: Renal and Adrenal",
+    "start_page": 1311,
+    "end_page": 1332,
+    "included": true
+  },
+  {
+    "chapter": 64,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Pediatric Urologic Oncology: Pelvis, Bladder, Testis",
+    "start_page": 1333,
+    "end_page": 1347,
+    "included": true
+  },
+  {
+    "chapter": 65,
+    "volume": 1,
+    "part": "Pediatric Urology",
+    "title": "Adolescent and Transitional Urology",
+    "start_page": 1348,
+    "end_page": 1364,
+    "included": false
+  },
+  {
+    "chapter": 66,
+    "volume": 2,
+    "part": "Reproductive and Sexual Function",
+    "title": "Surgical, Radiographic, and Endoscopic Anatomy of the Male Reproductive System",
+    "start_page": 1365,
+    "end_page": 1387,
+    "included": true
+  },
+  {
+    "chapter": 67,
+    "volume": 2,
+    "part": "Reproductive and Sexual Function",
+    "title": "Male Reproductive Physiology",
+    "start_page": 1388,
+    "end_page": 1408,
+    "included": true
+  },
+  {
+    "chapter": 68,
+    "volume": 2,
+    "part": "Reproductive and Sexual Function",
+    "title": "Integrated Men's Health",
+    "start_page": 1409,
+    "end_page": 1417,
+    "included": true
+  },
+  {
+    "chapter": 69,
+    "volume": 2,
+    "part": "Reproductive and Sexual Function",
+    "title": "Male Infertility",
+    "start_page": 1418,
+    "end_page": 1436,
+    "included": true
+  },
+  {
+    "chapter": 70,
+    "volume": 2,
+    "part": "Reproductive and Sexual Function",
+    "title": "Surgical Management of Male Infertility",
+    "start_page": 1437,
+    "end_page": 1469,
+    "included": true
+  },
+  {
+    "chapter": 71,
+    "volume": 2,
+    "part": "Reproductive and Sexual Function",
+    "title": "Physiology of Penile Erection",
+    "start_page": 1470,
+    "end_page": 1496,
+    "included": true
+  },
+  {
+    "chapter": 72,
+    "volume": 2,
+    "part": "Reproductive and Sexual Function",
+    "title": "Evaluation and Management of Erectile Dysfunction",
+    "start_page": 1497,
+    "end_page": 1522,
+    "included": true
+  },
+  {
+    "chapter": 73,
+    "volume": 2,
+    "part": "Reproductive and Sexual Function",
+    "title": "Priapism",
+    "start_page": 1523,
+    "end_page": 1540,
+    "included": true
+  },
+  {
+    "chapter": 74,
+    "volume": 2,
+    "part": "Reproductive and Sexual Function",
+    "title": "Disorders of Male Orgasm and Ejaculation",
+    "start_page": 1541,
+    "end_page": 1560,
+    "included": true
+  },
+  {
+    "chapter": 75,
+    "volume": 2,
+    "part": "Reproductive and Sexual Function",
+    "title": "Surgery for Erectile Dysfunction",
+    "start_page": 1561,
+    "end_page": 1578,
+    "included": true
+  },
+  {
+    "chapter": 76,
+    "volume": 2,
+    "part": "Reproductive and Sexual Function",
+    "title": "Diagnosis and Management of Peyronie Disease",
+    "start_page": 1579,
+    "end_page": 1601,
+    "included": true
+  },
+  {
+    "chapter": 77,
+    "volume": 2,
+    "part": "Reproductive and Sexual Function",
+    "title": "Sexual Function and Dysfunction in the Female",
+    "start_page": 1602,
+    "end_page": 1633,
+    "included": true
+  },
+  {
+    "chapter": 78,
+    "volume": 2,
+    "part": "Male Genitalia",
+    "title": "Surgical Anatomy of the Retroperitoneum",
+    "start_page": 1634,
+    "end_page": 1657,
+    "included": true
+  },
+  {
+    "chapter": 79,
+    "volume": 2,
+    "part": "Male Genitalia",
+    "title": "Neoplasms of the Testis",
+    "start_page": 1658,
+    "end_page": 1682,
+    "included": true
+  },
+  {
+    "chapter": 80,
+    "volume": 2,
+    "part": "Male Genitalia",
+    "title": "Surgery of Testicular Tumors",
+    "start_page": 1683,
+    "end_page": 1705,
+    "included": true
+  },
+  {
+    "chapter": 81,
+    "volume": 2,
+    "part": "Male Genitalia",
+    "title": "Minimally Invasive Retroperitoneal Lymph Node Dissection",
+    "start_page": 1706,
+    "end_page": 1714,
+    "included": false
+  },
+  {
+    "chapter": 82,
+    "volume": 2,
+    "part": "Male Genitalia",
+    "title": "Tumors of the Penis",
+    "start_page": 1715,
+    "end_page": 1748,
+    "included": true
+  },
+  {
+    "chapter": 83,
+    "volume": 2,
+    "part": "Male Genitalia",
+    "title": "Tumors of the Urethra",
+    "start_page": 1749,
+    "end_page": 1763,
+    "included": true
+  },
+  {
+    "chapter": 84,
+    "volume": 2,
+    "part": "Male Genitalia",
+    "title": "Inguinal Node Dissection",
+    "start_page": 1764,
+    "end_page": 1773,
+    "included": false
+  },
+  {
+    "chapter": 85,
+    "volume": 2,
+    "part": "Male Genitalia",
+    "title": "Benign Disorders of the Penis and Urethra",
+    "start_page": 1774,
+    "end_page": 1793,
+    "included": true
+  },
+  {
+    "chapter": 86,
+    "volume": 2,
+    "part": "Male Genitalia",
+    "title": "Urethral Stricture Disease",
+    "start_page": 1794,
+    "end_page": 1816,
+    "included": true
+  },
+  {
+    "chapter": 87,
+    "volume": 2,
+    "part": "Male Genitalia",
+    "title": "Surgery of the Scrotum and Seminal Vesicles",
+    "start_page": 1817,
+    "end_page": 1837,
+    "included": true
+  },
+  {
+    "chapter": 88,
+    "volume": 2,
+    "part": "Renal Physiology and Pathophysiology",
+    "title": "Surgical, Radiologic, and Endoscopic Anatomy of the Kidney and Ureter",
+    "start_page": 1838,
+    "end_page": 1853,
+    "included": true
+  },
+  {
+    "chapter": 89,
+    "volume": 2,
+    "part": "Renal Physiology and Pathophysiology",
+    "title": "Physiology and Pharmacology of the Renal Pelvis and Ureter",
+    "start_page": 1854,
+    "end_page": 1882,
+    "included": true
+  },
+  {
+    "chapter": 90,
+    "volume": 2,
+    "part": "Renal Physiology and Pathophysiology",
+    "title": "Fundamentals of Nephrology",
+    "start_page": 1883,
+    "end_page": 1895,
+    "included": true
+  },
+  {
+    "chapter": 91,
+    "volume": 2,
+    "part": "Renal Physiology and Pathophysiology",
+    "title": "Renal Transplantation",
+    "start_page": 1896,
+    "end_page": 1902,
+    "included": false
+  },
+  {
+    "chapter": 92,
+    "volume": 2,
+    "part": "Renal Physiology and Pathophysiology",
+    "title": "Urologic Complications of Renal Transplantation",
+    "start_page": 1903,
+    "end_page": 1941,
+    "included": true
+  },
+  {
+    "chapter": 93,
+    "volume": 2,
+    "part": "Upper Urinary Tract Obstruction and Trauma",
+    "title": "Management of Upper Urinary Tract Obstruction",
+    "start_page": 1942,
+    "end_page": 1971,
+    "included": false
+  },
+  {
+    "chapter": 94,
+    "volume": 2,
+    "part": "Upper Urinary Tract Obstruction and Trauma",
+    "title": "Upper Urinary Tract Trauma",
+    "start_page": 1972,
+    "end_page": 2003,
+    "included": true
+  },
+  {
+    "chapter": 95,
+    "volume": 2,
+    "part": "Urinary Lithiasis and Endourology",
+    "title": "Urinary Lithiasis: Etiology, Epidemiology, and Pathogenesis",
+    "start_page": 2004,
+    "end_page": 2010,
+    "included": true
+  },
+  {
+    "chapter": 96,
+    "volume": 2,
+    "part": "Urinary Lithiasis and Endourology",
+    "title": "Acute Care of Urinary Lithiasis",
+    "start_page": 2011,
+    "end_page": 2026,
+    "included": true
+  },
+  {
+    "chapter": 97,
+    "volume": 2,
+    "part": "Urinary Lithiasis and Endourology",
+    "title": "Surgical Management of Ureteral Calculi",
+    "start_page": 2027,
+    "end_page": 2048,
+    "included": true
+  },
+  {
+    "chapter": 98,
+    "volume": 2,
+    "part": "Urinary Lithiasis and Endourology",
+    "title": "Surgical Management of Upper Urinary Tract Calculi",
+    "start_page": 2049,
+    "end_page": 2058,
+    "included": true
+  },
+  {
+    "chapter": 99,
+    "volume": 2,
+    "part": "Urinary Lithiasis and Endourology",
+    "title": "Prevention of Urinary Stone Disease",
+    "start_page": 2059,
+    "end_page": 2066,
+    "included": true
+  },
+  {
+    "chapter": 100,
+    "volume": 2,
+    "part": "Urinary Lithiasis and Endourology",
+    "title": "Lower Urinary Tract Calculi",
+    "start_page": 2067,
+    "end_page": 2083,
+    "included": true
+  },
+  {
+    "chapter": 101,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Surgical, Radiographic, and Endoscopic Anatomy of the Female Pelvis",
+    "start_page": 2084,
+    "end_page": 2103,
+    "included": true
+  },
+  {
+    "chapter": 102,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Surgical, Radiographic, and Endoscopic Anatomy of the Male Pelvis",
+    "start_page": 2104,
+    "end_page": 2156,
+    "included": true
+  },
+  {
+    "chapter": 103,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Physiology and Pharmacology of the Bladder and Urethra",
+    "start_page": 2157,
+    "end_page": 2165,
+    "included": true
+  },
+  {
+    "chapter": 104,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Pathophysiology and Classification of Lower Urinary Tract Dysfunction",
+    "start_page": 2166,
+    "end_page": 2179,
+    "included": true
+  },
+  {
+    "chapter": 105,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Evaluation and Management of Women With Urinary Incontinence and Pelvic Organ Prolapse",
+    "start_page": 2180,
+    "end_page": 2191,
+    "included": true
+  },
+  {
+    "chapter": 106,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Evaluation and Management of Males With Urinary Incontinence",
+    "start_page": 2192,
+    "end_page": 2217,
+    "included": true
+  },
+  {
+    "chapter": 107,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Urodynamic and Videourodynamic Evaluation of the Lower Urinary Tract",
+    "start_page": 2218,
+    "end_page": 2237,
+    "included": true
+  },
+  {
+    "chapter": 108,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Urinary Incontinence and Pelvic Prolapse: Epidemiology and Pathophysiology",
+    "start_page": 2238,
+    "end_page": 2275,
+    "included": true
+  },
+  {
+    "chapter": 109,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Neuromuscular Dysfunction of the Lower Urinary Tract",
+    "start_page": 2276,
+    "end_page": 2289,
+    "included": true
+  },
+  {
+    "chapter": 110,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Overactive Bladder",
+    "start_page": 2290,
+    "end_page": 2303,
+    "included": true
+  },
+  {
+    "chapter": 111,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Underactive Detrusor",
+    "start_page": 2304,
+    "end_page": 2336,
+    "included": true
+  },
+  {
+    "chapter": 112,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Nocturia",
+    "start_page": 2337,
+    "end_page": 2372,
+    "included": true
+  },
+  {
+    "chapter": 113,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Pharmacologic Management of Lower Urinary Tract Storage and Emptying Failure",
+    "start_page": 2373,
+    "end_page": 2403,
+    "included": true
+  },
+  {
+    "chapter": 114,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Conservative Management of Urinary Incontinence",
+    "start_page": 2404,
+    "end_page": 2415,
+    "included": true
+  },
+  {
+    "chapter": 115,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Electrical Stimulation and Neuromodulation in Storage and Emptying Failure",
+    "start_page": 2416,
+    "end_page": 2425,
+    "included": false
+  },
+  {
+    "chapter": 116,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Retropubic Suspension Surgery for Incontinence in Females",
+    "start_page": 2426,
+    "end_page": 2459,
+    "included": true
+  },
+  {
+    "chapter": 117,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Vaginal and Abdominal Reconstructive Surgery for Pelvic Organ Prolapse",
+    "start_page": 2460,
+    "end_page": 2489,
+    "included": true
+  },
+  {
+    "chapter": 118,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Slings: Autologous, Biologic, Synthetic, and Mid-Urethral",
+    "start_page": 2490,
+    "end_page": 2502,
+    "included": true
+  },
+  {
+    "chapter": 119,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Genitourinary Complications of Mesh and Their Repair",
+    "start_page": 2503,
+    "end_page": 2514,
+    "included": true
+  },
+  {
+    "chapter": 120,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Aging and Geriatric Urology",
+    "start_page": 2515,
+    "end_page": 2554,
+    "included": true
+  },
+  {
+    "chapter": 121,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Urinary Tract Fistulae",
+    "start_page": 2555,
+    "end_page": 2583,
+    "included": true
+  },
+  {
+    "chapter": 122,
+    "volume": 2,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Bladder and Female Urethral Diverticula",
+    "start_page": 2584,
+    "end_page": 2600,
+    "included": true
+  },
+  {
+    "chapter": 123,
+    "volume": 3,
+    "part": "Urine Transport, Storage, and Emptying",
+    "title": "Surgical Procedures for Sphincteric Incontinence in the Male",
+    "start_page": 2601,
+    "end_page": 2641,
+    "included": true
+  },
+  {
+    "chapter": 124,
+    "volume": 3,
+    "part": "Benign and Malignant Bladder Disorders",
+    "title": "Bladder Surgery for Benign Disease",
+    "start_page": 2642,
+    "end_page": 2654,
+    "included": true
+  },
+  {
+    "chapter": 125,
+    "volume": 3,
+    "part": "Benign and Malignant Bladder Disorders",
+    "title": "Genital and Lower Urinary Tract Trauma",
+    "start_page": 2655,
+    "end_page": 2663,
+    "included": true
+  },
+  {
+    "chapter": 126,
+    "volume": 3,
+    "part": "Benign and Malignant Bladder Disorders",
+    "title": "Management and Considerations in Transgender and Nonbinary Individuals",
+    "start_page": 2664,
+    "end_page": 2676,
+    "included": false
+  },
+  {
+    "chapter": 127,
+    "volume": 3,
+    "part": "Benign and Malignant Bladder Disorders",
+    "title": "Male-to-Female Gender-Affirming Surgery: Vaginoplasty",
+    "start_page": 2677,
+    "end_page": 2686,
+    "included": false
+  },
+  {
+    "chapter": 128,
+    "volume": 3,
+    "part": "Benign and Malignant Bladder Disorders",
+    "title": "Special Urologic Considerations in Transmasculine Individuals",
+    "start_page": 2687,
+    "end_page": 2706,
+    "included": true
+  },
+  {
+    "chapter": 129,
+    "volume": 3,
+    "part": "Benign and Malignant Bladder Disorders",
+    "title": "Tumors of the Urinary Bladder",
+    "start_page": 2707,
+    "end_page": 2729,
+    "included": true
+  },
+  {
+    "chapter": 130,
+    "volume": 3,
+    "part": "Benign and Malignant Bladder Disorders",
+    "title": "Management Strategies for Non–Muscle-Invasive Bladder Cancer",
+    "start_page": 2730,
+    "end_page": 2755,
+    "included": true
+  },
+  {
+    "chapter": 131,
+    "volume": 3,
+    "part": "Benign and Malignant Bladder Disorders",
+    "title": "Management of Muscle-Invasive and Metastatic Bladder Cancer",
+    "start_page": 2756,
+    "end_page": 2783,
+    "included": true
+  },
+  {
+    "chapter": 132,
+    "volume": 3,
+    "part": "Benign and Malignant Bladder Disorders",
+    "title": "Surgical Management of Bladder Cancer",
+    "start_page": 2784,
+    "end_page": 2811,
+    "included": true
+  },
+  {
+    "chapter": 133,
+    "volume": 3,
+    "part": "Benign and Malignant Bladder Disorders",
+    "title": "Use of Intestinal Segments in Urinary Diversion",
+    "start_page": 2812,
+    "end_page": 2842,
+    "included": true
+  },
+  {
+    "chapter": 134,
+    "volume": 3,
+    "part": "Benign and Malignant Bladder Disorders",
+    "title": "Continent Urinary Diversion",
+    "start_page": 2843,
+    "end_page": 2859,
+    "included": true
+  },
+  {
+    "chapter": 135,
+    "volume": 3,
+    "part": "Benign and Malignant Bladder Disorders",
+    "title": "Minimally Invasive Urinary Diversion",
+    "start_page": 2860,
+    "end_page": 2871,
+    "included": true
+  },
+  {
+    "chapter": 136,
+    "volume": 3,
+    "part": "Neoplasms of the Upper Urinary Tract",
+    "title": "Benign Renal Tumors",
+    "start_page": 2872,
+    "end_page": 2923,
+    "included": true
+  },
+  {
+    "chapter": 137,
+    "volume": 3,
+    "part": "Neoplasms of the Upper Urinary Tract",
+    "title": "Malignant Renal Tumors",
+    "start_page": 2924,
+    "end_page": 2939,
+    "included": true
+  },
+  {
+    "chapter": 138,
+    "volume": 3,
+    "part": "Neoplasms of the Upper Urinary Tract",
+    "title": "Urothelial Tumors of the Upper Urinary Tract and Ureter",
+    "start_page": 2940,
+    "end_page": 2967,
+    "included": false
+  },
+  {
+    "chapter": 139,
+    "volume": 3,
+    "part": "Neoplasms of the Upper Urinary Tract",
+    "title": "Surgical Management of Upper Urinary Tract Urothelial Tumors",
+    "start_page": 2968,
+    "end_page": 2989,
+    "included": true
+  },
+  {
+    "chapter": 140,
+    "volume": 3,
+    "part": "Neoplasms of the Upper Urinary Tract",
+    "title": "Retroperitoneal Tumors",
+    "start_page": 2990,
+    "end_page": 3026,
+    "included": true
+  },
+  {
+    "chapter": 141,
+    "volume": 3,
+    "part": "Neoplasms of the Upper Urinary Tract",
+    "title": "Contemporary Open Surgery of the Kidney",
+    "start_page": 3027,
+    "end_page": 3058,
+    "included": true
+  },
+  {
+    "chapter": 142,
+    "volume": 3,
+    "part": "Neoplasms of the Upper Urinary Tract",
+    "title": "Laparoscopic and Robotic Surgery of the Kidney",
+    "start_page": 3059,
+    "end_page": 3077,
+    "included": false
+  },
+  {
+    "chapter": 143,
+    "volume": 3,
+    "part": "Neoplasms of the Upper Urinary Tract",
+    "title": "Focal Therapy for Renal Tumors",
+    "start_page": 3078,
+    "end_page": 3101,
+    "included": false
+  },
+  {
+    "chapter": 144,
+    "volume": 3,
+    "part": "Neoplasms of the Upper Urinary Tract",
+    "title": "Treatment of Advanced Renal Cell Carcinoma",
+    "start_page": 3102,
+    "end_page": 3110,
+    "included": true
+  },
+  {
+    "chapter": 145,
+    "volume": 3,
+    "part": "The Adrenals",
+    "title": "Surgical and Radiographic Anatomy of the Adrenals",
+    "start_page": 3111,
+    "end_page": 3160,
+    "included": true
+  },
+  {
+    "chapter": 146,
+    "volume": 3,
+    "part": "The Adrenals",
+    "title": "Pathophysiology, Evaluation, and Medical Management of Adrenal Disorders",
+    "start_page": 3111,
+    "end_page": 3160,
+    "included": true
+  },
+  {
+    "chapter": 147,
+    "volume": 3,
+    "part": "The Adrenals",
+    "title": "Surgery of the Adrenal Glands",
+    "start_page": 3161,
+    "end_page": 3171,
+    "included": true
+  },
+  {
+    "chapter": 148,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Anatomy and Development of the Prostate",
+    "start_page": 3172,
+    "end_page": 3179,
+    "included": true
+  },
+  {
+    "chapter": 149,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Benign Prostatic Hyperplasia",
+    "start_page": 3180,
+    "end_page": 3220,
+    "included": true
+  },
+  {
+    "chapter": 150,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Evaluation and Nonsurgical Management of Benign Prostatic Hyperplasia",
+    "start_page": 3221,
+    "end_page": 3282,
+    "included": true
+  },
+  {
+    "chapter": 151,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Minimally Invasive and Endoscopic Management of Benign Prostatic Hyperplasia",
+    "start_page": 3283,
+    "end_page": 3317,
+    "included": true
+  },
+  {
+    "chapter": 152,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Simple Prostatectomy",
+    "start_page": 3318,
+    "end_page": 3333,
+    "included": true
+  },
+  {
+    "chapter": 153,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Epidemiology, Etiology, and Prevention of Prostate Cancer",
+    "start_page": 3334,
+    "end_page": 3352,
+    "included": true
+  },
+  {
+    "chapter": 154,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Prostate Cancer Biomarkers",
+    "start_page": 3353,
+    "end_page": 3363,
+    "included": true
+  },
+  {
+    "chapter": 155,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Prostate Biopsy: Techniques and Imaging",
+    "start_page": 3364,
+    "end_page": 3381,
+    "included": true
+  },
+  {
+    "chapter": 156,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Pathology of Prostatic Neoplasia",
+    "start_page": 3382,
+    "end_page": 3389,
+    "included": true
+  },
+  {
+    "chapter": 157,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Diagnosis and Staging of Prostate Cancer",
+    "start_page": 3390,
+    "end_page": 3397,
+    "included": true
+  },
+  {
+    "chapter": 158,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Active Management Strategies for Localized Prostate Cancer",
+    "start_page": 3398,
+    "end_page": 3416,
+    "included": true
+  },
+  {
+    "chapter": 159,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Active Surveillance of Prostate Cancer",
+    "start_page": 3417,
+    "end_page": 3430,
+    "included": true
+  },
+  {
+    "chapter": 160,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Open Radical Prostatectomy",
+    "start_page": 3431,
+    "end_page": 3448,
+    "included": true
+  },
+  {
+    "chapter": 161,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Laparoscopic and Robotic-Assisted Radical Prostatectomy",
+    "start_page": 3449,
+    "end_page": 3473,
+    "included": false
+  },
+  {
+    "chapter": 162,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Radiation Therapy for Prostate Cancer",
+    "start_page": 3474,
+    "end_page": 3504,
+    "included": true
+  },
+  {
+    "chapter": 163,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Focal Therapy of Prostate Cancer",
+    "start_page": 3505,
+    "end_page": 3542,
+    "included": true
+  },
+  {
+    "chapter": 164,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Treatment of Locally Advanced Prostate Cancer",
+    "start_page": 3543,
+    "end_page": 3561,
+    "included": true
+  },
+  {
+    "chapter": 165,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Management of Recurrent and Newly Metastatic Prostate Cancer",
+    "start_page": 3562,
+    "end_page": 3587,
+    "included": true
+  },
+  {
+    "chapter": 166,
+    "volume": 3,
+    "part": "The Prostate",
+    "title": "Management of Castration-Resistant Prostate Cancer",
+    "start_page": 3588,
+    "end_page": 3612,
+    "included": true
+  }
+]

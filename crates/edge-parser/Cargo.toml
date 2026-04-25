@@ -1,0 +1,131 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# crates/edge-parser/Cargo.toml
+# ─────────────────────────────────────────────────────────────────────────────
+# WHY RUST/WASM FOR PARSING?
+#
+# The main-thread JS parser blocks rendering during large imports (5 000+
+# questions). Moving parsing to a WASM module running inside a Web Worker
+# gives us:
+#   1. Off-main-thread CPU: zero UI jank regardless of file size.
+#   2. Near-native throughput: Rust's zero-cost abstractions and LLVM backend
+#      produce code that is 5-20× faster than equivalent JS for parsing-heavy
+#      workloads.
+#   3. Memory safety: Rust's ownership model prevents the buffer overflows and
+#      use-after-free bugs that can silently corrupt import data in C/C++.
+#   4. Streaming-friendly: the `parse_chunk` API accepts arbitrarily-sized
+#      Uint8Array slices so the Worker can feed the WASM module one ReadableStream
+#      chunk at a time without buffering the entire file in memory.
+#
+# BUILD COMMANDS
+# ──────────────
+#   # Install the WASM target once:
+#   rustup target add wasm32-unknown-unknown
+#
+#   # Install wasm-bindgen CLI (must match the dep version below):
+#   cargo install wasm-bindgen-cli --version 0.2.92
+#
+#   # Install wasm-pack (recommended wrapper):
+#   cargo install wasm-pack
+#
+#   # Build (outputs to pkg/ at workspace root):
+#   wasm-pack build --target bundler --out-dir ../../public/wasm/edge-parser
+#
+#   # The bundler target emits ES modules + TypeScript .d.ts declarations
+#   # that Next.js/webpack/Turbopack can import directly.
+# ─────────────────────────────────────────────────────────────────────────────
+
+[package]
+name    = "edge-parser"
+version = "0.1.0"
+edition = "2021"
+# Minimum supported Rust version — keep this honest; CI should enforce it.
+rust-version = "1.76"
+description  = "Zero-latency streaming parser for URO-OMEGA V3 import pipeline"
+license      = "MIT"
+
+# ─── Library type ────────────────────────────────────────────────────────────
+[lib]
+# cdylib  → produces the .wasm binary for browser consumption.
+# rlib    → produces a native Rust library for unit tests (cargo test runs on
+#           the host, not in WASM, so we need both).
+crate-type = ["cdylib", "rlib"]
+
+# ─── Dependencies ─────────────────────────────────────────────────────────────
+[dependencies]
+
+# wasm-bindgen (0.2.92)
+# ──────────────────────
+# Generates the JS glue code (TypeScript declarations + runtime bridge) that
+# lets our #[wasm_bindgen] exported functions be called as ordinary JS functions.
+# Pin to an exact minor to avoid breaking changes in generated glue code.
+wasm-bindgen = "0.2.92"
+
+# js-sys (0.3.69)
+# ────────────────
+# Rust bindings for the JavaScript standard library (Uint8Array, console, etc.).
+# Needed to accept Uint8Array parameters without copying into a Vec<u8> — we
+# use js_sys::Uint8Array::to_vec() only when we must own the bytes; for read-
+# only parsing we borrow via unsafe_view.
+js-sys = "0.3.69"
+
+# serde + serde_json
+# ───────────────────
+# serde: the de-facto Rust serialization framework. The `derive` feature
+#        generates Serialize/Deserialize impls for our record structs at
+#        compile time — zero runtime overhead.
+# serde_json: JSON serialization. We serialize ParsedRecord → JsValue via
+#             serde_json::to_string + JsValue::from_str rather than using
+#             serde-wasm-bindgen to avoid pulling in the extra dependency.
+serde      = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+# ^ default-features = false + features = ["alloc"] disables std I/O and floats
+#   parsing we don't need, trimming ~15 KB from the WASM binary.
+
+# console_error_panic_hook (optional)
+# ─────────────────────────────────────
+# Redirects Rust panics to console.error() with a stack trace instead of the
+# opaque "unreachable" WASM trap. Invaluable during development. Stripped in
+# release builds via the feature flag below.
+console_error_panic_hook = { version = "0.1.7", optional = true }
+
+# ─── Features ─────────────────────────────────────────────────────────────────
+[features]
+# Enable panic hook by default so `cargo test` and `wasm-pack build --dev`
+# give readable errors. The release profile below sets opt-level = "z" and
+# lto = true, which dead-code-eliminates the hook since it's never called in
+# normal operation, effectively making it free in production.
+default = ["console_error_panic_hook"]
+
+# ─── Release profile ──────────────────────────────────────────────────────────
+[profile.release]
+# opt-level = "z"  → optimize for binary SIZE (not speed). Produces the
+#                    smallest .wasm file. Use "s" if you need a speed/size
+#                    balance; use "3" for maximum throughput benchmarks.
+opt-level     = "z"
+
+# lto = true       → Link-Time Optimization merges all compilation units
+#                    before optimization, allowing the compiler to inline
+#                    across crate boundaries and eliminate dead code from
+#                    transitive dependencies. Typically saves 20-40% on WASM.
+lto           = true
+
+# codegen-units = 1 → disables parallel code generation so the entire crate
+#                     is optimized as a single unit. Required for maximum LTO
+#                     effectiveness. Slows compile time; acceptable for release.
+codegen-units = 1
+
+# panic = "abort"  → When a panic occurs, abort immediately instead of
+#                    unwinding the stack. Unwinding code adds ~5-10 KB to
+#                    the WASM binary and is useless in a browser context where
+#                    we catch the WASM trap on the JS side anyway.
+panic         = "abort"
+
+# strip = true     → Remove debug symbols from the final binary.
+#                    Saves another 5-15% in most builds.
+strip         = true
+
+# ─── Dev profile ──────────────────────────────────────────────────────────────
+[profile.dev]
+# Keep debug info for source-mapped WASM debugging in browser DevTools.
+# The panic hook (feature = "console_error_panic_hook") is active here.
+debug = true

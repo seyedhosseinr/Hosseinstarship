@@ -1,0 +1,9 @@
+{
+  "name": "uro-killer",
+  "version": "2.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "cd apps/web && npx next dev",
+    "build": "cd apps/web && npx next build"
+  }
+}

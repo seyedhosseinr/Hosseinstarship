@@ -1,0 +1,518 @@
+@import "../styles/medical-typography.css";
+@import "../styles/clinical-tokens.css";
+@import "../styles/lib-tokens.css";
+@import "../styles/reader-2027.css";
+@import "../styles/reader-fullscreen.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Hossein Starship – Global Styles
+  ---------------------------------------------------------------------------
+  iPad-first. AMBOSS-grade typography, touch targets, dark mode.
+  CSS variables consumed by shadcn/ui + Tailwind.
+*/
+
+@layer base {
+  /* ── Light palette (AMBOSS design system) ─────────────
+       Source: @amboss/design-system 3.40.6
+       brand.regular #0AA6B8 · brand.dark01 #047A88
+       brand.dark02 #054F57 · brand.light01 #85D3DC
+       brand.light03 #E7F6F8 · neutral.black #1A1C1C
+     ───────────────────────────────────────────────────── */
+  :root {
+    /* ── AMBOSS Brand ──────────────────────────────── */
+    --brand-primary:        186 90% 38%;   /* #0AA6B8 */
+    --brand-primary-dark:   186 94% 27%;   /* #047A88 */
+    --brand-primary-light:  186 55% 69%;   /* #85D3DC */
+    --brand-deep:           186 89% 18%;   /* #054F57 */
+    --brand-tint:           187 55% 94%;   /* #E7F6F8 */
+
+    /* ── Surfaces ──────────────────────────────────── */
+    --background:           210 25% 97%;   /* #F5F7F9 */
+    --foreground:           180 4% 11%;    /* #1A1C1C */
+    --surface:              0 0% 100%;     /* #FFFFFF */
+    --surface-2:            210 25% 97%;   /* #F5F7F9 */
+
+    --card:                 0 0% 100%;
+    --card-foreground:      180 4% 11%;
+    --popover:              0 0% 100%;
+    --popover-foreground:   180 4% 11%;
+
+    /* ── Primary (= brand.regular) ─────────────────── */
+    --primary:              186 90% 38%;   /* #0AA6B8 */
+    --primary-foreground:   0 0% 100%;
+
+    /* ── Secondary ─────────────────────────────────── */
+    --secondary:            210 25% 97%;   /* #F5F7F9 */
+    --secondary-foreground: 206 19% 31%;   /* #40515E */
+
+    /* ── Muted ─────────────────────────────────────── */
+    --muted:                210 25% 97%;   /* #F5F7F9 */
+    --muted-foreground:     206 19% 43%;   /* #5A7183 */
+
+    /* ── Accent (brand-tint bg, deep-brand text) ───── */
+    --accent:               187 55% 94%;   /* #E7F6F8 */
+    --accent-foreground:    186 89% 18%;   /* #054F57 */
+
+    /* ── Semantic ──────────────────────────────────── */
+    --destructive:          0 72% 51%;     /* #DC2626 */
+    --destructive-foreground: 0 0% 100%;
+    --success:              142 71% 45%;   /* #16A34A */
+    --success-foreground:   0 0% 100%;
+    --warning:              36 92% 50%;    /* #F59E0B */
+    --warning-foreground:   0 0% 100%;
+    --info:                 199 89% 48%;   /* #0EA5E9 */
+    --info-foreground:      0 0% 100%;
+    --danger:               0 72% 51%;     /* #DC2626 */
+    --danger-foreground:    0 0% 100%;
+
+    /* ── Borders / input / ring ────────────────────── */
+    --border:               207 22% 90%;   /* #E0E6EB */
+    --input:                207 22% 90%;
+    --ring:                 186 90% 38%;
+
+    /* ── Text (standalone tokens) ──────────────────── */
+    --text:                 180 4% 11%;    /* #1A1C1C */
+    --text-muted:           206 19% 43%;   /* #5A7183 */
+
+    /* ── Sidebar ───────────────────────────────────── */
+    --sidebar-bg:           210 25% 97%;
+    --sidebar-fg:           180 4% 11%;
+    --sidebar-active:       186 90% 38%;
+    --sidebar-hover:        210 20% 95%;
+
+    --radius: 14px;
+
+    /* ── Reader tokens ─────────────────────────────── */
+    --reader-bg:            0 0% 100%;
+    --reader-fg:            180 4% 11%;
+    --reader-muted:         206 19% 43%;
+    --reader-border:        207 22% 92%;
+    --reader-highlight:     48 96% 89%;
+    --reader-underline:     199 89% 48%;
+    --reader-comment:       142 71% 92%;
+  }
+
+  /* ── Dark palette (AMBOSS night mode) ─────────────────
+       Neutral cool-gray blacks, not teal-black.
+       night-black palette: #1A1C1C → #24282D → #282C34
+       Brand lifted to #2DB5C6 for AA contrast on dark.
+     ───────────────────────────────────────────────────── */
+  .dark {
+    /* ── Brand (lifted for dark contrast) ──────────── */
+    --brand-primary:        187 63% 48%;   /* #2DB5C6 */
+    --brand-primary-dark:   187 59% 28%;   /* #1D6670 */
+    --brand-primary-light:  186 72% 71%;   /* #80DFEA */
+    --brand-deep:           194 33% 20%;   /* #223C44 */
+    --brand-tint:           194 33% 20%;   /* #223C44 (subtle) */
+
+    /* ── Surfaces ──────────────────────────────────── */
+    --background:           180 4% 11%;    /* #1A1C1C */
+    --foreground:           217 9% 82%;    /* #CED1D6 */
+    --surface:              213 11% 16%;   /* #24282D */
+    --surface-2:            220 13% 18%;   /* #282C34 */
+
+    --card:                 213 11% 16%;   /* #24282D */
+    --card-foreground:      217 9% 82%;
+    --popover:              213 11% 16%;
+    --popover-foreground:   217 9% 82%;
+
+    /* ── Primary ───────────────────────────────────── */
+    --primary:              187 63% 48%;   /* #2DB5C6 */
+    --primary-foreground:   0 0% 100%;
+
+    /* ── Secondary ─────────────────────────────────── */
+    --secondary:            220 13% 18%;   /* #282C34 */
+    --secondary-foreground: 222 8% 75%;    /* #B9BCC3 */
+
+    /* ── Muted ─────────────────────────────────────── */
+    --muted:                220 13% 18%;
+    --muted-foreground:     220 6% 60%;    /* #93979F */
+
+    /* ── Accent ────────────────────────────────────── */
+    --accent:               194 33% 20%;   /* #223C44 */
+    --accent-foreground:    187 63% 48%;   /* #2DB5C6 */
+
+    /* ── Semantic ──────────────────────────────────── */
+    --destructive:          0 72% 59%;
+    --destructive-foreground: 217 9% 82%;
+    --success:              142 71% 55%;
+    --success-foreground:   180 4% 11%;
+    --warning:              38 92% 50%;
+    --warning-foreground:   180 4% 11%;
+    --info:                 199 89% 55%;
+    --info-foreground:      180 4% 11%;
+    --danger:               0 72% 59%;
+    --danger-foreground:    217 9% 82%;
+
+    /* ── Borders ───────────────────────────────────── */
+    --border:               220 11% 22%;   /* #32363E */
+    --input:                220 11% 22%;
+    --ring:                 187 63% 48%;
+
+    /* ── Text ──────────────────────────────────────── */
+    --text:                 217 9% 82%;    /* #CED1D6 */
+    --text-muted:           220 6% 60%;    /* #93979F */
+
+    /* ── Sidebar ───────────────────────────────────── */
+    --sidebar-bg:           214 10% 13%;   /* #1E2125 */
+    --sidebar-fg:           217 9% 82%;
+    --sidebar-active:       187 63% 48%;
+    --sidebar-hover:        220 13% 18%;
+
+    /* ── Reader ────────────────────────────────────── */
+    --reader-bg:            213 11% 14%;
+    --reader-fg:            217 9% 82%;
+    --reader-muted:         220 6% 60%;
+    --reader-border:        220 11% 22%;
+    --reader-highlight:     45 70% 20%;
+    --reader-underline:     199 60% 30%;
+    --reader-comment:       142 40% 15%;
+  }
+
+  /* ── Base resets ────────────────────────────────────── */
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+  }
+
+  body {
+    font-family: var(--font-vazir), "Vazirmatn", Tahoma, "SF Pro Text", -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-y: none;
+  }
+
+  /* AMBOSS-branded text selection */
+  ::selection {
+    background-color: hsl(var(--brand-primary) / 0.25);
+    color: hsl(var(--brand-deep));
+  }
+
+  /* Focus ring */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Thin scrollbars */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  *::-webkit-scrollbar       { width: 6px; height: 6px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+  }
+}
+
+/* ── iPad / touch: minimum touch targets ─────────────── */
+@layer components {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ── iPad-safe padding for PWA (env safe area) ───────── */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .pwa-safe-top    { padding-top: env(safe-area-inset-top); }
+  .pwa-safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+  .pwa-safe-left   { padding-left: env(safe-area-inset-left); }
+  .pwa-safe-right  { padding-right: env(safe-area-inset-right); }
+}
+
+/* ── Animations ──────────────────────────────────────── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Reader / article typography ─────────────────────── */
+.reader-content {
+  font-size: var(--reader-font-size, 1.0625rem);
+  line-height: 1.8;
+  max-width: 720px;
+  color: hsl(var(--reader-fg));
+}
+
+.reader-content h1 {
+  font-size: 1.75em;
+  font-weight: 700;
+  margin-top: 2.5rem;
+  margin-bottom: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.reader-content h2 {
+  font-size: 1.4em;
+  font-weight: 650;
+  margin-top: 2rem;
+  margin-bottom: 0.875rem;
+  letter-spacing: -0.005em;
+}
+
+.reader-content h3 {
+  font-size: 1.2em;
+  font-weight: 700;
+  margin-top: 1.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.reader-content p,
+.reader-content ul,
+.reader-content ol {
+  margin-bottom: 1.25rem;
+}
+
+.reader-content li {
+  margin-bottom: 0.5rem;
+  line-height: 1.7;
+}
+
+/* ── Reader inline emphasis (bold / em / code) ────────────────
+   Vazirmatn is loaded as a single variable file without a true
+   italic face, so rely on oblique synthesis for *italic* and a
+   heavier weight for **bold** to keep emphasis legible. */
+[data-reader-content] strong,
+[data-reader-content] b,
+.reader-content strong,
+.reader-content b,
+[data-anchor-mode="primary"] strong,
+[data-anchor-mode="primary"] b,
+[data-anchor-mode="compact"] strong,
+[data-anchor-mode="compact"] b {
+  font-weight: 800;
+  color: hsl(var(--reader-fg));
+  font-synthesis: weight style;
+}
+
+[data-reader-content] em,
+[data-reader-content] i,
+.reader-content em,
+.reader-content i,
+[data-anchor-mode="primary"] em,
+[data-anchor-mode="primary"] i,
+[data-anchor-mode="compact"] em,
+[data-anchor-mode="compact"] i {
+  font-style: oblique 12deg;
+  color: hsl(var(--reader-fg));
+  font-synthesis: weight style;
+}
+
+[data-reader-content] strong em,
+[data-reader-content] em strong,
+.reader-content strong em,
+.reader-content em strong,
+[data-anchor-mode="primary"] strong em,
+[data-anchor-mode="primary"] em strong,
+[data-anchor-mode="compact"] strong em,
+[data-anchor-mode="compact"] em strong {
+  font-weight: 800;
+  font-style: oblique 12deg;
+}
+
+[data-reader-content] code,
+.reader-content code,
+[data-anchor-mode="primary"] code,
+[data-anchor-mode="compact"] code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.94em;
+  padding: 0.05em 0.35em;
+  border-radius: 0.25em;
+  background: hsl(var(--reader-fg) / 0.06);
+}
+
+/* ── Exam explanation panel ──────────────────────────── */
+.exam-explanation h1,
+.exam-explanation h2,
+.exam-explanation h3,
+.exam-explanation h4 {
+  font-size: 0.9em;
+  font-weight: 700;
+  color: hsl(var(--foreground));
+  margin: 14px 0 6px;
+}
+.exam-explanation p {
+  margin: 0 0 10px;
+  line-height: 1.75;
+}
+.exam-explanation ul,
+.exam-explanation ol {
+  padding-left: 20px;
+  margin: 6px 0 12px;
+}
+.exam-explanation li {
+  margin-bottom: 4px;
+  line-height: 1.65;
+}
+.exam-explanation table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0;
+  font-size: 0.88em;
+}
+.exam-explanation th,
+.exam-explanation td {
+  border: 1px solid hsl(var(--border));
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+.exam-explanation th {
+  background: hsl(var(--muted));
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+.exam-explanation tr:nth-child(even) td {
+  background: hsl(var(--muted) / 0.5);
+}
+.exam-explanation strong,
+.exam-explanation b {
+  font-weight: 700;
+  color: hsl(var(--foreground));
+}
+.exam-explanation a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+}
+.exam-explanation blockquote {
+  border-left: 3px solid hsl(var(--border));
+  margin: 10px 0;
+  padding: 6px 14px;
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+
+/* ── Annotation highlights (reader) ──────────────────── */
+.annotation-highlight {
+  background-color: hsl(var(--reader-highlight));
+  border-radius: 2px;
+  padding: 1px 0;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.annotation-highlight:hover {
+  background-color: hsl(var(--reader-highlight) / 0.8);
+}
+
+.annotation-underline {
+  text-decoration: underline;
+  text-decoration-color: hsl(var(--reader-underline));
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.annotation-comment {
+  background-color: hsl(var(--reader-comment));
+  border-radius: 2px;
+  padding: 1px 0;
+  cursor: pointer;
+}
+
+/* ── High-yield layer toggle ─────────────────────────── */
+.high-yield-marker {
+  border-left: 3px solid hsl(var(--warning));
+  padding-left: 12px;
+  background: hsl(var(--warning) / 0.06);
+  border-radius: 0 6px 6px 0;
+}
+
+.key-exam-marker {
+  border-left: 3px solid hsl(var(--primary));
+  padding-left: 12px;
+  background: hsl(var(--primary) / 0.06);
+  border-radius: 0 6px 6px 0;
+}
+
+.missed-question-marker {
+  border-left: 3px solid hsl(var(--destructive));
+  padding-left: 12px;
+  background: hsl(var(--destructive) / 0.06);
+  border-radius: 0 6px 6px 0;
+}
+
+/* ── iPad-specific adjustments ───────────────────────── */
+@media (min-width: 768px) and (max-width: 1024px) {
+  /* Slightly larger base font for tablet reading comfort */
+  .reader-content {
+    font-size: var(--reader-font-size, 1.125rem);
+    line-height: 1.85;
+  }
+}
+
+/* ── Selection toolbar (floating) ────────────────────── */
+.selection-toolbar {
+  position: fixed;
+  z-index: 200;
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 12px;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.selection-toolbar button {
+  min-height: 40px;
+  min-width: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: hsl(var(--foreground));
+  transition: background-color 0.15s;
+}
+
+.selection-toolbar button:hover {
+  background: hsl(var(--muted));
+}
+
+/* ── Standalone PWA: adjust for safe areas ───────────── */
+@media (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* ── Planner v2 signature details ──────────────── */
+.planner-v2-stripe {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent 0,
+    transparent 4px,
+    rgba(0, 0, 0, 0.025) 4px,
+    rgba(0, 0, 0, 0.025) 5px
+  );
+}
+.dark .planner-v2-stripe {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent 0,
+    transparent 4px,
+    rgba(255, 255, 255, 0.04) 4px,
+    rgba(255, 255, 255, 0.04) 5px
+  );
+}

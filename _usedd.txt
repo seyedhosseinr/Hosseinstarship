@@ -1,0 +1,149 @@
+const EMPTY_SERVER_STATS: DashboardServerStats = {
+  accuracy: 0,
+  weakAreaCount: 0,
+  chapterPerformance: [],
+  weeklyActivity: [],
+  recentExams: [],
+  plannerStats: {
+    totalTasks: 0,
+    completedTasks: 0,
+    overdueTasks: 0,
+    todayTasks: 0,
+    completionRate: 0,
+  },
+  studyTimeToday: 0,
+  flashcardStats: { total: 0, dueToday: 0, mastered: 0 },
+  qbankStats: {
+    totalQuestions: 0,
+    attemptedQuestions: 0,
+    correctAnswers: 0,
+    totalAttempts: 0,
+    testCount: 0,
+    accuracy: 0,
+    usage: 0,
+  },
+  todayTaskObjects: [],
+  overdueTaskObjects: [],
+  activePlanInfo: null,
+};
+
+const EMPTY_PLANNER: PlannerTodayInfo = {
+  hasActivePlan: false,
+  planTitle: null,
+  todayTasks: 0,
+  completedToday: 0,
+  overdueTasks: 0,
+};
+
+const EMPTY_COUNTS: DashboardCounts = {
+  questions: 0,
+  flashcards: 0,
+  notebooks: 0,
+  exams: 0,
+  dueFlashcards: 0,
+};
+
+/* ------------------------------------------------------------------ */
+/*  Payload normalizers                                                */
+/* ------------------------------------------------------------------ */
+
+function normalizePlannerPayload(payload: any): PlannerTodayInfo {
+  const body = payload?.data ?? payload?.result ?? payload;
+  if (!body || typeof body !== "object") return EMPTY_PLANNER;
+
+  const tasks = Array.isArray(body.tasks) ? body.tasks : [];
+  const overdueTasks = Array.isArray(body.overdueTasks)
+    ? body.overdueTasks
+    : [];
+  const completedToday = tasks.filter(
+    (t: any) => t?.status === "completed",
+  ).length;
+
+  return {
+    hasActivePlan: !!body.plan,
+    planTitle: body?.plan?.title ?? null,
+    todayTasks: tasks.length,
+    completedToday,
+    overdueTasks: overdueTasks.length,
+  };
+}
+
+function normalizeStatsPayload(json: any): DashboardServerStats {
+  if (!json || typeof json !== "object") return EMPTY_SERVER_STATS;
+
+  return {
+    accuracy: Number(json.accuracy) || 0,
+    weakAreaCount: Number(json.weakAreaCount) || 0,
+
+    chapterPerformance: Array.isArray(json.chapterPerformance)
+      ? json.chapterPerformance
+      : [],
+
+    weeklyActivity: Array.isArray(json.weeklyActivity)
+      ? json.weeklyActivity
+      : [],
+
+    recentExams: Array.isArray(json.recentExams) ? json.recentExams : [],
+
+    plannerStats:
+      json.planner && typeof json.planner === "object"
+        ? {
+            totalTasks: Number(json.planner.totalTasks) || 0,
+            completedTasks: Number(json.planner.completedTasks) || 0,
+            overdueTasks: Number(json.planner.overdueTasks) || 0,
+            todayTasks: Number(json.planner.todayTasks) || 0,
+            completionRate: Number(json.planner.completionRate) || 0,
+          }
+        : EMPTY_SERVER_STATS.plannerStats,
+
+    studyTimeToday: Number(json.studyTimeToday) || 0,
+
+    flashcardStats:
+      json.flashcards && typeof json.flashcards === "object"
+        ? {
+            total: Number(json.flashcards.total) || 0,
+            dueToday: Number(json.flashcards.dueToday) || 0,
+            mastered: Number(json.flashcards.mastered) || 0,
+          }
+        : EMPTY_SERVER_STATS.flashcardStats,
+
+    qbankStats:
+      json.qbank && typeof json.qbank === "object"
+        ? {
+            totalQuestions: Number(json.qbank.totalQuestions) || 0,
+            attemptedQuestions: Number(json.qbank.attemptedQuestions) || 0,
+            correctAnswers: Number(json.qbank.correctAnswers) || 0,
+            totalAttempts: Number(json.qbank.totalAttempts) || 0,
+            testCount: Number(json.qbank.testCount) || 0,
+            accuracy: Number(json.qbank.accuracy) || 0,
+            usage: Number(json.qbank.usage) || 0,
+          }
+        : EMPTY_SERVER_STATS.qbankStats,
+
+    todayTaskObjects: Array.isArray(json.todayTasks)
+      ? json.todayTasks.map((t: any) => ({
+          id: String(t.id ?? ""),
+          title: String(t.title ?? ""),
+          taskType: String(t.taskType ?? ""),
+          status: String(t.status ?? "pending"),
+          estimatedMinutes: Number(t.estimatedMinutes) || 0,
+          priority: Number(t.priority) || 0,
+          scheduledFor: t.scheduledFor ?? null,
+        }))
+      : [],
+
+    overdueTaskObjects: Array.isArray(json.overdueTasks)
+      ? json.overdueTasks.map((t: any) => ({
+          id: String(t.id ?? ""),
+          title: String(t.title ?? ""),
+          taskType: String(t.taskType ?? ""),
+          status: String(t.status ?? "overdue"),
+          estimatedMinutes: Number(t.estimatedMinutes) || 0,
+          priority: Number(t.priority) || 0,
+          scheduledFor: t.scheduledFor ?? null,
+        }))
+      : [],
+
+    activePlanInfo:
+      json.activePlan && typeof json.activePlan === "object"
+        ? {

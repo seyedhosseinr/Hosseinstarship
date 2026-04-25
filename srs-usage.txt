@@ -1,0 +1,101 @@
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:22 import { useSRSStore } from '@/stores/useSRSStore';
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:33 cards,
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:34 sources,
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:35 sessions,
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:37 currentSession,
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:38 currentQueue,
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:39 currentIndex,
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:41 showAnswer,
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:42 startReview,
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:44 rateCard,
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:45 skipCard,
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:46 endReview,
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:47 getStats,
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:48 getDueCount,
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:49 getPreviewIntervals,
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:50 } = useSRSStore();
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:54 const [selectedSources, setSelectedSources] = useState<string[]>([]);
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:56 const [completedSession, setCompletedSession] = useState<typeof currentSession>(null);
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:59 const stats = useMemo(() => getStats(), [cards]);
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:60 const dueCount = useMemo(() => getDueCount(), [cards]);
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:61 const previewIntervals = useMemo(() => getPreviewIntervals(), [currentQueue, currentIndex, showAnswer]);
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:63 const currentCard = isReviewing && currentIndex < currentQueue.length
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:64 ? currentQueue[currentIndex]
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:70 cards.forEach((c) => c.tags.forEach((t) => tagSet.add(t)));
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:72 }, [cards]);
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:74 // ============ Watch for session complete ============
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:76 if (!isReviewing && currentSession === null && sessions.length > 0) {
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:77 // Session just ended
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:78 const lastSession = sessions[sessions.length - 1];
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:79 if (lastSession && lastSession.reviewed > 0) {
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:80 setCompletedSession(lastSession);
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:83 }, [isReviewing, currentSession, sessions]);
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:86 const handleStartReview = () => {
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:87 setCompletedSession(null);
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:88 startReview({
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:89 sourceIds: selectedSources.length > 0 ? selectedSources : undefined,
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:159 onClick={endReview}
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:170 showAnswer={showAnswer}
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:171 onShowAnswer={showCardAnswer}
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:172 onRate={rateCard}
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:173 onSkip={skipCard}
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:174 previewIntervals={previewIntervals}
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:177 currentIndex={currentIndex}
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:178 totalCards={currentQueue.length}
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:211 ) : cards.length === 0 ? (
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:240 {sources.length > 1 && (
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:262 {/* Sources */}
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:266 {sources.map((source) => (
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:270 setSelectedSources((prev) =>
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:277 ${selectedSources.includes(source.id)
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:324 onClick={handleStartReview}
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:351 {/* Sources List */}
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:352 {sources.length > 0 && (
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:357 ????? ({sources.length})
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:361 {sources.map((source) => {
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:362 const sourceCards = cards.filter((c) => c.sourceId === source.id);
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:363 const sourceStats = {
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:364 total: sourceCards.length,
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:365 new: sourceCards.filter((c) => c.srsData.state === 'new').length,
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:366 learning: sourceCards.filter(
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:387 {sourceStats.total} ????
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:392 {sourceStats.new > 0 && (
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:394 {sourceStats.new} ????
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:397 {sourceStats.learning > 0 && (
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:399 {sourceStats.learning}
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:413 cards={cards}
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:414 sessions={sessions}
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\page.tsx:415 completedSession={completedSession || undefined}
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:1 // src/app/review/cards/page.tsx
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:4 // Browse, search, filter, edit, and delete flashcards
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:32 import { useSRSStore } from '@/stores/useSRSStore';
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:33 import { FlashCard, CardState } from '@/types/srs';
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:39 const STATE_CONFIG: Record<CardState, { label: string; color: string; bg: string }> = {
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:66 const { cards, sources, deleteCard, updateCard } = useSRSStore();
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:71 const [filterState, setFilterState] = useState<CardState | 'all'>('all');
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:90 cards.forEach((c) => c.tags.forEach((t) => tagSet.add(t)));
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:92 }, [cards]);
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:94 // ============ Filtered & Sorted Cards ============
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:95 const filteredCards = useMemo(() => {
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:96 let result = [...cards];
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:163 }, [cards, searchQuery, filterState, filterSource, filterTag, sortKey, sortDir]);
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:176 updateCard(selectedCard.id, {
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:183 }, [selectedCard, editFront, editBack, editTags, updateCard]);
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:187 deleteCard(cardId);
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:194 [deleteCard, selectedCard]
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:199 return sources.find((s) => s.id === sourceId)?.name || 'Unknown';
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:201 [sources]
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:250 {cards.length} ???? • {filteredCards.length} ????? ???? ???
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:319 onChange={(e) => setFilterState(e.target.value as CardState | 'all')}
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:341 {sources.map((s) => (
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:418 {/* ============ Cards List ============ */}
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:419 {filteredCards.length === 0 ? (
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:423 {cards.length === 0 ? '???? ????? ??????' : '????? ?? ??? ????? ???? ???'}
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:426 {cards.length === 0
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\app\review\cards\page.tsx:433 {filteredCards.map((card, idx) => {
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\components\srs\ImportModal.tsx:25 import { useSRSStore } from '@/stores/useSRSStore';
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\components\srs\ImportModal.tsx:73 const { importFromContent } = useSRSStore();
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\components\srs\ImportModal.tsx:151 const res = await importFromContent(
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\components\srs\ImportModal.tsx:181 const res = await importFromContent(
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\components\srs\ImportModal.tsx:201 // ============ Add Manual Card (Fixed: uses importFromContent) ============
+C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus 4.6\src\components\srs\ImportModal.tsx:223 const res = await importFromContent(payload, batchName, { tags: tagList });

@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0D9488" />
+  <title>آفلاین — Hossein Starship</title>
+  <style>
+    *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      font-family: Vazirmatn, Tahoma, system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: hsl(168 30% 94%);
+      color: hsl(200 80% 5%);
+      -webkit-font-smoothing: antialiased;
+    }
+    @media (prefers-color-scheme: dark) {
+      html, body { background: hsl(195 28% 4%); color: hsl(170 20% 95%); }
+      .card { background: hsla(0,0%,100%,0.04); border-color: hsl(195 14% 14%); }
+      .btn-primary { box-shadow: 0 6px 20px rgba(13,148,136,0.35); }
+    }
+    body {
+      display: flex; align-items: center; justify-content: center;
+      padding: 24px; min-height: 100dvh;
+    }
+    .card {
+      width: 100%; max-width: 440px;
+      background: rgba(255,255,255,0.86);
+      border: 1px solid hsl(170 20% 85%);
+      border-radius: 24px;
+      padding: 32px 28px;
+      box-shadow: 0 16px 52px rgba(0,70,60,0.13), 0 2px 8px rgba(0,70,60,0.05);
+      backdrop-filter: blur(24px) saturate(1.8);
+      -webkit-backdrop-filter: blur(24px) saturate(1.8);
+    }
+    .icon {
+      width: 64px; height: 64px; border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, hsl(166 90% 26% / 0.18), hsl(166 90% 26% / 0.08));
+      border: 1.5px solid hsl(166 90% 26% / 0.25);
+      color: hsl(166 90% 26%);
+    }
+    h1 { font-size: 22px; font-weight: 900; letter-spacing: -0.02em; margin-bottom: 8px; }
+    p { font-size: 14px; line-height: 1.7; color: hsl(195 14% 42%); margin-bottom: 6px; }
+    .btn-row { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      min-height: 48px; padding: 12px 20px;
+      border-radius: 12px; border: none;
+      font-family: inherit; font-size: 14px; font-weight: 800;
+      cursor: pointer; text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary {
+      background: linear-gradient(135deg, hsl(166 90% 26%), hsl(213 94% 40%));
+      color: #fff;
+      box-shadow: 0 6px 20px rgba(13,148,136,0.28);
+    }
+    .btn-secondary {
+      background: hsl(168 28% 95%);
+      color: hsl(195 25% 25%);
+      border: 1.5px solid hsl(170 20% 85%);
+    }
+    @media (prefers-color-scheme: dark) {
+      .btn-secondary { background: hsl(195 16% 11%); color: hsl(170 12% 68%); border-color: hsl(195 14% 14%); }
+    }
+    .hint {
+      margin-top: 20px; padding-top: 16px;
+      border-top: 1px solid hsl(170 18% 90%);
+      font-size: 12px; color: hsl(195 14% 42%);
+      line-height: 1.8;
+    }
+    @media (prefers-color-scheme: dark) {
+      .hint { border-top-color: hsl(195 14% 14%); }
+    }
+    .status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; background: hsl(0 85% 60% / 0.12); color: hsl(0 70% 45%); margin-bottom: 14px; }
+    .status .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  </style>
+</head>
+<body>
+  <main class="card" role="main">
+    <span class="status"><span class="dot"></span>آفلاین</span>
+    <div class="icon" aria-hidden="true">
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 1l22 22" />
+        <path d="M8.5 16.5a5 5 0 0 1 7 0" />
+        <path d="M2 8.82a15 15 0 0 1 4.17-2.65" />
+        <path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76" />
+        <path d="M16.85 11.25a10 10 0 0 1 2.22 1.68" />
+        <path d="M5 13a10 10 0 0 1 5.24-2.76" />
+        <line x1="12" y1="20" x2="12.01" y2="20" />
+      </svg>
+    </div>
+    <h1>اتصال اینترنت ندارید</h1>
+    <p>این صفحه قبلاً آنلاین باز نشده، برای همین کش نشده است.</p>
+    <p>صفحاتی که قبلاً آنلاین باز کرده‌اید (داشبورد، کتابخانه، برنامه، فلش‌کارت) همچنان آفلاین در دسترس هستند.</p>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" type="button" onclick="location.reload()">
+        تلاش دوباره
+      </button>
+      <a class="btn btn-secondary" href="/">
+        بازگشت به داشبورد
+      </a>
+    </div>
+
+    <div class="hint">
+      اطلاعات محلی شما (یادداشت‌ها، تسک‌ها، مرور فلش‌کارت‌ها) در مرورگر ذخیره مانده و هنگام اتصال مجدد با سرور همگام می‌شوند.
+    </div>
+  </main>
+
+  <script>
+    // When connectivity returns, auto-reload so the user lands on the real page.
+    window.addEventListener("online", function () { location.reload(); });
+  </script>
+</body>
+</html>

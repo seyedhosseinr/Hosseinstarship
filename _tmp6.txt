@@ -1,0 +1,304 @@
+"use client";
+
+/**
+ * PlannerClient — UWorld-style main study planner page.
+ *
+ * Three tabs:
+ * 1. امروز (Today) — sectioned task list: overdue / today / upcoming / completed
+ * 2. هفته (Week)   — Saturday–Friday weekly calendar view
+ * 3. برنامه‌ها (Plans) — plan list and management
+ *
+ * Hosts the overdue modal, reschedule dialog, and planner progress summary.
+ */
+
+import { useState, useCallback, useEffect, Component, type ReactNode } from "react";
+import { motion } from "framer-motion";
+import {
+  CalendarCheck,
+  CalendarDays,
+  LayoutList,
+  TrendingUp,
+  Flame,
+  Target,
+  BookOpen,
+  Clock,
+  AlertTriangle,
+  RefreshCw,
+  Brain,
+} from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Surface } from "@/components/ui/surface";
+import { colorLight } from "@/lib/theme/tokens";
+import { TodayTaskList } from "@/components/planner/TodayTaskList";
+import { WeeklyView } from "@/components/planner/WeeklyView";
+import { OverdueModal } from "@/components/planner/OverdueModal";
+import { RescheduleDialog } from "@/components/planner/RescheduleDialog";
+import { PlanList } from "./PlanList";
+import { RecommendationPanel } from "@/components/planner/RecommendationPanel";
+import { n, useVisibilityRefresh } from "@/components/planner/task-helpers";
+import { getPlannerSummaryAction } from "@/lib/actions/planner-actions";
+
+/* ------------------------------------------------------------------ */
+/*  Tab types                                                          */
+/* ------------------------------------------------------------------ */
+
+type Tab = "today" | "week" | "recommendations" | "plans";
+
+const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
+  { id: "today", label: "امروز", icon: CalendarCheck },
+  { id: "week", label: "هفته", icon: CalendarDays },
+  { id: "recommendations", label: "پیشنهادها", icon: Brain },
+  { id: "plans", label: "برنامه‌ها", icon: LayoutList },
+];
+
+/* ------------------------------------------------------------------ */
+/*  Error Boundary                                                     */
+/* ------------------------------------------------------------------ */
+
+class PlannerErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.error("[Planner]", error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="max-w-4xl mx-auto py-12">
+          <Surface variant="subtle" padding="lg">
+            <div className="flex flex-col items-center gap-4 py-8">
+              <AlertTriangle size={32} style={{ color: colorLight.danger }} />
+              <div className="text-sm font-semibold" style={{ color: colorLight.text }}>
+                خطایی در نمایش برنامه مطالعه رخ داد
+              </div>
+              <button
+                onClick={() => {
+                  this.setState({ hasError: false });
+                  window.location.reload();
+                }}
+                className="flex items-center gap-2 text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                style={{ backgroundColor: colorLight.accentSoft, color: colorLight.accent }}
+              >
+                <RefreshCw size={13} />
+                بارگذاری مجدد
+              </button>
+            </div>
+          </Surface>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Planner Progress Banner                                            */
+/* ------------------------------------------------------------------ */
+
+interface PlannerSummary {
+  plan: { title: string; progressPercent: number; completedTasks: number; totalTasks: number } | null;
+  today: { totalTasks: number; completedTasks: number; progressPercent: number; estimatedMinutes: number } | null;
+  streak: { current: number; longest: number };
+  overdueTasks: number;
+  upcomingTaskCount: number;
+}
+
+function PlannerProgressBanner({ summary }: { summary: PlannerSummary | null }) {
+  if (!summary?.plan) return null;
+
+  const planPct = summary.plan.progressPercent;
+  const todayPct = summary.today?.progressPercent ?? 0;
+  const todayDone = summary.today?.completedTasks ?? 0;
+  const todayTotal = summary.today?.totalTasks ?? 0;
+
+  return (
+    <Surface variant="default" padding="sm" className="mb-4">
+      <div className="flex items-center gap-4 text-xs" style={{ color: colorLight.textMuted }}>
+        {/* Plan progress */}
+        <div className="flex items-center gap-2 flex-1">
+          <TrendingUp size={13} style={{ color: colorLight.accent }} />
+          <span className="font-semibold" style={{ color: colorLight.text }}>
+            {summary.plan.title}
+          </span>
+          <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: colorLight.border }}>
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{
+                width: `${planPct}%`,
+                backgroundColor: planPct >= 100 ? colorLight.success : colorLight.accent,
+              }}
+            />
+          </div>
+          <span className="font-bold tabular-nums" style={{ color: colorLight.accent }}>
+            {n(planPct)}%
+          </span>
+        </div>
+
+        {/* Divider */}
+        <div className="w-px h-4" style={{ backgroundColor: colorLight.border }} />
+
+        {/* Today stats */}
+        <span className="flex items-center gap-1">
+          <CalendarCheck size={12} style={{ color: colorLight.accent }} />
+          {n(todayDone)}/{n(todayTotal)}
+        </span>
+
+        {/* Streak */}
+        {summary.streak.current > 0 && (
+          <span className="flex items-center gap-1">
+            <Flame size={12} style={{ color: colorLight.warning }} />
+            {n(summary.streak.current)}
+          </span>
+        )}
+
+        {/* Overdue */}
+        {summary.overdueTasks > 0 && (
+          <span className="flex items-center gap-1 font-semibold" style={{ color: colorLight.danger }}>
+            <AlertTriangle size={12} />
+            {n(summary.overdueTasks)}
+          </span>
+        )}
+      </div>
+    </Surface>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main PlannerClient Component                                       */
+/* ------------------------------------------------------------------ */
+
+export default function PlannerClient() {
+  const [activeTab, setActiveTab] = useState<Tab>("today");
+  const [overdueOpen, setOverdueOpen] = useState(false);
+  const [rescheduleTaskId, setRescheduleTaskId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [summary, setSummary] = useState<PlannerSummary | null>(null);
+
+  const fetchSummary = useCallback(async () => {
+    try {
+      const res = await getPlannerSummaryAction();
+      if (res.ok) setSummary(res.data);
+    } catch {
+      // silent
+    }
+  }, []);
+
+  const triggerRefresh = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+    fetchSummary();
+  }, [fetchSummary]);
+
+  useEffect(() => {
+    fetchSummary();
+  }, [fetchSummary]);
+
+  useVisibilityRefresh(fetchSummary, true);
+
+  function handleShowOverdue() {
+    setOverdueOpen(true);
+  }
+
+  function handleReschedule(taskId: string) {
+    setRescheduleTaskId(taskId);
+  }
+
+  return (
+    <PlannerErrorBoundary>
+    <div className="max-w-4xl mx-auto pb-12">
+      <PageHeader
+        title="برنامه مطالعه"
+        description="برنامه‌ریزی و پیگیری مطالعات روزانه"
+        icon={<CalendarCheck size={22} style={{ color: colorLight.accent }} />}
+        breadcrumb={[
+          { label: "داشبورد", href: "/" },
+          { label: "برنامه مطالعه" },
+        ]}
+      />
+
+      {/* ---- Progress Banner ---- */}
+      <PlannerProgressBanner summary={summary} />
+
+      {/* ---- Tab Bar ---- */}
+      <div className="flex items-center gap-1 mb-6">
+        {TABS.map((tab) => {
+          const isActive = activeTab === tab.id;
+          const TabIcon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`
+                relative flex items-center gap-1.5 px-4 py-2 text-sm font-medium
+                rounded-xl transition-all
+              `}
+              style={{
+                backgroundColor: isActive ? colorLight.accent : "transparent",
+                color: isActive ? "#fff" : colorLight.textMuted,
+              }}
+            >
+              <TabIcon size={15} />
+              {tab.label}
+              {isActive && (
+                <motion.div
+                  layoutId="planner-tab-indicator"
+                  className="absolute inset-0 rounded-xl -z-[1]"
+                  style={{ backgroundColor: colorLight.accent }}
+                  transition={{ type: "spring", duration: 0.4, bounce: 0.15 }}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ---- Tab Content ---- */}
+      <motion.div
+        key={`${activeTab}-${refreshKey}`}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+      >
+        {activeTab === "today" && (
+          <TodayTaskList
+            onShowOverdue={handleShowOverdue}
+            onReschedule={handleReschedule}
+          />
+        )}
+        {activeTab === "week" && (
+          <WeeklyView
+            onReschedule={handleReschedule}
+            onShowOverdue={handleShowOverdue}
+          />
+        )}
+        {activeTab === "recommendations" && (
+          <RecommendationPanel onTaskCreated={triggerRefresh} />
+        )}
+        {activeTab === "plans" && <PlanList />}
+      </motion.div>
+
+      {/* ---- Overdue Modal ---- */}
+      <OverdueModal
+        open={overdueOpen}
+        onClose={() => setOverdueOpen(false)}
+        onResolved={triggerRefresh}
+      />
+
+      {/* ---- Reschedule Dialog ---- */}
+      <RescheduleDialog
+        open={rescheduleTaskId !== null}
+        taskId={rescheduleTaskId}
+        onClose={() => setRescheduleTaskId(null)}
+        onDone={triggerRefresh}
+      />
+    </div>
+    </PlannerErrorBoundary>
+  );
+}

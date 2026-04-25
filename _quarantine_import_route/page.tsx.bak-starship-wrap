@@ -1,0 +1,18 @@
+﻿"use client";
+
+import { useEffect, useState } from "react";
+import { ImportFileManager } from "@/components/import/ImportFileManager";
+
+export default function ImportPage() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return <div className="max-w-5xl mx-auto min-h-[240px]" />;
+  }
+
+  return <ImportFileManager />;
+}

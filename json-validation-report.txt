@@ -1,0 +1,2338 @@
+﻿
+====================================================================================================
+JSON VALIDATION INSPECTION REPORT
+====================================================================================================
+Root: C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6
+Generated: 2026-03-16 16:19:02
+Goal: find how the app validates imported JSON for notes / flashcards / questions.
+
+
+====================================================================================================
+1) CANDIDATE FILES BY NAME
+====================================================================================================
+./.eslintrc.json
+./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts
+./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx
+./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts
+./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx
+./data/test-batch/chunks.json
+./data/test-batch/flashcards.json
+./data/test-batch/manifest.json
+./data/test-batch/qc_report.json
+./data/test-batch/questions.json
+./drizzle/meta/_journal.json
+./drizzle/meta/0000_snapshot.json
+./drizzle/meta/0001_snapshot.json
+./drizzle/meta/0002_snapshot.json
+./package.json
+./package-lock.json
+./public/test-srs.json
+./scripts/_verify-import.ts
+./scripts/import-batch.ts
+./scripts/import-questions.ts
+./src/app/flashcards/FlashcardsClient.tsx
+./src/app/flashcards/FlashcardsScreen.tsx
+./src/app/import/import { sqliteTable, text, integer, rea.js
+./src/app/import/ImportScreen.tsx
+./src/app/notebooks/NotebooksScreen.tsx
+./src/components/exam/AddToNotebookModal.tsx
+./src/components/exam/CreateFlashcardModal.tsx
+./src/components/exam/NoteModal.tsx
+./src/components/exam/QuestionCard.tsx
+./src/components/import/ImportFileManager.tsx
+./src/components/import/ImportHistoryTable.tsx
+./src/components/import/ImportUploadPanel.tsx
+./src/components/note-viewer/NotePageShell.tsx
+./src/components/srs/FlashCard.tsx
+./src/components/srs/ImportModal.tsx
+./src/db/schema.ts
+./src/lib/actions/import-actions.ts
+./src/lib/contract/note-viewer.types.ts
+./src/lib/db/queries/flashcards.ts
+./src/lib/db/queries/imports.ts
+./src/lib/db/queries/questions.ts
+./src/lib/exam/campbell-exam-builder.schema.json
+./src/lib/exam/seed-questions.ts
+./src/lib/import/file-parser.ts
+./src/lib/import/parsers.ts
+./src/lib/importers/aua-pdf-parser.ts
+./src/lib/importers/html-chunk-importer.ts
+./src/lib/importers/import-to-db.ts
+./src/lib/importers/question-importer.ts
+./src/lib/importers/validators.ts
+./src/lib/import-utils.ts
+./src/lib/srs/content-parser.ts
+./src/lib/validations.ts
+./tsconfig.json
+./uro-killer/apps/web/package.json
+./uro-killer/apps/web/package-lock.json
+./uro-killer/apps/web/public/manifest.json
+./uro-killer/apps/web/src/components/ImportManager.tsx
+./uro-killer/apps/web/src/lib/import/file-parser.ts
+./uro-killer/apps/web/src/lib/import-service.ts
+./uro-killer/apps/web/src/lib/import-utils.ts
+./uro-killer/apps/web/tsconfig.json
+./uro-killer/package.json
+./uro-killer/packages/config/package.json
+./uro-killer/packages/config/typescript/base.json
+./uro-killer/packages/types/package.json
+./uro-killer/tsconfig.json
+
+====================================================================================================
+2) HIGH-SIGNAL SEARCH PATTERNS
+====================================================================================================
+
+Pattern: \.parse\(
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:16  return JSON.parse(text);
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:37  const parsed = JSON.parse(raw);
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:55  try { return JSON.parse(raw); } catch { return null; }
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:391  try { body = JSON.parse(raw); }
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:73  const j = JSON.parse(text);
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:110  parsed = JSON.parse(raw);
+  ./scripts/_migration-doctor.ts:65  const journal = JSON.parse(readFileSync(JOURNAL_PATH, "utf-8")) as {
+  ./scripts/_verify-import.ts:34  JSON.parse(c.metadataJson);
+  ./scripts/_verify-import.ts:58  JSON.parse(value as string);
+  ./scripts/_verify-import.ts:97  JSON.parse(value as string);
+  ./scripts/import-questions.ts:65  const parsed = JSON.parse(content);
+  ./src/app/import/import { sqliteTable, text, integer, rea.js:99  const parsed = JSON.parse(text);
+  ./src/app/notebooks/[id]/page.tsx:551  const parsed = raw ? (JSON.parse(raw) as InkStroke[]) : [];
+  ./src/app/notebooks/[id]/page.tsx:572  const parsed = raw ? (JSON.parse(raw) as Annotation[]) : [];
+  ./src/app/settings/data/page.tsx:82  const parsed = JSON.parse(text) as BackupShape;
+  ./src/components/import/ImportUploadPanel.tsx:591  parsed = JSON.parse(raw);
+  ./src/components/import/ImportUploadPanel.tsx:700  parsed = JSON.parse(raw);
+  ./src/lib/import/file-parser.ts:66  const data = JSON.parse(content);
+  ./src/lib/importers/import-to-db.ts:215  return JSON.parse(raw) as T;
+  ./src/lib/notebook/inkStore.ts:95  resolve(JSON.parse(raw) as Annotation[]);
+  ./src/lib/srs/content-parser.ts:40  const data = typeof content === 'string' ? JSON.parse(content) : content;
+  ./src/lib/srs/content-parser.ts:432  JSON.parse(trimmed);
+  ./src/store/useSRSStore.ts:91  const parsed = JSON.parse(text);
+  ./src/stores/useSRSStore.ts:91  const parsed = JSON.parse(text);
+  ./uro-killer/apps/web/src/app/api/grok/route.ts:25  try { data = JSON.parse(text); } catch { data = { raw: text }; }
+  ./uro-killer/apps/web/src/app/import/page.tsx:125  parsed = JSON.parse(text);
+  ./uro-killer/apps/web/src/app/import/page.tsx:130  if (scriptData) parsed = JSON.parse(scriptData.textContent || "[]");
+  ./uro-killer/apps/web/src/app/import/page.tsx:175  : `${(JSON.parse(item.options || "[]")).length} گزینه`;
+  ./uro-killer/apps/web/src/hooks/use-local-storage.ts:15  setStoredValue(JSON.parse(item));
+  ./uro-killer/apps/web/src/lib/import/file-parser.ts:60  const data = JSON.parse(content);
+
+Pattern: z\.object\(
+  ./src/lib/validations.ts:6  export const questionOptionSchema = z.object({
+  ./src/lib/validations.ts:12  export const createQuestionSchema = z.object({
+  ./src/lib/validations.ts:32  export const createExamSchema = z.object({
+  ./src/lib/validations.ts:46  export const answerQuestionSchema = z.object({
+  ./src/lib/validations.ts:57  export const createFlashcardSchema = z.object({
+  ./src/lib/validations.ts:65  export const reviewFlashcardSchema = z.object({
+  ./src/lib/validations.ts:74  export const createNotebookSchema = z.object({
+  ./src/lib/validations.ts:80  export const saveNotebookSchema = z.object({
+  ./src/lib/validations.ts:89  export const importQuestionsSchema = z.object({
+  ./src/lib/validations.ts:98  export const grokQuerySchema = z.object({
+  ./src/lib/validations.ts:107  export const updateSettingSchema = z.object({
+
+Pattern: z\.array\(
+  ./src/lib/validations.ts:18  options: z.array(questionOptionSchema).optional(),
+  ./src/lib/validations.ts:20  tags: z.array(z.string()).optional(),
+  ./src/lib/validations.ts:41  filterSubjects: z.array(z.string()).optional(),
+  ./src/lib/validations.ts:42  filterDifficulty: z.array(z.number().min(1).max(5)).optional(),
+  ./src/lib/validations.ts:43  filterTags: z.array(z.string()).optional(),
+  ./src/lib/validations.ts:62  tags: z.array(z.string()).optional(),
+  ./src/lib/validations.ts:90  questions: z.array(createQuestionSchema).min(1, "حداقل یک سوال الزامی است"),
+
+Pattern: schema
+  ./data/test-batch/manifest.json:3  "schemaVersion": "dna-v3.1",
+  ./drizzle.config.ts:4  schema: "./src/db/schema.ts",
+  ./drizzle/meta/0000_snapshot.json:1413  "schema_version": {
+  ./drizzle/meta/0000_snapshot.json:1414  "name": "schema_version",
+  ./drizzle/meta/0000_snapshot.json:2347  "schemas": {},
+  ./drizzle/meta/0001_snapshot.json:1845  "schema_version": {
+  ./drizzle/meta/0001_snapshot.json:1846  "name": "schema_version",
+  ./drizzle/meta/0001_snapshot.json:4213  "schemas": {},
+  ./drizzle/meta/0002_snapshot.json:1970  "schema_version": {
+  ./drizzle/meta/0002_snapshot.json:1971  "name": "schema_version",
+  ./drizzle/meta/0002_snapshot.json:4797  "schemas": {},
+  ./package-lock.json:1268  "@eslint/object-schema": "^2.1.7",
+  ./package-lock.json:1296  "@types/json-schema": "^7.0.15"
+  ./package-lock.json:1339  "node_modules/@eslint/object-schema": {
+  ./package-lock.json:1341  "resolved": "https://registry.npmjs.org/@eslint/object-schema/-/object-schema-2.1.7.tgz",
+  ./package-lock.json:3217  "node_modules/@types/json-schema": {
+  ./package-lock.json:3219  "resolved": "https://registry.npmjs.org/@types/json-schema/-/json-schema-7.0.15.tgz",
+  ./package-lock.json:3930  "json-schema-traverse": "^0.4.1",
+  ./package-lock.json:7986  "node_modules/json-schema-traverse": {
+  ./package-lock.json:7988  "resolved": "https://registry.npmjs.org/json-schema-traverse/-/json-schema-traverse-0.4.1.tgz",
+  ./scripts/_migration-doctor.ts:9  *   This project was built using `drizzle-kit push` which syncs schema
+  ./scripts/_seed-chapter.ts:6  import { chapters } from "@/db/schema";
+  ./scripts/_verify-import.ts:5  import { imports, chunks, questions, questionOptions, flashcards, chapters } from "@/db/schema";
+  ./src/components/exam/ExamBuilder.tsx:8  import { hasQuestions, seedQuestionsFromSchema, getQuestionCount } from "@/lib/exam/seed-questions";
+  ./src/components/exam/ExamBuilder.tsx:10  getSchemaTitle,
+  ./src/components/exam/ExamBuilder.tsx:50  /* ── Static schema look-ups ───────────────────────────── */
+  ./src/components/exam/ExamBuilder.tsx:144  const added = await seedQuestionsFromSchema();
+  ./src/components/exam/ExamBuilder.tsx:223  {getSchemaTitle()}
+  ./src/components/import/ImportUploadPanel.tsx:65  /*  Schema validation helpers                                         */
+  ./src/db/index.ts:6  import * as schema from "./schema";
+  ./src/db/index.ts:30  return drizzle(sqlite, { schema });
+  ./src/db/schema.ts:128  schemaVersion: text("schema_version").notNull().default("dna-v3.1"),
+  ./src/lib/contract/queries.ts:8  } from "@/db/schema";
+  ./src/lib/contract/types.ts:136  schemaVersion: "note-mvp-v1";
+  ./src/lib/dashboard/queries.ts:5  * Timestamps in schema are unix-ms integers.
+  ./src/lib/dashboard/queries.ts:25  } from "@/db/schema";
+  ./src/lib/db/queries/chapters.ts:15  } from "@/db/schema";
+  ./src/lib/db/queries/chunks.ts:12  } from "@/db/schema";
+  ./src/lib/db/queries/exams.ts:17  } from "@/db/schema";
+  ./src/lib/db/queries/flashcards.ts:12  } from "@/db/schema";
+  ... and 108 more hit(s)
+
+Pattern: validator
+  ./package-lock.json:7777  "xml-name-validator": "^5.0.0"
+  ./package-lock.json:7833  "xml-name-validator": "^5.0.0"
+  ./package-lock.json:7871  "node_modules/isomorphic-dompurify/node_modules/xml-name-validator": {
+  ./package-lock.json:7873  "resolved": "https://registry.npmjs.org/xml-name-validator/-/xml-name-validator-5.0.0.tgz",
+  ./package-lock.json:7965  "xml-name-validator": "^4.0.0"
+  ./package-lock.json:11696  "xml-name-validator": "^4.0.0"
+  ./package-lock.json:11929  "node_modules/xml-name-validator": {
+  ./package-lock.json:11931  "resolved": "https://registry.npmjs.org/xml-name-validator/-/xml-name-validator-4.0.0.tgz",
+  ./scripts/import-questions.ts:13  import { validateQuestions, printStats, RawQuestion } from '../src/lib/importers/validators';
+  ./src/components/import/ImportUploadPanel.tsx:98  const VALIDATORS: Record<
+  ./src/components/import/ImportUploadPanel.tsx:601  const validator = VALIDATORS[activeTab];
+  ./src/components/import/ImportUploadPanel.tsx:604  const err = validator(item);
+  ./src/components/import/ImportUploadPanel.tsx:637  const validator = VALIDATORS[activeTab];
+  ./src/components/import/ImportUploadPanel.tsx:638  const validItems = preview.filter((item) => !validator(item));
+  ./src/components/import/ImportUploadPanel.tsx:777  ? preview.filter((item) => !VALIDATORS[activeTab](item)).length
+  ./src/lib/importers/aua-pdf-parser.ts:5  import { RawQuestion } from './validators';
+  ./src/lib/importers/question-importer.ts:5  import { RawQuestion, validateQuestions, ValidationResult } from './validators';
+  ./src/lib/importers/validators.ts:1  // src/lib/importers/validators.ts
+  ./src/lib/importers/validators.ts:77  // AJV Schema Validator
+  ./uro-killer/apps/web/package-lock.json:5541  "xml-name-validator": "^5.0.0"
+  ./uro-killer/apps/web/package-lock.json:7952  "xml-name-validator": "^5.0.0"
+  ./uro-killer/apps/web/package-lock.json:8105  "node_modules/xml-name-validator": {
+  ./uro-killer/apps/web/package-lock.json:8107  "resolved": "https://registry.npmjs.org/xml-name-validator/-/xml-name-validator-5.0.0.tgz",
+
+Pattern: validate
+  ./package-lock.json:6283  "esvalidate": "bin/esvalidate.js"
+  ./package-lock.json:11918  "utf-8-validate": ">=5.0.2"
+  ./package-lock.json:11924  "utf-8-validate": {
+  ./scripts/_verify-import.ts:50  // Validate JSON fields
+  ./scripts/import-batch.ts:65  // ── Validate directory ──
+  ./scripts/import-questions.ts:4  //   npx tsx scripts/import-questions.ts validate ./data/2-1.json
+  ./scripts/import-questions.ts:13  import { validateQuestions, printStats, RawQuestion } from '../src/lib/importers/validators';
+  ./scripts/import-questions.ts:31  validate <file.json> [file2.json...]   Validate JSON files
+  ./scripts/import-questions.ts:37  --dry-run     Validate and show what would be imported, but don't write
+  ./scripts/import-questions.ts:41  npx tsx scripts/import-questions.ts validate ./prisma/data/questions/2-1.json
+  ./scripts/import-questions.ts:90  async function runValidate() {
+  ./scripts/import-questions.ts:93  console.error('❌ No files specified. Usage: validate <file.json>');
+  ./scripts/import-questions.ts:101  const result = validateQuestions(questions);
+  ./scripts/import-questions.ts:225  case 'validate':
+  ./scripts/import-questions.ts:226  await runValidate();
+  ./src/app/api/exams/start/route.ts:25  // Validate required fields
+  ./src/app/api/planner/overdue/route.ts:45  // Validate optional targetDate
+  ./src/app/api/planner/week/route.ts:19  // Validate ISO date format
+  ./src/components/import/ImportUploadPanel.tsx:68  function validateQuestion(item: Record<string, unknown>): string | null {
+  ./src/components/import/ImportUploadPanel.tsx:83  function validateFlashcard(item: Record<string, unknown>): string | null {
+  ./src/components/import/ImportUploadPanel.tsx:91  function validateNotebook(item: Record<string, unknown>): string | null {
+  ./src/components/import/ImportUploadPanel.tsx:102  questions: validateQuestion,
+  ./src/components/import/ImportUploadPanel.tsx:103  flashcards: validateFlashcard,
+  ./src/components/import/ImportUploadPanel.tsx:104  notebooks: validateNotebook,
+  ./src/lib/actions/import-actions.ts:3  import { revalidatePath } from "next/cache";
+  ./src/lib/actions/import-actions.ts:85  revalidatePath("/import");
+  ./src/lib/actions/import-actions.ts:86  revalidatePath("/qbank");
+  ./src/lib/actions/import-actions.ts:87  revalidatePath("/flashcards");
+  ./src/lib/actions/import-actions.ts:88  revalidatePath("/dashboard");
+  ./src/lib/actions/import-actions.ts:110  revalidatePath("/import");
+  ./src/lib/actions/import-actions.ts:111  revalidatePath("/qbank");
+  ./src/lib/actions/import-actions.ts:112  revalidatePath("/flashcards");
+  ./src/lib/actions/import-actions.ts:113  revalidatePath("/dashboard");
+  ./src/lib/actions/planner-actions.ts:6  * Thin wrappers over the planner service layer. Each action validates
+  ./src/lib/contract/types.ts:117  documentsValidated: number;
+  ./src/lib/contract/types.ts:118  questionsValidated: number;
+  ./src/lib/contract/types.ts:119  linksValidated: number;
+  ./src/lib/contract/types.ts:127  validatedAt: string;
+  ./src/lib/exam/campbell-exam-builder.ts:202  * Validate whether the Create Test config is ready to start.
+  ./src/lib/importers/question-importer.ts:5  import { RawQuestion, validateQuestions, ValidationResult } from './validators';
+  ... and 58 more hit(s)
+
+Pattern: invalid
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:91  return NextResponse.json({ ok: false, error: "Invalid type" }, { status: 400 });
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:115  return NextResponse.json({ ok: false, error: "Invalid JSON payload" }, { status: 400 });
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:150  setError(`Invalid JSON file: ${filename}`);
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:352  if (!VALID_TYPES.includes(type as ImportType)) return json(400, { ok: false, error: "Invalid import type" });
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:392  catch { return json(400, { ok: false, error: "Invalid JSON body" }); }
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:112  throw new Error(`Invalid JSON: ${file.name}`);
+  ./scripts/_verify-import.ts:37  console.log(`    metadataJson: INVALID JSON!`);
+  ./scripts/_verify-import.ts:61  console.log(`    ${field}: INVALID JSON!`);
+  ./scripts/_verify-import.ts:100  console.log(`    ${field}: INVALID JSON!`);
+  ./scripts/_verify-import.ts:154  console.log(`  CorrectOption refs: ✗ ${badCorrectRefs.length} questions with invalid correctOptionId`);
+  ./src/app/api/exams/_shared.ts:42  case "INVALID_STATE":
+  ./src/app/api/planner/_shared.ts:42  { ok: false, error: { code: "INVALID_STATE", message: msg } },
+  ./src/app/settings/data/page.tsx:101  setStatus('Import failed: invalid JSON backup file.');
+  ./src/components/import/ImportUploadPanel.tsx:702  errors.push(`${file.name}: JSON invalid`);
+  ./src/components/planner/TaskCard.tsx:143  } else if (res.error.code === "INVALID_STATE") {
+  ./src/lib/actions/planner-actions.ts:84  return fail("INVALID_STATE", msg);
+  ./src/lib/importers/question-importer.ts:74  console.warn(`⚠️  ${validation.invalidQuestions} questions have validation errors`);
+  ./src/lib/importers/question-importer.ts:115  // Skip invalid questions
+  ./src/lib/importers/validators.ts:41  invalidQuestions: number;
+  ./src/lib/importers/validators.ts:182  invalidQuestions: errors.length,
+  ./src/lib/importers/validators.ts:306  lines.push(`❌ Invalid:          ${result.invalidQuestions}`);
+  ./src/lib/services/exam-service.ts:210  throw new ExamServiceError("INVALID_STATE", `Cannot submit answer: session is ${session.status}.`);
+  ./src/lib/services/exam-service.ts:250  throw new ExamServiceError("INVALID_STATE", `Cannot navigate: session is ${session.status}.`);
+  ./src/lib/services/exam-service.ts:291  throw new ExamServiceError("INVALID_STATE", `Cannot suspend: session is ${session.status}.`);
+  ./src/lib/services/exam-service.ts:309  throw new ExamServiceError("INVALID_STATE", `Cannot resume: session is ${session.status}.`);
+  ./src/lib/services/exam-service.ts:327  throw new ExamServiceError("INVALID_STATE", "Session is already completed.");
+  ./uro-killer/apps/web/src/app/api/import/[type]/route.ts:92  error: err instanceof Error ? err.message : 'Invalid flashcard format',
+  ./uro-killer/apps/web/src/app/api/import/[type]/route.ts:132  error: err instanceof Error ? err.message : 'Invalid question format',
+  ./uro-killer/apps/web/src/app/api/import/[type]/route.ts:165  error: err instanceof Error ? err.message : 'Invalid notebook format',
+  ./uro-killer/apps/web/src/app/api/import/[type]/route.ts:205  error: 'Invalid import type. Must be one of: flashcards, notes, questions',
+  ./uro-killer/apps/web/src/app/api/import/[type]/route.ts:246  errors.push({ index: i, message: validation.error || 'Invalid data' });
+  ./uro-killer/apps/web/src/app/api/import/[type]/route.ts:271  errors.push({ index: i, message: validation.error || 'Invalid data' });
+  ./uro-killer/apps/web/src/app/api/import/[type]/route.ts:296  errors.push({ index: i, message: validation.error || 'Invalid data' });
+
+Pattern: required
+  ./src/app/api/exams/[id]/submit/route.ts:28  return validationError("selectedOptionId is required.");
+  ./src/app/api/exams/[id]/suspend/route.ts:8  *   elapsedSeconds?: number  // required when action is "suspend"
+  ./src/app/api/exams/[id]/suspend/route.ts:24  return validationError('action is required and must be "suspend" or "resume".');
+  ./src/app/api/exams/[id]/suspend/route.ts:29  return validationError("elapsedSeconds is required when suspending.");
+  ./src/app/api/exams/start/route.ts:25  // Validate required fields
+  ./src/app/api/exams/start/route.ts:27  return validationError('mode is required and must be "tutor" or "timed".');
+  ./src/app/api/exams/start/route.ts:30  return validationError("questionPoolMode is required.");
+  ./src/app/api/planner/overdue/route.ts:42  return validationError('action is required and must be "carry_over" or "catch_up".');
+  ./src/app/api/planner/tasks/[id]/complete/route.ts:21  if (!id) return validationError("Task ID is required.");
+  ./src/app/api/planner/tasks/[id]/move/route.ts:21  if (!id) return validationError("Task ID is required.");
+  ./src/app/api/planner/tasks/[id]/move/route.ts:26  return validationError("targetDayId is required and must be a string.");
+  ./src/app/api/planner/tasks/[id]/reschedule/route.ts:21  if (!id) return validationError("Task ID is required.");
+  ./src/app/api/planner/tasks/[id]/reschedule/route.ts:26  return validationError("targetDate is required.");
+  ./src/app/api/planner/tasks/[id]/skip/route.ts:16  if (!id) return validationError("Task ID is required.");
+  ./src/components/import/ImportUploadPanel.tsx:373  if (!text) return { ok: false, error: "field question/text/prompt/body is required" };
+  ./src/components/import/ImportUploadPanel.tsx:376  if (options.length < 2) return { ok: false, error: "at least 2 options are required" };
+  ./src/components/import/ImportUploadPanel.tsx:405  if (!front) return { ok: false, error: "field front/question/term is required" };
+  ./src/components/import/ImportUploadPanel.tsx:406  if (!back) return { ok: false, error: "field back/answer/definition is required" };
+  ./src/components/import/ImportUploadPanel.tsx:430  if (!content) return { ok: false, error: "field content/body/text/html is required" };
+  ./src/components/ui/page-header.tsx:24  /** Required — rendered as <h1>. */
+  ./src/lib/actions/exam-actions.ts:66  return fail("VALIDATION_ERROR", "mode, chapterIds, and questionCount are required.");
+  ./src/lib/actions/exam-actions.ts:80  if (!sessionId) return fail("VALIDATION_ERROR", "sessionId is required.");
+  ./src/lib/actions/exam-actions.ts:99  return fail("VALIDATION_ERROR", "sessionId and selectedOptionId are required.");
+  ./src/lib/actions/exam-actions.ts:118  if (!sessionId) return fail("VALIDATION_ERROR", "sessionId is required.");
+  ./src/lib/actions/exam-actions.ts:131  if (!sessionId) return fail("VALIDATION_ERROR", "sessionId is required.");
+  ./src/lib/actions/exam-actions.ts:144  if (!sessionId) return fail("VALIDATION_ERROR", "sessionId is required.");
+  ./src/lib/actions/exam-actions.ts:157  if (!sessionId) return fail("VALIDATION_ERROR", "sessionId is required.");
+  ./src/lib/actions/exam-actions.ts:170  if (!sessionId) return fail("VALIDATION_ERROR", "sessionId is required.");
+  ./src/lib/actions/exam-actions.ts:187  if (!sessionId) return fail("VALIDATION_ERROR", "sessionId is required.");
+  ./src/lib/actions/exam-actions.ts:200  if (!sessionId) return fail("VALIDATION_ERROR", "sessionId is required.");
+  ./src/lib/actions/exam-actions.ts:217  if (!sessionId) return fail("VALIDATION_ERROR", "sessionId is required.");
+  ./src/lib/actions/exam-actions.ts:230  if (!sessionId) return fail("VALIDATION_ERROR", "sessionId is required.");
+  ./src/lib/actions/planner-actions.ts:169  if (!taskId) return fail("VALIDATION_ERROR", "taskId is required.");
+  ./src/lib/actions/planner-actions.ts:206  return fail("VALIDATION_ERROR", "title is required.");
+  ./src/lib/actions/planner-actions.ts:232  if (!planId) return fail("VALIDATION_ERROR", "planId is required.");
+  ./src/lib/actions/planner-actions.ts:255  if (!taskId) return fail("VALIDATION_ERROR", "taskId is required.");
+  ./src/lib/actions/planner-actions.ts:266  if (!taskId) return fail("VALIDATION_ERROR", "taskId is required.");
+  ./src/lib/actions/planner-actions.ts:277  if (!taskId) return fail("VALIDATION_ERROR", "taskId is required.");
+  ./src/lib/actions/planner-actions.ts:292  if (!taskId) return fail("VALIDATION_ERROR", "taskId is required.");
+  ./src/lib/actions/planner-actions.ts:293  if (!targetDayId) return fail("VALIDATION_ERROR", "targetDayId is required.");
+  ... and 22 more hit(s)
+
+Pattern: text/stem/question
+  ./src/components/import/ImportUploadPanel.tsx:70  return "فیلد text/stem/question الزامی";
+
+Pattern: flashcard
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:4  bulkImportFlashcards,
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:11  type ImportType = "flashcards" | "notebooks" | "questions";
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:39  return "flashcards";
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:77  (type === "flashcards" ? record.cards : undefined) ??
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:90  if (type !== "flashcards" && type !== "notebooks" && type !== "questions") {
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:132  if (importType === "flashcards") {
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:133  result = await bulkImportFlashcards(items, "api-import");
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:5  type ImportTab = "flashcards" | "notebooks" | "questions";
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:10  flashcards: ".json",
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:27  if (type === "flashcards" && Array.isArray(payload.cards)) return payload.cards;
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:48  const [activeTab, setActiveTab] = useState<ImportTab>("flashcards");
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:50  flashcards: [],
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:192  {(["flashcards", "notebooks", "questions"] as ImportTab[]).map((tab) => (
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:7  const VALID_TYPES = ["flashcards", "notebooks", "questions"] as const;
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:27  if ("front" in it || "back" in it) return "flashcards";
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:42  if (type === "flashcards" && Array.isArray((body as any).cards)) return (body as any).cards;
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:82  `SELECT name FROM sqlite_master WHERE type='table' AND name IN ('flashcards','notebooks','questions')`
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:92  "DB not found. Set DB_PATH (or DATABASE_URL=file:...) to an existing SQLite file that contains flashcards/notebooks/questions tables."
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:142  if (type === "flashcards") {
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:173  source: "flashcards",
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:5  type ImportType = "flashcards" | "notebooks" | "questions";
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:9  { key: "flashcards", label: "فلش‌کارت‌ها" },
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:25  if (type === "flashcards" && Array.isArray(parsed.cards)) return parsed.cards;
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:34  flashcards: [],
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:39  flashcards: { kind: "idle", message: "" },
+  ./apps/web/src/components/layout/command-palette.tsx:31  { label: "\u0641\u0644\u0634\u200C\u06A9\u0627\u0631\u062A\u200C\u0647\u0627", href: "/flashcards" },
+  ./apps/web/src/components/layout/sidebar.tsx:32  { href: "/flashcards",label: "\u0641\u0644\u0634\u200C\u06A9\u0627\u0631\u062A\u200C\u0647\u0627",  icon: CreditCard },
+  ./data/test-batch/manifest.json:9  "flashcards": 2
+  ./drizzle/meta/0000_snapshot.json:1021  "flashcard_reviews": {
+  ./drizzle/meta/0000_snapshot.json:1022  "name": "flashcard_reviews",
+  ./drizzle/meta/0000_snapshot.json:1031  "flashcard_id": {
+  ./drizzle/meta/0000_snapshot.json:1032  "name": "flashcard_id",
+  ./drizzle/meta/0000_snapshot.json:1118  "flashcard_reviews_flashcard_idx": {
+  ./drizzle/meta/0000_snapshot.json:1119  "name": "flashcard_reviews_flashcard_idx",
+  ./drizzle/meta/0000_snapshot.json:1121  "flashcard_id"
+  ./drizzle/meta/0000_snapshot.json:1125  "flashcard_reviews_reviewed_at_idx": {
+  ./drizzle/meta/0000_snapshot.json:1126  "name": "flashcard_reviews_reviewed_at_idx",
+  ./drizzle/meta/0000_snapshot.json:1132  "flashcard_reviews_due_at_idx": {
+  ./drizzle/meta/0000_snapshot.json:1133  "name": "flashcard_reviews_due_at_idx",
+  ./drizzle/meta/0000_snapshot.json:1141  "flashcard_reviews_flashcard_id_flashcards_id_fk": {
+  ... and 918 more hit(s)
+
+Pattern: question
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:6  bulkImportQuestions,
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:11  type ImportType = "flashcards" | "notebooks" | "questions";
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:52  return "questions";
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:79  (type === "questions" ? record.questions : undefined);
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:90  if (type !== "flashcards" && type !== "notebooks" && type !== "questions") {
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:137  result = await bulkImportQuestions(items, "api-import");
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:5  type ImportTab = "flashcards" | "notebooks" | "questions";
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:12  questions: ".json",
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:29  if (type === "questions" && Array.isArray(payload.questions)) return payload.questions;
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:52  questions: [],
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:192  {(["flashcards", "notebooks", "questions"] as ImportTab[]).map((tab) => (
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:7  const VALID_TYPES = ["flashcards", "notebooks", "questions"] as const;
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:28  if ("stem" in it && Array.isArray((it as any).options) && ("correct" in it || "correctAnswer" in it)) return "questions";
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:44  if (type === "questions" && Array.isArray((body as any).questions)) return (body as any).questions;
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:82  `SELECT name FROM sqlite_master WHERE type='table' AND name IN ('flashcards','notebooks','questions')`
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:92  "DB not found. Set DB_PATH (or DATABASE_URL=file:...) to an existing SQLite file that contains flashcards/notebooks/questions tables."
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:143  const frontCol = pickFirstExisting(columns, ["front", "question", "prompt", "q", "text"]);
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:149  const front = String(it.front ?? it.question ?? it.stem ?? it.prompt ?? it.q ?? "").trim();
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:188  if (type === "questions") {
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:189  const stemCol = pickFirstExisting(columns, ["stem", "question", "prompt", "text"]);
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:204  const stem = String(it.stem ?? it.question ?? it.prompt ?? "").trim();
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:5  type ImportType = "flashcards" | "notebooks" | "questions";
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:11  { key: "questions", label: "سوالات" },
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:27  if (type === "questions" && Array.isArray(parsed.questions)) return parsed.questions;
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:36  questions: [],
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:41  questions: { kind: "idle", message: "" },
+  ./data/test-batch/manifest.json:8  "questions": 3,
+  ./data/test-batch/questions.json:9  "questionType": "single_best_answer",
+  ./data/test-batch/questions.json:30  "questionType": "single_best_answer",
+  ./data/test-batch/questions.json:52  "questionType": "single_best_answer",
+  ./drizzle/meta/0000_snapshot.json:630  "exam_session_questions": {
+  ./drizzle/meta/0000_snapshot.json:631  "name": "exam_session_questions",
+  ./drizzle/meta/0000_snapshot.json:647  "question_id": {
+  ./drizzle/meta/0000_snapshot.json:648  "name": "question_id",
+  ./drizzle/meta/0000_snapshot.json:758  "exam_session_questions_session_order_unique": {
+  ./drizzle/meta/0000_snapshot.json:759  "name": "exam_session_questions_session_order_unique",
+  ./drizzle/meta/0000_snapshot.json:766  "exam_session_questions_session_question_unique": {
+  ./drizzle/meta/0000_snapshot.json:767  "name": "exam_session_questions_session_question_unique",
+  ./drizzle/meta/0000_snapshot.json:770  "question_id"
+  ./drizzle/meta/0000_snapshot.json:774  "exam_session_questions_session_idx": {
+  ... and 2663 more hit(s)
+
+Pattern: mcq
+  ./package-lock.json:10074  "integrity": "sha512-WPS/HvHQTYnHisLo9McqBHOJk2FkHO/tlpvldyrnem4aeQp4hai3gythswg6p01oSoTl58rcpiFAjF2br2Ak2A==",
+  ./src/components/command/CommandPalette.tsx:54  { id: "nav-questions", title: "Questions", subtitle: "بانک سوال", keywords: ["mcq", "qbank"], href: "/questions" },
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:234  accuracy: number; duration: string; mcqCount: number;
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:240  category: string; linkedMCQs: number; linkedFlashcards: number;
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:277  { id:"r1", title:"Urologic Oncology — Renal Cell Carcinoma", subtitle:"High-yield • 20 MCQs",
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:278  accuracy:62, duration:"25 min", mcqCount:20, reason:"Accuracy dropped 8% this week",
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:280  { id:"r2", title:"Pediatric Urology — VUR & Hydronephrosis", subtitle:"Review • 15 MCQs",
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:281  accuracy:71, duration:"18 min", mcqCount:15, reason:"Spaced repetition due today",
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:283  { id:"r3", title:"Stone Disease — Metabolic Workup", subtitle:"Deep dive • 12 MCQs",
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:284  accuracy:75, duration:"15 min", mcqCount:12, reason:"Frequently tested on ABU",
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:292  category:"Oncology", linkedMCQs:8, linkedFlashcards:12,
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:297  category:"Pediatrics", linkedMCQs:5, linkedFlashcards:8,
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:319  { id:"q3", title:"Stone Disease MCQ Block", detail:"New high-yield block", eta:"18 min", priority:"medium", done:false },
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:324  { id:"a1", text:"Completed Oncology MCQ block — 78% accuracy", time:"10m ago", tone:"blue" },
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:429  mcqCount: 12 + i * 4,
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:445  mcqCount: dueToday,
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:908  <Chip label={`${rec.mcqCount} MCQs`} color="var(--violet)"/>
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:1181  detail:form.detail,category:form.category,linkedMCQs:0,linkedFlashcards:0,
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:1261  <span style={{fontSize:10,color:"var(--blue)"}}>🔗 {note.linkedMCQs} MCQs</span>
+  ./src/components/srs/FlashCard.tsx:110  const [selectedMCQ, setSelectedMCQ] = useState<string | null>(null);
+  ./src/components/srs/FlashCard.tsx:153  // ============ Reset MCQ on card change ============
+  ./src/components/srs/FlashCard.tsx:155  setSelectedMCQ(null);
+  ./src/components/srs/FlashCard.tsx:289  {/* ============ MCQ Options ============ */}
+  ./src/components/srs/FlashCard.tsx:290  {(card as any).type === 'mcq' && (card as any).options && (
+  ./src/components/srs/FlashCard.tsx:293  const isSelected = selectedMCQ === key;
+  ./src/components/srs/FlashCard.tsx:303  setSelectedMCQ(key);
+  ./src/components/srs/FlashCard.tsx:370  {/* Show Answer Button (for non-MCQ or when no option selected) */}
+  ./src/components/srs/FlashCard.tsx:418  {(card as any).correctAnswer && (card as any).type === 'mcq' && (
+  ./src/lib/srs/cardRegistry.ts:49  mcq: {
+  ./src/lib/srs/cardRegistry.ts:50  label: 'MCQ',
+  ./src/lib/srs/content-parser.ts:74  const type: CardType = hasOptions ? 'mcq' : 'basic';
+  ./src/lib/srs/content-parser.ts:93  // استخراج گزینه‌ها (برای MCQ)
+  ./src/lib/srs/content-parser.ts:276  // پترن سوالات MCQ معمول
+  ./src/lib/srs/content-parser.ts:294  type: Object.keys(options).length > 0 ? 'mcq' : 'basic',
+  ./src/lib/validations.ts:16  type: z.enum(["mcq", "trueFalse", "matching", "shortAnswer"]).default("mcq"),
+  ./uro-killer/apps/web/package-lock.json:7115  "integrity": "sha512-WPS/HvHQTYnHisLo9McqBHOJk2FkHO/tlpvldyrnem4aeQp4hai3gythswg6p01oSoTl58rcpiFAjF2br2Ak2A==",
+  ./uro-killer/apps/web/src/types/srs.ts:13  export type CardType = 'basic' | 'mcq' | 'cloze' | 'image-occlusion' | 'type-answer';
+
+Pattern: note
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:5  bulkImportNotebooks,
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:11  type ImportType = "flashcards" | "notebooks" | "questions";
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:56  return "notebooks";
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:78  (type === "notebooks" ? record.notes : undefined) ??
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:90  if (type !== "flashcards" && type !== "notebooks" && type !== "questions") {
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:97  if (importType === "notebooks" && contentType.includes("text/html")) {
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:102  const result = await bulkImportNotebooks(
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:134  } else if (importType === "notebooks") {
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:135  result = await bulkImportNotebooks(items, "api-import");
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:5  type ImportTab = "flashcards" | "notebooks" | "questions";
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:11  notebooks: ".json,.html,.htm",
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:28  if (type === "notebooks" && Array.isArray(payload.notes)) return payload.notes;
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:51  notebooks: [],
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:123  if (activeTab === "notebooks" && (lower.endsWith(".html") || lower.endsWith(".htm"))) {
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:126  const res = await fetch("/api/import/notebooks", {
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:192  {(["flashcards", "notebooks", "questions"] as ImportTab[]).map((tab) => (
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:7  const VALID_TYPES = ["flashcards", "notebooks", "questions"] as const;
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:29  if ("html" in it) return "notebooks";
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:43  if (type === "notebooks" && Array.isArray((body as any).notes)) return (body as any).notes;
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:82  `SELECT name FROM sqlite_master WHERE type='table' AND name IN ('flashcards','notebooks','questions')`
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:92  "DB not found. Set DB_PATH (or DATABASE_URL=file:...) to an existing SQLite file that contains flashcards/notebooks/questions tables."
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:145  const explCol = pickFirstExisting(columns, ["explanation", "notes", "note", "description"]);
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:190  const explCol = pickFirstExisting(columns, ["explanation", "rationale", "notes", "description"]);
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:268  # notebooks
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:275  const title = String(it.title ?? it.name ?? `Imported Notebook ${i + 1}`).trim();
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:278  if (!html) { skipped++; errors.push(`Item ${i + 1}: Missing notebook content`); continue; }
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:375  if (importType === "notebooks" && contentType.includes("text/html")) {
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:380  const title = String(filename).replace(/\.(html|htm)$/i, "") || "Imported Notebook";
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:382  const { rows } = makeRowsForType("notebooks", [{ title, html, source_file: filename }], columns);
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:383  const insertedCount = insertRows(db, "notebooks", rows, columns);
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:5  type ImportType = "flashcards" | "notebooks" | "questions";
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:10  { key: "notebooks", label: "جزوه‌ها" },
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:26  if (type === "notebooks" && Array.isArray(parsed.notes)) return parsed.notes;
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:32  const [activeTab, setActiveTab] = useState<ImportType>("notebooks");
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:35  notebooks: [],
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:40  notebooks: { kind: "idle", message: "" },
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:47  return activeTab === "notebooks" ? ".json,.html,.htm" : ".json";
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:59  if (tab !== "notebooks" && arr.some((f) => isHtmlFile(f.name))) {
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:91  if (activeTab === "notebooks" && isHtmlFile(file.name)) {
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:95  const res = await fetch("/api/import/notebooks", {
+  ... and 1061 more hit(s)
+
+Pattern: import
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:1  import { NextResponse } from "next/server";
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:3  import {
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:4  bulkImportFlashcards,
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:5  bulkImportNotebooks,
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:6  bulkImportQuestions,
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:7  } from "@/lib/server/importers";
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:11  type ImportType = "flashcards" | "notebooks" | "questions";
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:26  importedCount?: unknown;
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:28  const value = maybe.insertedCount ?? maybe.count ?? maybe.importedCount;
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:37  function detectKind(items: unknown[]): ImportType | null {
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:62  function toItems(body: unknown, type: ImportType): unknown[] {
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:94  const importType = type as ImportType;
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:97  if (importType === "notebooks" && contentType.includes("text/html")) {
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:102  const result = await bulkImportNotebooks(
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:104  "api-import",
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:118  const items = toItems(body, importType);
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:124  if (kind && kind !== importType) {
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:132  if (importType === "flashcards") {
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:133  result = await bulkImportFlashcards(items, "api-import");
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:134  } else if (importType === "notebooks") {
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:135  result = await bulkImportNotebooks(items, "api-import");
+  ./.import-rebuild-backup-20260302-145603/src__app__api__import__[type]__route.ts:137  result = await bulkImportQuestions(items, "api-import");
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:3  import { useMemo, useState } from "react";
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:5  type ImportTab = "flashcards" | "notebooks" | "questions";
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:7  type FilesByTab = Record<ImportTab, File[]>;
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:9  const ACCEPT_BY_TAB: Record<ImportTab, string> = {
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:19  function extractItemsFromPayload(payload: any, type: ImportTab): any[] {
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:47  export default function ImportPage() {
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:48  const [activeTab, setActiveTab] = useState<ImportTab>("flashcards");
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:54  const [isImporting, setIsImporting] = useState(false);
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:105  const importFiles = async () => {
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:114  setIsImporting(true);
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:126  const res = await fetch("/api/import/notebooks", {
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:162  const res = await fetch(`/api/import/${activeTab}`, {
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:178  setSuccess(`Import completed. Inserted ${totalInserted} items.`);
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:181  setError(e?.message || "Import failed");
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:183  setIsImporting(false);
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:189  <h1 className="text-2xl font-semibold">Import</h1>
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:192  {(["flashcards", "notebooks", "questions"] as ImportTab[]).map((tab) => (
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:252  onClick={importFiles}
+  ... and 1903 more hit(s)
+
+Pattern: preview
+  ./scripts/import-batch.ts:33  --dry-run     Preview what would be imported without writing to the database
+  ./src/app/flashcards/FlashcardsScreen.tsx:180  const preview = sm2(
+  ./src/app/flashcards/FlashcardsScreen.tsx:188  <span className="text-[10px] text-muted-foreground">{intervalLabel(preview.interval)}</span>
+  ./src/app/import/import { sqliteTable, text, integer, rea.js:32  itemCount: number | null; // parsed item count preview
+  ./src/app/import/import { sqliteTable, text, integer, rea.js:609  const totalPreviewItems = files.reduce(
+  ./src/app/import/import { sqliteTable, text, integer, rea.js:699  {totalPreviewItems > 0 && (
+  ./src/app/import/import { sqliteTable, text, integer, rea.js:701  — {totalPreviewItems.toLocaleString("fa-IR")} آیتم
+  ./src/app/notebooks/[id]/page.tsx:826  (preview?: InkStroke | null) => {
+  ./src/app/notebooks/[id]/page.tsx:838  if (preview) drawStroke(ctx, preview);
+  ./src/app/notebooks/[id]/page.tsx:1183  // Copy selected text (from stored selection preview)
+  ./src/app/notebooks/[id]/page.tsx:1184  const copySelectionPreview = useCallback(async () => {
+  ./src/app/notebooks/[id]/page.tsx:1958  onClick={copySelectionPreview}
+  ./src/app/notebooks/[id]/page.tsx:1972  {/* Selected-text preview */}
+  ./src/app/notebooks/NotebooksScreen.tsx:48  /** Strip HTML tags & decode common entities for card preview text. */
+  ./src/app/notebooks/NotebooksScreen.tsx:49  function previewText(raw: string): string {
+  ./src/app/notebooks/NotebooksScreen.tsx:368  {previewText(nb.content)}
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:239  id: string; title: string; preview: string; detail: string;
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:290  preview:"T1a ≤4cm → partial nephrectomy preferred…",
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:295  preview:"Grade I–II: observation + prophylaxis…",
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:1180  setNotes(p=>[{id:uid(),title:form.title,preview:form.detail.slice(0,60)+"…",
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:1257  {note.preview}
+  ./src/components/exam/AddToNotebookModal.tsx:291  {/* Preview */}
+  ./src/components/exam/CreateFlashcardModal.tsx:332  {/* Tags preview */}
+  ./src/components/import/ImportUploadPanel.tsx:37  type PreviewItem =
+  ./src/components/import/ImportUploadPanel.tsx:42  type NormaliseResult<T extends PreviewItem> =
+  ./src/components/import/ImportUploadPanel.tsx:449  function normaliseItem(item: Record<string, unknown>, type: ImportType): NormaliseResult<PreviewItem> {
+  ./src/components/import/ImportUploadPanel.tsx:495  ): { items: PreviewItem[]; errors: string[] } {
+  ./src/components/import/ImportUploadPanel.tsx:497  const items: PreviewItem[] = [];
+  ./src/components/import/ImportUploadPanel.tsx:521  const [preview, setPreview] = useState<Record<string, unknown>[] | null>(null);
+  ./src/components/import/ImportUploadPanel.tsx:533  setPreview(null);
+  ./src/components/import/ImportUploadPanel.tsx:556  setPreview(null);
+  ./src/components/import/ImportUploadPanel.tsx:563  setPreview(null);
+  ./src/components/import/ImportUploadPanel.tsx:567  async function handlePreview() {
+  ./src/components/import/ImportUploadPanel.tsx:608  setPreview(allItems);
+  ./src/components/import/ImportUploadPanel.tsx:627  setPreview(null);
+  ./src/components/import/ImportUploadPanel.tsx:632  if (!preview || isImporting) return;
+  ./src/components/import/ImportUploadPanel.tsx:638  const validItems = preview.filter((item) => !validator(item));
+  ./src/components/import/ImportUploadPanel.tsx:653  setPreview(null);
+  ./src/components/import/ImportUploadPanel.tsx:666  async function handlePreviewNormalized() {
+  ./src/components/import/ImportUploadPanel.tsx:672  const allItems: PreviewItem[] = [];
+  ... and 38 more hit(s)
+
+Pattern: normalize
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:118  function normalizeTags(value: any): string[] {
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:161  const tags = normalizeTags(it.tags);
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:231  const tags = normalizeTags(it.tags);
+  ./package-lock.json:3978  "normalize-path": "^3.0.0",
+  ./package-lock.json:4662  "normalize-path": "~3.0.0",
+  ./package-lock.json:8676  "node_modules/normalize-path": {
+  ./package-lock.json:8678  "resolved": "https://registry.npmjs.org/normalize-path/-/normalize-path-3.0.0.tgz",
+  ./package-lock.json:10500  "normalize-path": "^3.0.0",
+  ./src/components/import/ImportUploadPanel.tsx:479  function extractNormalizedRecords(parsed: unknown, type: ImportType): Record<string, unknown>[] {
+  ./src/components/import/ImportUploadPanel.tsx:496  const rawItems = extractNormalizedRecords(parsed, type);
+  ./src/components/import/ImportUploadPanel.tsx:666  async function handlePreviewNormalized() {
+  ./src/components/import/ImportUploadPanel.tsx:741  async function handleImportNormalized() {
+  ./src/components/import/ImportUploadPanel.tsx:916  onClick={handlePreviewNormalized}
+  ./src/components/import/ImportUploadPanel.tsx:929  onClick={handleImportNormalized}
+  ./src/lib/dashboard/useDashboardData.ts:168  /*  Payload normalizers                                                */
+  ./src/lib/dashboard/useDashboardData.ts:171  function normalizePlannerPayload(payload: any): PlannerTodayInfo {
+  ./src/lib/dashboard/useDashboardData.ts:192  function normalizeStatsPayload(json: any): DashboardServerStats {
+  ./src/lib/dashboard/useDashboardData.ts:307  setServerStats(normalizeStatsPayload(statsJson));
+  ./src/lib/dashboard/useDashboardData.ts:314  setPlanner(normalizePlannerPayload(json));
+  ./src/lib/importers/import-to-db.ts:171  function normalizeChunkKind(value?: string | null) {
+  ./src/lib/importers/import-to-db.ts:184  function normalizeQuestionType(value?: string | null) {
+  ./src/lib/importers/import-to-db.ts:197  function normalizeFlashcardType(value?: string | null) {
+  ./src/lib/importers/import-to-db.ts:408  chunkKind: normalizeChunkKind(chunk.chunkKind),
+  ./src/lib/importers/import-to-db.ts:482  questionType: normalizeQuestionType(q.questionType),
+  ./src/lib/importers/import-to-db.ts:605  cardType: normalizeFlashcardType(fc.cardType),
+  ./src/lib/import-utils.ts:7  export function normalizePersianText(text: string): string {
+  ./src/lib/import-utils.ts:13  const front = normalizePersianText(data.front || data.question || "");
+  ./src/lib/import-utils.ts:14  const back = normalizePersianText(data.back || data.answer || "");
+  ./src/lib/services/study-orchestrator-service.ts:367  // Normalize to 0–100 (max theoretical raw ≈ 11)
+  ./src/store/useSRSStore.ts:73  function normalizeText(value: unknown): string {
+  ./src/store/useSRSStore.ts:77  function normalizeTags(value: unknown): string[] {
+  ./src/store/useSRSStore.ts:79  return value.map((entry) => normalizeText(entry)).filter(Boolean);
+  ./src/store/useSRSStore.ts:109  const front = normalizeText(
+  ./src/store/useSRSStore.ts:112  const back = normalizeText(item.back ?? item.answer ?? item.correctAnswer ?? item.explanation);
+  ./src/store/useSRSStore.ts:113  const tags = normalizeTags(item.tags);
+  ./src/store/useSRSStore.ts:173  normalizeText(firstCols[0]).toLowerCase() === "front" &&
+  ./src/store/useSRSStore.ts:174  normalizeText(firstCols[1]).toLowerCase() === "back";
+  ./src/store/useSRSStore.ts:181  front: normalizeText(cols[0]),
+  ./src/store/useSRSStore.ts:182  back: normalizeText(cols[1]),
+  ./src/store/useSRSStore.ts:183  tags: normalizeTags(cols[2]),
+  ... and 62 more hit(s)
+
+Pattern: transform
+  ./src/app/exam/[id]/page.tsx:116  <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+  ./src/app/flashcards/FlashcardsScreen.tsx:149  style={{ transformStyle: "preserve-3d" }}
+  ./src/app/flashcards/FlashcardsScreen.tsx:168  )} style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)", background: colorLight.surface, border: `1px solid ${colorLight.accentBorder}` }}>
+  ./src/app/history/HistoryScreen.tsx:324  transform: "translateY(-50%)",
+  ./src/app/notebooks/[id]/page.tsx:638  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ./src/app/notebooks/[id]/page.tsx:834  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ./src/app/settings/SettingsScreen.tsx:71  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${checked ? "right-0.5" : "right-[22px]"}`} />
+  ./src/components/app-shell/Sidebar.tsx:111  className="fixed inset-y-0 right-0 z-50 flex flex-col overflow-hidden will-change-[width,transform]"
+  ./src/components/app-shell/Topbar.tsx:113  <Sun  className="h-[18px] w-[18px] rotate-0 scale-100 transition-transform dark:-rotate-90 dark:scale-0" />
+  ./src/components/app-shell/Topbar.tsx:114  <Moon className="absolute h-[18px] w-[18px] rotate-90 scale-0 transition-transform dark:rotate-0 dark:scale-100" />
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:551  <ellipse cx="32" cy="34" rx="27" ry="7" stroke="url(#sr)" strokeWidth="2.5" fill="none" opacity="0.45" transform="rotate(-18,32,34)"/>
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:553  <ellipse cx="28" cy="27" rx="5" ry="3" fill="rgba(255,255,255,0.22)" transform="rotate(-15,28,27)"/>
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:554  <ellipse cx="32" cy="34" rx="27" ry="7" stroke="url(#sr)" strokeWidth="2.5" fill="none" strokeDasharray="0 42 44 0" transform="rotate(-18,32,34)"/>
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:615  <svg width={size} height={size} style={{transform:"rotate(-90deg)"}}>
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:725  transition:"transform 0.15s ease",
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:727  onMouseEnter={e=>{if(cell.current)(e.currentTarget as HTMLElement).style.transform="scale(1.15)"}}
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:728  onMouseLeave={e=>{(e.currentTarget as HTMLElement).style.transform="scale(1)"}}
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:862  textTransform:"uppercase"}}>{k.label}</span>
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:900  <span style={{fontSize:10,fontWeight:700,color:"var(--rose)",textTransform:"uppercase",
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:1234  <Search size={13} style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:1549  .hs-kpi-card:hover { border-color:var(--border-strong);box-shadow:var(--shadow-lg);transform:translateY(-2px); }
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:1583  @keyframes satFloat { 0%,100%{transform:translateY(0) rotate(0deg);} 50%{transform:translateY(-6px) rotate(3deg);} }
+  ./src/components/dashboard/HosseinStarshipDashboard.tsx:1584  @keyframes orbitSpin { to { transform:rotate(360deg); } }
+  ./src/components/exam/AddToNotebookModal.tsx:148  transform: "translate(-50%, -50%)",
+  ./src/components/exam/CreateFlashcardModal.tsx:120  transform: "translate(-50%, -50%)",
+  ./src/components/exam/ExamComplete.tsx:104  textTransform: "uppercase",
+  ./src/components/exam/ExamComplete.tsx:334  textTransform: "uppercase",
+  ./src/components/exam/ExamHeader.tsx:274  textTransform: "uppercase",
+  ./src/components/exam/ExplanationPane.tsx:164  textTransform: "uppercase",
+  ./src/components/exam/ExplanationPane.tsx:251  textTransform: "uppercase",
+  ./src/components/exam/LabValuesPanel.tsx:188  textTransform: "uppercase",
+  ./src/components/exam/NoteModal.tsx:133  transform: "translate(-50%, -50%)",
+  ./src/components/note-viewer/NotePageShell.tsx:41  className={`w-5 h-5 transition-transform duration-200 ${headerCollapsed ? "rotate-0" : "rotate-180"}`}
+  ./src/components/note-viewer/NotePageShell.tsx:109  className={`w-4 h-4 transition-transform duration-200 ${tocCollapsed ? "rotate-0" : "rotate-180"}`}
+  ./src/components/planner/dnd/PlannerDndContext.tsx:71  transform: "rotate(2deg)",
+  ./src/components/planner/PlannerBucket.tsx:97  className="transition-transform"
+  ./src/components/planner/PlannerTaskCard.tsx:110  transform,
+  ./src/components/planner/PlannerTaskCard.tsx:128  transform: CSS.Translate.toString(transform),
+  ./src/components/srs/FlashCard.tsx:253  transition-transform duration-150
+  ./src/components/ui/switch.tsx:26  "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform",
+  ... and 3 more hit(s)
+
+Pattern: parseJson
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:15  function parseJsonText(text: string): any {
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:148  parsed = parseJsonText(rawText);
+  ./src/lib/import/file-parser.ts:37  return parseJSON(content, warnings);
+  ./src/lib/import/file-parser.ts:64  function parseJSON(content: string, warnings: string[]): ParseResult {
+  ./src/lib/srs/content-parser.ts:36  export function parseJSON(content: string | object): ParsedItem[] {
+  ./src/lib/srs/content-parser.ts:45  items.push(parseJSONItem(item));
+  ./src/lib/srs/content-parser.ts:51  items.push(parseJSONItem(item));
+  ./src/lib/srs/content-parser.ts:57  items.push(parseJSONItem(item));
+  ./src/lib/srs/content-parser.ts:62  items.push(parseJSONItem(data));
+  ./src/lib/srs/content-parser.ts:71  function parseJSONItem(item: any): ParsedItem {
+  ./src/lib/srs/content-parser.ts:330  parsedItems = parseJSON(content);
+  ./src/lib/srs/content-parser.ts:343  parsedItems = parseJSON(content);
+  ./src/store/useSRSStore.ts:90  function parseJsonItems(text: string): RawItem[] {
+  ./src/store/useSRSStore.ts:195  return parseJsonItems(trimmed);
+  ./src/stores/useSRSStore.ts:90  function parseJsonItems(text: string): RawItem[] {
+  ./src/stores/useSRSStore.ts:195  return parseJsonItems(trimmed);
+  ./uro-killer/apps/web/src/hooks/use-file-processor.ts:6  parseJSON,
+  ./uro-killer/apps/web/src/hooks/use-file-processor.ts:65  result = await parseJSON(content, pf.file.name);
+  ./uro-killer/apps/web/src/lib/import/file-parser.ts:47  export async function parseJSON(content: string, fileName: string): Promise<ParseResult> {
+  ./uro-killer/apps/web/src/lib/import/index.ts:3  parseJSON,
+
+Pattern: JSON\.parse
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:16  return JSON.parse(text);
+  ./.import-rebuild-backup-20260302-145603/src__app__import__page.tsx:37  const parsed = JSON.parse(raw);
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:55  try { return JSON.parse(raw); } catch { return null; }
+  ./.import-rebuild-backup-20260302-145630/src__app__api__import__[type]__route.ts:391  try { body = JSON.parse(raw); }
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:73  const j = JSON.parse(text);
+  ./.import-rebuild-backup-20260302-145630/src__app__import__page.tsx:110  parsed = JSON.parse(raw);
+  ./scripts/_migration-doctor.ts:65  const journal = JSON.parse(readFileSync(JOURNAL_PATH, "utf-8")) as {
+  ./scripts/_verify-import.ts:34  JSON.parse(c.metadataJson);
+  ./scripts/_verify-import.ts:58  JSON.parse(value as string);
+  ./scripts/_verify-import.ts:97  JSON.parse(value as string);
+  ./scripts/import-questions.ts:65  const parsed = JSON.parse(content);
+  ./src/app/import/import { sqliteTable, text, integer, rea.js:99  const parsed = JSON.parse(text);
+  ./src/app/notebooks/[id]/page.tsx:551  const parsed = raw ? (JSON.parse(raw) as InkStroke[]) : [];
+  ./src/app/notebooks/[id]/page.tsx:572  const parsed = raw ? (JSON.parse(raw) as Annotation[]) : [];
+  ./src/app/settings/data/page.tsx:82  const parsed = JSON.parse(text) as BackupShape;
+  ./src/components/import/ImportUploadPanel.tsx:591  parsed = JSON.parse(raw);
+  ./src/components/import/ImportUploadPanel.tsx:700  parsed = JSON.parse(raw);
+  ./src/lib/import/file-parser.ts:66  const data = JSON.parse(content);
+  ./src/lib/importers/import-to-db.ts:215  return JSON.parse(raw) as T;
+  ./src/lib/notebook/inkStore.ts:95  resolve(JSON.parse(raw) as Annotation[]);
+  ./src/lib/srs/content-parser.ts:40  const data = typeof content === 'string' ? JSON.parse(content) : content;
+  ./src/lib/srs/content-parser.ts:432  JSON.parse(trimmed);
+  ./src/store/useSRSStore.ts:91  const parsed = JSON.parse(text);
+  ./src/stores/useSRSStore.ts:91  const parsed = JSON.parse(text);
+  ./uro-killer/apps/web/src/app/api/grok/route.ts:25  try { data = JSON.parse(text); } catch { data = { raw: text }; }
+  ./uro-killer/apps/web/src/app/import/page.tsx:125  parsed = JSON.parse(text);
+  ./uro-killer/apps/web/src/app/import/page.tsx:130  if (scriptData) parsed = JSON.parse(scriptData.textContent || "[]");
+  ./uro-killer/apps/web/src/app/import/page.tsx:175  : `${(JSON.parse(item.options || "[]")).length} گزینه`;
+  ./uro-killer/apps/web/src/hooks/use-local-storage.ts:15  setStoredValue(JSON.parse(item));
+  ./uro-killer/apps/web/src/lib/import/file-parser.ts:60  const data = JSON.parse(content);
+
+Pattern: Ajv
+  ./package-lock.json:1309  "ajv": "^6.14.0",
+  ./package-lock.json:3921  "node_modules/ajv": {
+  ./package-lock.json:3923  "resolved": "https://registry.npmjs.org/ajv/-/ajv-6.14.0.tgz",
+  ./package-lock.json:5909  "ajv": "^6.14.0",
+  ./package-lock.json:8328  "integrity": "sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==",
+  ./package-lock.json:9769  "integrity": "sha512-AURm5f0jYEOydBj7VQlVvDrjeFgthDdEF5H1dP+6mNpoXOMo1quQqJ4wvJDyRZ9+pO3kGWoOdmV08cSv2aJV6Q==",
+  ./src/lib/importers/validators.ts:4  import Ajv from 'ajv';
+  ./src/lib/importers/validators.ts:77  // AJV Schema Validator
+  ./src/lib/importers/validators.ts:80  const ajv = new Ajv({ allErrors: true, verbose: true });
+  ./src/lib/importers/validators.ts:81  const validateSchema = ajv.compile(questionSchema);
+  ./uro-killer/apps/web/package-lock.json:372  "ajv": "^6.14.0",
+  ./uro-killer/apps/web/package-lock.json:2659  "node_modules/ajv": {
+  ./uro-killer/apps/web/package-lock.json:2661  "resolved": "https://registry.npmjs.org/ajv/-/ajv-6.14.0.tgz",
+  ./uro-killer/apps/web/package-lock.json:4008  "ajv": "^6.12.4",
+  ./uro-killer/apps/web/package-lock.json:5784  "integrity": "sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA==",
+  ./uro-killer/apps/web/package-lock.json:6856  "integrity": "sha512-AURm5f0jYEOydBj7VQlVvDrjeFgthDdEF5H1dP+6mNpoXOMo1quQqJ4wvJDyRZ9+pO3kGWoOdmV08cSv2aJV6Q==",
+
+Pattern: yup
+  ./package-lock.json:1553  "integrity": "sha512-FMuvGijLDYG6lW+b/UvyilUWu5Ayu+3r2d1S8notiGCIyYU/76eig1UfMmkZ7vwgOrzKzlQbFSuQfgm7GYUPpA==",
+  ./package-lock.json:2075  "integrity": "sha512-UZ4Xdxm4pu3pQXjvfJiyCzZop/9j/eA2JjmhMaAhe3EVLH2g11Fy4fwyUp9sT1QJYR1kpc2JLuybPM0kuXv/Tg==",
+  ./src/app/notebooks/[id]/page.tsx:664  let onKeyUp: ((e: any) => void) | null = null;
+  ./src/app/notebooks/[id]/page.tsx:747  onKeyUp = (e: KeyboardEvent) => {
+  ./src/app/notebooks/[id]/page.tsx:754  doc.addEventListener("keyup", onKeyUp as any);
+  ./src/app/notebooks/[id]/page.tsx:776  if (onKeyUp) doc.removeEventListener("keyup", onKeyUp as any);
+  ./uro-killer/apps/web/package-lock.json:616  "integrity": "sha512-FMuvGijLDYG6lW+b/UvyilUWu5Ayu+3r2d1S8notiGCIyYU/76eig1UfMmkZ7vwgOrzKzlQbFSuQfgm7GYUPpA==",
+
+====================================================================================================
+3) FOCUSED CODE CONTEXT
+====================================================================================================
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\drizzle.config.ts:1] pattern: import
+>>     1: import type { Config } from "drizzle-kit";
+       2: 
+       3: export default {
+       4:   schema: "./src/db/schema.ts",
+       5:   out: "./drizzle",
+       6:   dialect: "sqlite",
+       7:   dbCredentials: {
+       8:     url: "./local.db",
+       9:   },
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\next.config.mjs:1] pattern: import
+>>     1: import path from "node:path";
+       2: import { fileURLToPath } from "node:url";
+       3: 
+       4: const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+       5: 
+       6: /** @type {import('next').NextConfig} */
+       7: const nextConfig = {
+       8:   reactStrictMode: true,
+       9:   outputFileTracingRoot: projectRoot,
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\next.config.mjs:2] pattern: import
+       1: import path from "node:path";
+>>     2: import { fileURLToPath } from "node:url";
+       3: 
+       4: const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+       5: 
+       6: /** @type {import('next').NextConfig} */
+       7: const nextConfig = {
+       8:   reactStrictMode: true,
+       9:   outputFileTracingRoot: projectRoot,
+      10:   images: {
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\next.config.mjs:4] pattern: import
+       1: import path from "node:path";
+       2: import { fileURLToPath } from "node:url";
+       3: 
+>>     4: const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+       5: 
+       6: /** @type {import('next').NextConfig} */
+       7: const nextConfig = {
+       8:   reactStrictMode: true,
+       9:   outputFileTracingRoot: projectRoot,
+      10:   images: {
+      11:     unoptimized: true,
+      12:   },
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\next.config.mjs:6] pattern: import
+       1: import path from "node:path";
+       2: import { fileURLToPath } from "node:url";
+       3: 
+       4: const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+       5: 
+>>     6: /** @type {import('next').NextConfig} */
+       7: const nextConfig = {
+       8:   reactStrictMode: true,
+       9:   outputFileTracingRoot: projectRoot,
+      10:   images: {
+      11:     unoptimized: true,
+      12:   },
+      13: };
+      14: 
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\next.config.ts:1] pattern: import
+>>     1: import type { NextConfig } from "next";
+       2: import path from "path";
+       3: 
+       4: const nextConfig: NextConfig = {
+       5:   turbopack: { root: path.resolve(__dirname) },
+       6:   reactStrictMode: true,
+       7:   serverExternalPackages: ['better-sqlite3'],
+       8: };
+       9: 
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\next.config.ts:2] pattern: import
+       1: import type { NextConfig } from "next";
+>>     2: import path from "path";
+       3: 
+       4: const nextConfig: NextConfig = {
+       5:   turbopack: { root: path.resolve(__dirname) },
+       6:   reactStrictMode: true,
+       7:   serverExternalPackages: ['better-sqlite3'],
+       8: };
+       9: 
+      10: export default nextConfig;
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:1314] pattern: import
+    1306:       "dev": true,
+    1307:       "license": "MIT",
+    1308:       "dependencies": {
+    1309:         "ajv": "^6.14.0",
+    1310:         "debug": "^4.3.2",
+    1311:         "espree": "^10.0.1",
+    1312:         "globals": "^14.0.0",
+    1313:         "ignore": "^5.2.0",
+>>  1314:         "import-fresh": "^3.2.1",
+    1315:         "js-yaml": "^4.1.1",
+    1316:         "minimatch": "^3.1.5",
+    1317:         "strip-json-comments": "^3.1.1"
+    1318:       },
+    1319:       "engines": {
+    1320:         "node": "^18.18.0 || ^20.9.0 || >=21.1.0"
+    1321:       },
+    1322:       "funding": {
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:1404] pattern: import
+    1396:       "dependencies": {
+    1397:         "@humanfs/core": "^0.19.1",
+    1398:         "@humanwhocodes/retry": "^0.4.0"
+    1399:       },
+    1400:       "engines": {
+    1401:         "node": ">=18.18.0"
+    1402:       }
+    1403:     },
+>>  1404:     "node_modules/@humanwhocodes/module-importer": {
+    1405:       "version": "1.0.1",
+    1406:       "resolved": "https://registry.npmjs.org/@humanwhocodes/module-importer/-/module-importer-1.0.1.tgz",
+    1407:       "integrity": "sha512-bxveV4V8v5Yb4ncFTT3rPSgZBOpCkjfK0y4oVVVJwIuDVBRMDXrPyXRL988i5ap9m9bnyEEjWfm5WkBmtffLfA==",
+    1408:       "dev": true,
+    1409:       "license": "Apache-2.0",
+    1410:       "engines": {
+    1411:         "node": ">=12.22"
+    1412:       },
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:1406] pattern: import
+    1398:         "@humanwhocodes/retry": "^0.4.0"
+    1399:       },
+    1400:       "engines": {
+    1401:         "node": ">=18.18.0"
+    1402:       }
+    1403:     },
+    1404:     "node_modules/@humanwhocodes/module-importer": {
+    1405:       "version": "1.0.1",
+>>  1406:       "resolved": "https://registry.npmjs.org/@humanwhocodes/module-importer/-/module-importer-1.0.1.tgz",
+    1407:       "integrity": "sha512-bxveV4V8v5Yb4ncFTT3rPSgZBOpCkjfK0y4oVVVJwIuDVBRMDXrPyXRL988i5ap9m9bnyEEjWfm5WkBmtffLfA==",
+    1408:       "dev": true,
+    1409:       "license": "Apache-2.0",
+    1410:       "engines": {
+    1411:         "node": ">=12.22"
+    1412:       },
+    1413:       "funding": {
+    1414:         "type": "github",
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:5906] pattern: import
+    5898:         "@eslint-community/regexpp": "^4.12.1",
+    5899:         "@eslint/config-array": "^0.21.2",
+    5900:         "@eslint/config-helpers": "^0.4.2",
+    5901:         "@eslint/core": "^0.17.0",
+    5902:         "@eslint/eslintrc": "^3.3.5",
+    5903:         "@eslint/js": "9.39.4",
+    5904:         "@eslint/plugin-kit": "^0.4.1",
+    5905:         "@humanfs/node": "^0.16.6",
+>>  5906:         "@humanwhocodes/module-importer": "^1.0.1",
+    5907:         "@humanwhocodes/retry": "^0.4.2",
+    5908:         "@types/estree": "^1.0.6",
+    5909:         "ajv": "^6.14.0",
+    5910:         "chalk": "^4.0.0",
+    5911:         "cross-spawn": "^7.0.6",
+    5912:         "debug": "^4.3.2",
+    5913:         "escape-string-regexp": "^4.0.0",
+    5914:         "eslint-scope": "^8.4.0",
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:5961] pattern: import
+    5953:       "integrity": "sha512-ktW3XLfd+ztEltY5scJNjxjHwtKWk6vU2iwzZqSN09UsbBmMeE/cVlJ1yESg6Yx5LW7p/Z8WzUAgYXGLEmGIpg==",
+    5954:       "dev": true,
+    5955:       "license": "MIT",
+    5956:       "dependencies": {
+    5957:         "@next/eslint-plugin-next": "15.5.12",
+    5958:         "@rushstack/eslint-patch": "^1.10.3",
+    5959:         "@typescript-eslint/eslint-plugin": "^5.4.2 || ^6.0.0 || ^7.0.0 || ^8.0.0",
+    5960:         "@typescript-eslint/parser": "^5.4.2 || ^6.0.0 || ^7.0.0 || ^8.0.0",
+>>  5961:         "eslint-import-resolver-node": "^0.3.6",
+    5962:         "eslint-import-resolver-typescript": "^3.5.2",
+    5963:         "eslint-plugin-import": "^2.31.0",
+    5964:         "eslint-plugin-jsx-a11y": "^6.10.0",
+    5965:         "eslint-plugin-react": "^7.37.0",
+    5966:         "eslint-plugin-react-hooks": "^5.0.0"
+    5967:       },
+    5968:       "peerDependencies": {
+    5969:         "eslint": "^7.23.0 || ^8.0.0 || ^9.0.0",
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:5962] pattern: import
+    5954:       "dev": true,
+    5955:       "license": "MIT",
+    5956:       "dependencies": {
+    5957:         "@next/eslint-plugin-next": "15.5.12",
+    5958:         "@rushstack/eslint-patch": "^1.10.3",
+    5959:         "@typescript-eslint/eslint-plugin": "^5.4.2 || ^6.0.0 || ^7.0.0 || ^8.0.0",
+    5960:         "@typescript-eslint/parser": "^5.4.2 || ^6.0.0 || ^7.0.0 || ^8.0.0",
+    5961:         "eslint-import-resolver-node": "^0.3.6",
+>>  5962:         "eslint-import-resolver-typescript": "^3.5.2",
+    5963:         "eslint-plugin-import": "^2.31.0",
+    5964:         "eslint-plugin-jsx-a11y": "^6.10.0",
+    5965:         "eslint-plugin-react": "^7.37.0",
+    5966:         "eslint-plugin-react-hooks": "^5.0.0"
+    5967:       },
+    5968:       "peerDependencies": {
+    5969:         "eslint": "^7.23.0 || ^8.0.0 || ^9.0.0",
+    5970:         "typescript": ">=3.3.1"
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:5963] pattern: import
+    5955:       "license": "MIT",
+    5956:       "dependencies": {
+    5957:         "@next/eslint-plugin-next": "15.5.12",
+    5958:         "@rushstack/eslint-patch": "^1.10.3",
+    5959:         "@typescript-eslint/eslint-plugin": "^5.4.2 || ^6.0.0 || ^7.0.0 || ^8.0.0",
+    5960:         "@typescript-eslint/parser": "^5.4.2 || ^6.0.0 || ^7.0.0 || ^8.0.0",
+    5961:         "eslint-import-resolver-node": "^0.3.6",
+    5962:         "eslint-import-resolver-typescript": "^3.5.2",
+>>  5963:         "eslint-plugin-import": "^2.31.0",
+    5964:         "eslint-plugin-jsx-a11y": "^6.10.0",
+    5965:         "eslint-plugin-react": "^7.37.0",
+    5966:         "eslint-plugin-react-hooks": "^5.0.0"
+    5967:       },
+    5968:       "peerDependencies": {
+    5969:         "eslint": "^7.23.0 || ^8.0.0 || ^9.0.0",
+    5970:         "typescript": ">=3.3.1"
+    5971:       },
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:5978] pattern: import
+    5970:         "typescript": ">=3.3.1"
+    5971:       },
+    5972:       "peerDependenciesMeta": {
+    5973:         "typescript": {
+    5974:           "optional": true
+    5975:         }
+    5976:       }
+    5977:     },
+>>  5978:     "node_modules/eslint-import-resolver-node": {
+    5979:       "version": "0.3.9",
+    5980:       "resolved": "https://registry.npmjs.org/eslint-import-resolver-node/-/eslint-import-resolver-node-0.3.9.tgz",
+    5981:       "integrity": "sha512-WFj2isz22JahUv+B788TlO3N6zL3nNJGU8CcZbPZvVEkBPaJdCV4vy5wyghty5ROFbCRnm132v8BScu5/1BQ8g==",
+    5982:       "dev": true,
+    5983:       "license": "MIT",
+    5984:       "dependencies": {
+    5985:         "debug": "^3.2.7",
+    5986:         "is-core-module": "^2.13.0",
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:5980] pattern: import
+    5972:       "peerDependenciesMeta": {
+    5973:         "typescript": {
+    5974:           "optional": true
+    5975:         }
+    5976:       }
+    5977:     },
+    5978:     "node_modules/eslint-import-resolver-node": {
+    5979:       "version": "0.3.9",
+>>  5980:       "resolved": "https://registry.npmjs.org/eslint-import-resolver-node/-/eslint-import-resolver-node-0.3.9.tgz",
+    5981:       "integrity": "sha512-WFj2isz22JahUv+B788TlO3N6zL3nNJGU8CcZbPZvVEkBPaJdCV4vy5wyghty5ROFbCRnm132v8BScu5/1BQ8g==",
+    5982:       "dev": true,
+    5983:       "license": "MIT",
+    5984:       "dependencies": {
+    5985:         "debug": "^3.2.7",
+    5986:         "is-core-module": "^2.13.0",
+    5987:         "resolve": "^1.22.4"
+    5988:       }
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:5990] pattern: import
+    5982:       "dev": true,
+    5983:       "license": "MIT",
+    5984:       "dependencies": {
+    5985:         "debug": "^3.2.7",
+    5986:         "is-core-module": "^2.13.0",
+    5987:         "resolve": "^1.22.4"
+    5988:       }
+    5989:     },
+>>  5990:     "node_modules/eslint-import-resolver-node/node_modules/debug": {
+    5991:       "version": "3.2.7",
+    5992:       "resolved": "https://registry.npmjs.org/debug/-/debug-3.2.7.tgz",
+    5993:       "integrity": "sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ==",
+    5994:       "dev": true,
+    5995:       "license": "MIT",
+    5996:       "dependencies": {
+    5997:         "ms": "^2.1.1"
+    5998:       }
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:6000] pattern: import
+    5992:       "resolved": "https://registry.npmjs.org/debug/-/debug-3.2.7.tgz",
+    5993:       "integrity": "sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ==",
+    5994:       "dev": true,
+    5995:       "license": "MIT",
+    5996:       "dependencies": {
+    5997:         "ms": "^2.1.1"
+    5998:       }
+    5999:     },
+>>  6000:     "node_modules/eslint-import-resolver-typescript": {
+    6001:       "version": "3.10.1",
+    6002:       "resolved": "https://registry.npmjs.org/eslint-import-resolver-typescript/-/eslint-import-resolver-typescript-3.10.1.tgz",
+    6003:       "integrity": "sha512-A1rHYb06zjMGAxdLSkN2fXPBwuSaQ0iO5M/hdyS0Ajj1VBaRp0sPD3dn1FhME3c/JluGFbwSxyCfqdSbtQLAHQ==",
+    6004:       "dev": true,
+    6005:       "license": "ISC",
+    6006:       "dependencies": {
+    6007:         "@nolyfill/is-core-module": "1.0.39",
+    6008:         "debug": "^4.4.0",
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:6002] pattern: import
+    5994:       "dev": true,
+    5995:       "license": "MIT",
+    5996:       "dependencies": {
+    5997:         "ms": "^2.1.1"
+    5998:       }
+    5999:     },
+    6000:     "node_modules/eslint-import-resolver-typescript": {
+    6001:       "version": "3.10.1",
+>>  6002:       "resolved": "https://registry.npmjs.org/eslint-import-resolver-typescript/-/eslint-import-resolver-typescript-3.10.1.tgz",
+    6003:       "integrity": "sha512-A1rHYb06zjMGAxdLSkN2fXPBwuSaQ0iO5M/hdyS0Ajj1VBaRp0sPD3dn1FhME3c/JluGFbwSxyCfqdSbtQLAHQ==",
+    6004:       "dev": true,
+    6005:       "license": "ISC",
+    6006:       "dependencies": {
+    6007:         "@nolyfill/is-core-module": "1.0.39",
+    6008:         "debug": "^4.4.0",
+    6009:         "get-tsconfig": "^4.10.0",
+    6010:         "is-bun-module": "^2.0.0",
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:6019] pattern: import
+    6011:         "stable-hash": "^0.0.5",
+    6012:         "tinyglobby": "^0.2.13",
+    6013:         "unrs-resolver": "^1.6.2"
+    6014:       },
+    6015:       "engines": {
+    6016:         "node": "^14.18.0 || >=16.0.0"
+    6017:       },
+    6018:       "funding": {
+>>  6019:         "url": "https://opencollective.com/eslint-import-resolver-typescript"
+    6020:       },
+    6021:       "peerDependencies": {
+    6022:         "eslint": "*",
+    6023:         "eslint-plugin-import": "*",
+    6024:         "eslint-plugin-import-x": "*"
+    6025:       },
+    6026:       "peerDependenciesMeta": {
+    6027:         "eslint-plugin-import": {
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:6023] pattern: import
+    6015:       "engines": {
+    6016:         "node": "^14.18.0 || >=16.0.0"
+    6017:       },
+    6018:       "funding": {
+    6019:         "url": "https://opencollective.com/eslint-import-resolver-typescript"
+    6020:       },
+    6021:       "peerDependencies": {
+    6022:         "eslint": "*",
+>>  6023:         "eslint-plugin-import": "*",
+    6024:         "eslint-plugin-import-x": "*"
+    6025:       },
+    6026:       "peerDependenciesMeta": {
+    6027:         "eslint-plugin-import": {
+    6028:           "optional": true
+    6029:         },
+    6030:         "eslint-plugin-import-x": {
+    6031:           "optional": true
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:6024] pattern: import
+    6016:         "node": "^14.18.0 || >=16.0.0"
+    6017:       },
+    6018:       "funding": {
+    6019:         "url": "https://opencollective.com/eslint-import-resolver-typescript"
+    6020:       },
+    6021:       "peerDependencies": {
+    6022:         "eslint": "*",
+    6023:         "eslint-plugin-import": "*",
+>>  6024:         "eslint-plugin-import-x": "*"
+    6025:       },
+    6026:       "peerDependenciesMeta": {
+    6027:         "eslint-plugin-import": {
+    6028:           "optional": true
+    6029:         },
+    6030:         "eslint-plugin-import-x": {
+    6031:           "optional": true
+    6032:         }
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:6027] pattern: import
+    6019:         "url": "https://opencollective.com/eslint-import-resolver-typescript"
+    6020:       },
+    6021:       "peerDependencies": {
+    6022:         "eslint": "*",
+    6023:         "eslint-plugin-import": "*",
+    6024:         "eslint-plugin-import-x": "*"
+    6025:       },
+    6026:       "peerDependenciesMeta": {
+>>  6027:         "eslint-plugin-import": {
+    6028:           "optional": true
+    6029:         },
+    6030:         "eslint-plugin-import-x": {
+    6031:           "optional": true
+    6032:         }
+    6033:       }
+    6034:     },
+    6035:     "node_modules/eslint-module-utils": {
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:6030] pattern: import
+    6022:         "eslint": "*",
+    6023:         "eslint-plugin-import": "*",
+    6024:         "eslint-plugin-import-x": "*"
+    6025:       },
+    6026:       "peerDependenciesMeta": {
+    6027:         "eslint-plugin-import": {
+    6028:           "optional": true
+    6029:         },
+>>  6030:         "eslint-plugin-import-x": {
+    6031:           "optional": true
+    6032:         }
+    6033:       }
+    6034:     },
+    6035:     "node_modules/eslint-module-utils": {
+    6036:       "version": "2.12.1",
+    6037:       "resolved": "https://registry.npmjs.org/eslint-module-utils/-/eslint-module-utils-2.12.1.tgz",
+    6038:       "integrity": "sha512-L8jSWTze7K2mTg0vos/RuLRS5soomksDPoJLXIslC7c8Wmut3bx7CPpJijDcBZtxQ5lrbUdM+s0OlNbz0DCDNw==",
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:6063] pattern: import
+    6055:       "resolved": "https://registry.npmjs.org/debug/-/debug-3.2.7.tgz",
+    6056:       "integrity": "sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ==",
+    6057:       "dev": true,
+    6058:       "license": "MIT",
+    6059:       "dependencies": {
+    6060:         "ms": "^2.1.1"
+    6061:       }
+    6062:     },
+>>  6063:     "node_modules/eslint-plugin-import": {
+    6064:       "version": "2.32.0",
+    6065:       "resolved": "https://registry.npmjs.org/eslint-plugin-import/-/eslint-plugin-import-2.32.0.tgz",
+    6066:       "integrity": "sha512-whOE1HFo/qJDyX4SnXzP4N6zOWn79WhnCUY/iDR0mPfQZO8wcYE4JClzI2oZrhBnnMUCBCHZhO6VQyoBU95mZA==",
+    6067:       "dev": true,
+    6068:       "license": "MIT",
+    6069:       "dependencies": {
+    6070:         "@rtsao/scc": "^1.1.0",
+    6071:         "array-includes": "^3.1.9",
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:6065] pattern: import
+    6057:       "dev": true,
+    6058:       "license": "MIT",
+    6059:       "dependencies": {
+    6060:         "ms": "^2.1.1"
+    6061:       }
+    6062:     },
+    6063:     "node_modules/eslint-plugin-import": {
+    6064:       "version": "2.32.0",
+>>  6065:       "resolved": "https://registry.npmjs.org/eslint-plugin-import/-/eslint-plugin-import-2.32.0.tgz",
+    6066:       "integrity": "sha512-whOE1HFo/qJDyX4SnXzP4N6zOWn79WhnCUY/iDR0mPfQZO8wcYE4JClzI2oZrhBnnMUCBCHZhO6VQyoBU95mZA==",
+    6067:       "dev": true,
+    6068:       "license": "MIT",
+    6069:       "dependencies": {
+    6070:         "@rtsao/scc": "^1.1.0",
+    6071:         "array-includes": "^3.1.9",
+    6072:         "array.prototype.findlastindex": "^1.2.6",
+    6073:         "array.prototype.flat": "^1.3.3",
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:6077] pattern: import
+    6069:       "dependencies": {
+    6070:         "@rtsao/scc": "^1.1.0",
+    6071:         "array-includes": "^3.1.9",
+    6072:         "array.prototype.findlastindex": "^1.2.6",
+    6073:         "array.prototype.flat": "^1.3.3",
+    6074:         "array.prototype.flatmap": "^1.3.3",
+    6075:         "debug": "^3.2.7",
+    6076:         "doctrine": "^2.1.0",
+>>  6077:         "eslint-import-resolver-node": "^0.3.9",
+    6078:         "eslint-module-utils": "^2.12.1",
+    6079:         "hasown": "^2.0.2",
+    6080:         "is-core-module": "^2.16.1",
+    6081:         "is-glob": "^4.0.3",
+    6082:         "minimatch": "^3.1.2",
+    6083:         "object.fromentries": "^2.0.8",
+    6084:         "object.groupby": "^1.0.3",
+    6085:         "object.values": "^1.2.1",
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:6097] pattern: import
+    6089:       },
+    6090:       "engines": {
+    6091:         "node": ">=4"
+    6092:       },
+    6093:       "peerDependencies": {
+    6094:         "eslint": "^2 || ^3 || ^4 || ^5 || ^6 || ^7.2.0 || ^8 || ^9"
+    6095:       }
+    6096:     },
+>>  6097:     "node_modules/eslint-plugin-import/node_modules/debug": {
+    6098:       "version": "3.2.7",
+    6099:       "resolved": "https://registry.npmjs.org/debug/-/debug-3.2.7.tgz",
+    6100:       "integrity": "sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ==",
+    6101:       "dev": true,
+    6102:       "license": "MIT",
+    6103:       "dependencies": {
+    6104:         "ms": "^2.1.1"
+    6105:       }
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:6107] pattern: import
+    6099:       "resolved": "https://registry.npmjs.org/debug/-/debug-3.2.7.tgz",
+    6100:       "integrity": "sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ==",
+    6101:       "dev": true,
+    6102:       "license": "MIT",
+    6103:       "dependencies": {
+    6104:         "ms": "^2.1.1"
+    6105:       }
+    6106:     },
+>>  6107:     "node_modules/eslint-plugin-import/node_modules/semver": {
+    6108:       "version": "6.3.1",
+    6109:       "resolved": "https://registry.npmjs.org/semver/-/semver-6.3.1.tgz",
+    6110:       "integrity": "sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==",
+    6111:       "dev": true,
+    6112:       "license": "ISC",
+    6113:       "bin": {
+    6114:         "semver": "bin/semver.js"
+    6115:       }
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:7137] pattern: import
+    7129:       "resolved": "https://registry.npmjs.org/ignore/-/ignore-5.3.2.tgz",
+    7130:       "integrity": "sha512-hsBTNUqQTDwkWtcdYI2i06Y/nUBEsNEDJKjWdigLvegy8kDuJAS8uRlpkkcQpyEXL0Z/pjDy5HBmMjRCJ2gq+g==",
+    7131:       "dev": true,
+    7132:       "license": "MIT",
+    7133:       "engines": {
+    7134:         "node": ">= 4"
+    7135:       }
+    7136:     },
+>>  7137:     "node_modules/import-fresh": {
+    7138:       "version": "3.3.1",
+    7139:       "resolved": "https://registry.npmjs.org/import-fresh/-/import-fresh-3.3.1.tgz",
+    7140:       "integrity": "sha512-TR3KfrTZTYLPB6jUjfx6MF9WcWrHL9su5TObK4ZkYgBdWKPOFoSoQIdEuTuR82pmtxH2spWG9h6etwfr1pLBqQ==",
+    7141:       "dev": true,
+    7142:       "license": "MIT",
+    7143:       "dependencies": {
+    7144:         "parent-module": "^1.0.0",
+    7145:         "resolve-from": "^4.0.0"
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:7139] pattern: import
+    7131:       "dev": true,
+    7132:       "license": "MIT",
+    7133:       "engines": {
+    7134:         "node": ">= 4"
+    7135:       }
+    7136:     },
+    7137:     "node_modules/import-fresh": {
+    7138:       "version": "3.3.1",
+>>  7139:       "resolved": "https://registry.npmjs.org/import-fresh/-/import-fresh-3.3.1.tgz",
+    7140:       "integrity": "sha512-TR3KfrTZTYLPB6jUjfx6MF9WcWrHL9su5TObK4ZkYgBdWKPOFoSoQIdEuTuR82pmtxH2spWG9h6etwfr1pLBqQ==",
+    7141:       "dev": true,
+    7142:       "license": "MIT",
+    7143:       "dependencies": {
+    7144:         "parent-module": "^1.0.0",
+    7145:         "resolve-from": "^4.0.0"
+    7146:       },
+    7147:       "engines": {
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:9083] pattern: import
+    9075:         "nanoid": "^3.3.11",
+    9076:         "picocolors": "^1.1.1",
+    9077:         "source-map-js": "^1.2.1"
+    9078:       },
+    9079:       "engines": {
+    9080:         "node": "^10 || ^12 || >=14"
+    9081:       }
+    9082:     },
+>>  9083:     "node_modules/postcss-import": {
+    9084:       "version": "15.1.0",
+    9085:       "resolved": "https://registry.npmjs.org/postcss-import/-/postcss-import-15.1.0.tgz",
+    9086:       "integrity": "sha512-hpr+J05B2FVYUAXHeK1YyI267J/dDDhMU6B6civm8hSY1jYJnBXxzKDKDswzJmtLHryrjhnDjqqp/49t8FALew==",
+    9087:       "dev": true,
+    9088:       "license": "MIT",
+    9089:       "dependencies": {
+    9090:         "postcss-value-parser": "^4.0.0",
+    9091:         "read-cache": "^1.0.0",
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:9085] pattern: import
+    9077:         "source-map-js": "^1.2.1"
+    9078:       },
+    9079:       "engines": {
+    9080:         "node": "^10 || ^12 || >=14"
+    9081:       }
+    9082:     },
+    9083:     "node_modules/postcss-import": {
+    9084:       "version": "15.1.0",
+>>  9085:       "resolved": "https://registry.npmjs.org/postcss-import/-/postcss-import-15.1.0.tgz",
+    9086:       "integrity": "sha512-hpr+J05B2FVYUAXHeK1YyI267J/dDDhMU6B6civm8hSY1jYJnBXxzKDKDswzJmtLHryrjhnDjqqp/49t8FALew==",
+    9087:       "dev": true,
+    9088:       "license": "MIT",
+    9089:       "dependencies": {
+    9090:         "postcss-value-parser": "^4.0.0",
+    9091:         "read-cache": "^1.0.0",
+    9092:         "resolve": "^1.1.7"
+    9093:       },
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:10504] pattern: import
+   10496:         "is-glob": "^4.0.3",
+   10497:         "jiti": "^1.21.6",
+   10498:         "lilconfig": "^3.1.3",
+   10499:         "micromatch": "^4.0.8",
+   10500:         "normalize-path": "^3.0.0",
+   10501:         "object-hash": "^3.0.0",
+   10502:         "picocolors": "^1.1.1",
+   10503:         "postcss": "^8.4.47",
+>> 10504:         "postcss-import": "^15.1.0",
+   10505:         "postcss-js": "^4.0.1",
+   10506:         "postcss-load-config": "^4.0.2",
+   10507:         "postcss-nested": "^6.2.0",
+   10508:         "postcss-selector-parser": "^6.1.2",
+   10509:         "resolve": "^1.22.8",
+   10510:         "sucrase": "^3.35.0"
+   10511:       },
+   10512:       "bin": {
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:3978] pattern: normalize
+    3970:     },
+    3971:     "node_modules/anymatch": {
+    3972:       "version": "3.1.3",
+    3973:       "resolved": "https://registry.npmjs.org/anymatch/-/anymatch-3.1.3.tgz",
+    3974:       "integrity": "sha512-KMReFUr0B4t+D+OBkjR3KYqvocp2XaSzO55UcB6mgQMd3KbcE+mWTyvVV7D/zsdEbNnV6acZUutkiHQXvTr1Rw==",
+    3975:       "dev": true,
+    3976:       "license": "ISC",
+    3977:       "dependencies": {
+>>  3978:         "normalize-path": "^3.0.0",
+    3979:         "picomatch": "^2.0.4"
+    3980:       },
+    3981:       "engines": {
+    3982:         "node": ">= 8"
+    3983:       }
+    3984:     },
+    3985:     "node_modules/aproba": {
+    3986:       "version": "2.1.0",
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:4662] pattern: normalize
+    4654:       "dev": true,
+    4655:       "license": "MIT",
+    4656:       "dependencies": {
+    4657:         "anymatch": "~3.1.2",
+    4658:         "braces": "~3.0.2",
+    4659:         "glob-parent": "~5.1.2",
+    4660:         "is-binary-path": "~2.1.0",
+    4661:         "is-glob": "~4.0.1",
+>>  4662:         "normalize-path": "~3.0.0",
+    4663:         "readdirp": "~3.6.0"
+    4664:       },
+    4665:       "engines": {
+    4666:         "node": ">= 8.10.0"
+    4667:       },
+    4668:       "funding": {
+    4669:         "url": "https://paulmillr.com/funding/"
+    4670:       },
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:8676] pattern: normalize
+    8668:       },
+    8669:       "bin": {
+    8670:         "nopt": "bin/nopt.js"
+    8671:       },
+    8672:       "engines": {
+    8673:         "node": ">=6"
+    8674:       }
+    8675:     },
+>>  8676:     "node_modules/normalize-path": {
+    8677:       "version": "3.0.0",
+    8678:       "resolved": "https://registry.npmjs.org/normalize-path/-/normalize-path-3.0.0.tgz",
+    8679:       "integrity": "sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA==",
+    8680:       "dev": true,
+    8681:       "license": "MIT",
+    8682:       "engines": {
+    8683:         "node": ">=0.10.0"
+    8684:       }
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:8678] pattern: normalize
+    8670:         "nopt": "bin/nopt.js"
+    8671:       },
+    8672:       "engines": {
+    8673:         "node": ">=6"
+    8674:       }
+    8675:     },
+    8676:     "node_modules/normalize-path": {
+    8677:       "version": "3.0.0",
+>>  8678:       "resolved": "https://registry.npmjs.org/normalize-path/-/normalize-path-3.0.0.tgz",
+    8679:       "integrity": "sha512-6eZs5Ls3WtCisHWp9S2GUy8dqkpGi4BVSz3GaqiE6ezub0512ESztXUwUB6C6IKbQkY2Pnb/mD4WYojCRwcwLA==",
+    8680:       "dev": true,
+    8681:       "license": "MIT",
+    8682:       "engines": {
+    8683:         "node": ">=0.10.0"
+    8684:       }
+    8685:     },
+    8686:     "node_modules/npmlog": {
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package-lock.json:10500] pattern: normalize
+   10492:         "didyoumean": "^1.2.2",
+   10493:         "dlv": "^1.1.3",
+   10494:         "fast-glob": "^3.3.2",
+   10495:         "glob-parent": "^6.0.2",
+   10496:         "is-glob": "^4.0.3",
+   10497:         "jiti": "^1.21.6",
+   10498:         "lilconfig": "^3.1.3",
+   10499:         "micromatch": "^4.0.8",
+>> 10500:         "normalize-path": "^3.0.0",
+   10501:         "object-hash": "^3.0.0",
+   10502:         "picocolors": "^1.1.1",
+   10503:         "postcss": "^8.4.47",
+   10504:         "postcss-import": "^15.1.0",
+   10505:         "postcss-js": "^4.0.1",
+   10506:         "postcss-load-config": "^4.0.2",
+   10507:         "postcss-nested": "^6.2.0",
+   10508:         "postcss-selector-parser": "^6.1.2",
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\package.json:14] pattern: import
+       6:     "dev": "next dev --turbo",
+       7:     "dev:web": "npm run dev --prefix uro-killer/apps/web",
+       8:     "dev:all": "concurrently \"npm run dev:backend\" \"npm run dev:web\"",
+       9:     "build": "next build",
+      10:     "build:web": "npm --prefix uro-killer/apps/web run build",
+      11:     "start": "next start",
+      12:     "lint": "next lint",
+      13:     "dev:backend": "next dev --turbo",
+>>    14:     "db:import": "tsx --tsconfig tsconfig.json scripts/import-batch.ts",
+      15:     "db:push": "drizzle-kit push",
+      16:     "db:studio": "drizzle-kit studio"
+      17:   },
+      18:   "dependencies": {
+      19:     "@dnd-kit/core": "6.1.0",
+      20:     "@dnd-kit/utilities": "3.2.2",
+      21:     "@libsql/client": "^0.17.0",
+      22:     "@tanstack/react-query": "^5.75.0",
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\postcss.config.mjs:1] pattern: import
+>>     1: /** @type {import('postcss-load-config').Config} */
+       2: const config = {
+       3:   plugins: {
+       4:     tailwindcss: {},
+       5:     autoprefixer: {},
+       6:   },
+       7: };
+       8: 
+       9: export default config;
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\tailwind.config.ts:1] pattern: import
+>>     1: import type { Config } from "tailwindcss";
+       2: 
+       3: const config: Config = {
+       4:   darkMode: "class",
+       5:   content: [
+       6:     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+       7:     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+       8:     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+       9:   ],
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:4] pattern: flashcard
+       1: import { NextResponse } from "next/server";
+       2: 
+       3: import {
+>>     4:   bulkImportFlashcards,
+       5:   bulkImportNotebooks,
+       6:   bulkImportQuestions,
+       7: } from "@/lib/server/importers";
+       8: 
+       9: export const runtime = "nodejs";
+      10: 
+      11: type ImportType = "flashcards" | "notebooks" | "questions";
+      12: 
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:11] pattern: flashcard
+       3: import {
+       4:   bulkImportFlashcards,
+       5:   bulkImportNotebooks,
+       6:   bulkImportQuestions,
+       7: } from "@/lib/server/importers";
+       8: 
+       9: export const runtime = "nodejs";
+      10: 
+>>    11: type ImportType = "flashcards" | "notebooks" | "questions";
+      12: 
+      13: function getInsertedCount(result: unknown): number {
+      14:   if (typeof result === "number") {
+      15:     return result;
+      16:   }
+      17: 
+      18:   if (Array.isArray(result)) {
+      19:     return result.length;
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:39] pattern: flashcard
+      31:     }
+      32:   }
+      33: 
+      34:   return 0;
+      35: }
+      36: 
+      37: function detectKind(items: unknown[]): ImportType | null {
+      38:   if (items.some((item) => item && typeof item === "object" && "front" in item && "back" in item)) {
+>>    39:     return "flashcards";
+      40:   }
+      41: 
+      42:   if (
+      43:     items.some(
+      44:       (item) =>
+      45:         item &&
+      46:         typeof item === "object" &&
+      47:         "stem" in item &&
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:77] pattern: flashcard
+      69:   }
+      70: 
+      71:   const record = body as Record<string, unknown>;
+      72: 
+      73:   const maybeItems =
+      74:     record.items ??
+      75:     record.data ??
+      76:     record[type] ??
+>>    77:     (type === "flashcards" ? record.cards : undefined) ??
+      78:     (type === "notebooks" ? record.notes : undefined) ??
+      79:     (type === "questions" ? record.questions : undefined);
+      80: 
+      81:   return Array.isArray(maybeItems) ? maybeItems : [];
+      82: }
+      83: 
+      84: export async function POST(
+      85:   request: Request,
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:90] pattern: flashcard
+      82: }
+      83: 
+      84: export async function POST(
+      85:   request: Request,
+      86:   context: { params: Promise<{ type: string }> },
+      87: ) {
+      88:   const { type } = await context.params;
+      89: 
+>>    90:   if (type !== "flashcards" && type !== "notebooks" && type !== "questions") {
+      91:     return NextResponse.json({ ok: false, error: "Invalid type" }, { status: 400 });
+      92:   }
+      93: 
+      94:   const importType = type as ImportType;
+      95:   const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
+      96: 
+      97:   if (importType === "notebooks" && contentType.includes("text/html")) {
+      98:     const html = await request.text();
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:132] pattern: flashcard
+     124:   if (kind && kind !== importType) {
+     125:     return NextResponse.json(
+     126:       { ok: false, error: `File looks like ${kind}. Switch tab.` },
+     127:       { status: 400 },
+     128:     );
+     129:   }
+     130: 
+     131:   let result: unknown;
+>>   132:   if (importType === "flashcards") {
+     133:     result = await bulkImportFlashcards(items, "api-import");
+     134:   } else if (importType === "notebooks") {
+     135:     result = await bulkImportNotebooks(items, "api-import");
+     136:   } else {
+     137:     result = await bulkImportQuestions(items, "api-import");
+     138:   }
+     139: 
+     140:   const insertedCount = getInsertedCount(result);
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:133] pattern: flashcard
+     125:     return NextResponse.json(
+     126:       { ok: false, error: `File looks like ${kind}. Switch tab.` },
+     127:       { status: 400 },
+     128:     );
+     129:   }
+     130: 
+     131:   let result: unknown;
+     132:   if (importType === "flashcards") {
+>>   133:     result = await bulkImportFlashcards(items, "api-import");
+     134:   } else if (importType === "notebooks") {
+     135:     result = await bulkImportNotebooks(items, "api-import");
+     136:   } else {
+     137:     result = await bulkImportQuestions(items, "api-import");
+     138:   }
+     139: 
+     140:   const insertedCount = getInsertedCount(result);
+     141:   return NextResponse.json({ ok: true, insertedCount });
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:6] pattern: question
+       1: import { NextResponse } from "next/server";
+       2: 
+       3: import {
+       4:   bulkImportFlashcards,
+       5:   bulkImportNotebooks,
+>>     6:   bulkImportQuestions,
+       7: } from "@/lib/server/importers";
+       8: 
+       9: export const runtime = "nodejs";
+      10: 
+      11: type ImportType = "flashcards" | "notebooks" | "questions";
+      12: 
+      13: function getInsertedCount(result: unknown): number {
+      14:   if (typeof result === "number") {
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:11] pattern: question
+       3: import {
+       4:   bulkImportFlashcards,
+       5:   bulkImportNotebooks,
+       6:   bulkImportQuestions,
+       7: } from "@/lib/server/importers";
+       8: 
+       9: export const runtime = "nodejs";
+      10: 
+>>    11: type ImportType = "flashcards" | "notebooks" | "questions";
+      12: 
+      13: function getInsertedCount(result: unknown): number {
+      14:   if (typeof result === "number") {
+      15:     return result;
+      16:   }
+      17: 
+      18:   if (Array.isArray(result)) {
+      19:     return result.length;
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:52] pattern: question
+      44:       (item) =>
+      45:         item &&
+      46:         typeof item === "object" &&
+      47:         "stem" in item &&
+      48:         "options" in item &&
+      49:         "correct" in item,
+      50:     )
+      51:   ) {
+>>    52:     return "questions";
+      53:   }
+      54: 
+      55:   if (items.some((item) => item && typeof item === "object" && "html" in item)) {
+      56:     return "notebooks";
+      57:   }
+      58: 
+      59:   return null;
+      60: }
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:79] pattern: question
+      71:   const record = body as Record<string, unknown>;
+      72: 
+      73:   const maybeItems =
+      74:     record.items ??
+      75:     record.data ??
+      76:     record[type] ??
+      77:     (type === "flashcards" ? record.cards : undefined) ??
+      78:     (type === "notebooks" ? record.notes : undefined) ??
+>>    79:     (type === "questions" ? record.questions : undefined);
+      80: 
+      81:   return Array.isArray(maybeItems) ? maybeItems : [];
+      82: }
+      83: 
+      84: export async function POST(
+      85:   request: Request,
+      86:   context: { params: Promise<{ type: string }> },
+      87: ) {
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:90] pattern: question
+      82: }
+      83: 
+      84: export async function POST(
+      85:   request: Request,
+      86:   context: { params: Promise<{ type: string }> },
+      87: ) {
+      88:   const { type } = await context.params;
+      89: 
+>>    90:   if (type !== "flashcards" && type !== "notebooks" && type !== "questions") {
+      91:     return NextResponse.json({ ok: false, error: "Invalid type" }, { status: 400 });
+      92:   }
+      93: 
+      94:   const importType = type as ImportType;
+      95:   const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
+      96: 
+      97:   if (importType === "notebooks" && contentType.includes("text/html")) {
+      98:     const html = await request.text();
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:137] pattern: question
+     129:   }
+     130: 
+     131:   let result: unknown;
+     132:   if (importType === "flashcards") {
+     133:     result = await bulkImportFlashcards(items, "api-import");
+     134:   } else if (importType === "notebooks") {
+     135:     result = await bulkImportNotebooks(items, "api-import");
+     136:   } else {
+>>   137:     result = await bulkImportQuestions(items, "api-import");
+     138:   }
+     139: 
+     140:   const insertedCount = getInsertedCount(result);
+     141:   return NextResponse.json({ ok: true, insertedCount });
+     142: }
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:1] pattern: import
+>>     1: import { NextResponse } from "next/server";
+       2: 
+       3: import {
+       4:   bulkImportFlashcards,
+       5:   bulkImportNotebooks,
+       6:   bulkImportQuestions,
+       7: } from "@/lib/server/importers";
+       8: 
+       9: export const runtime = "nodejs";
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:3] pattern: import
+       1: import { NextResponse } from "next/server";
+       2: 
+>>     3: import {
+       4:   bulkImportFlashcards,
+       5:   bulkImportNotebooks,
+       6:   bulkImportQuestions,
+       7: } from "@/lib/server/importers";
+       8: 
+       9: export const runtime = "nodejs";
+      10: 
+      11: type ImportType = "flashcards" | "notebooks" | "questions";
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:4] pattern: import
+       1: import { NextResponse } from "next/server";
+       2: 
+       3: import {
+>>     4:   bulkImportFlashcards,
+       5:   bulkImportNotebooks,
+       6:   bulkImportQuestions,
+       7: } from "@/lib/server/importers";
+       8: 
+       9: export const runtime = "nodejs";
+      10: 
+      11: type ImportType = "flashcards" | "notebooks" | "questions";
+      12: 
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:5] pattern: import
+       1: import { NextResponse } from "next/server";
+       2: 
+       3: import {
+       4:   bulkImportFlashcards,
+>>     5:   bulkImportNotebooks,
+       6:   bulkImportQuestions,
+       7: } from "@/lib/server/importers";
+       8: 
+       9: export const runtime = "nodejs";
+      10: 
+      11: type ImportType = "flashcards" | "notebooks" | "questions";
+      12: 
+      13: function getInsertedCount(result: unknown): number {
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:6] pattern: import
+       1: import { NextResponse } from "next/server";
+       2: 
+       3: import {
+       4:   bulkImportFlashcards,
+       5:   bulkImportNotebooks,
+>>     6:   bulkImportQuestions,
+       7: } from "@/lib/server/importers";
+       8: 
+       9: export const runtime = "nodejs";
+      10: 
+      11: type ImportType = "flashcards" | "notebooks" | "questions";
+      12: 
+      13: function getInsertedCount(result: unknown): number {
+      14:   if (typeof result === "number") {
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:7] pattern: import
+       1: import { NextResponse } from "next/server";
+       2: 
+       3: import {
+       4:   bulkImportFlashcards,
+       5:   bulkImportNotebooks,
+       6:   bulkImportQuestions,
+>>     7: } from "@/lib/server/importers";
+       8: 
+       9: export const runtime = "nodejs";
+      10: 
+      11: type ImportType = "flashcards" | "notebooks" | "questions";
+      12: 
+      13: function getInsertedCount(result: unknown): number {
+      14:   if (typeof result === "number") {
+      15:     return result;
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:11] pattern: import
+       3: import {
+       4:   bulkImportFlashcards,
+       5:   bulkImportNotebooks,
+       6:   bulkImportQuestions,
+       7: } from "@/lib/server/importers";
+       8: 
+       9: export const runtime = "nodejs";
+      10: 
+>>    11: type ImportType = "flashcards" | "notebooks" | "questions";
+      12: 
+      13: function getInsertedCount(result: unknown): number {
+      14:   if (typeof result === "number") {
+      15:     return result;
+      16:   }
+      17: 
+      18:   if (Array.isArray(result)) {
+      19:     return result.length;
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:26] pattern: import
+      18:   if (Array.isArray(result)) {
+      19:     return result.length;
+      20:   }
+      21: 
+      22:   if (result && typeof result === "object") {
+      23:     const maybe = result as {
+      24:       insertedCount?: unknown;
+      25:       count?: unknown;
+>>    26:       importedCount?: unknown;
+      27:     };
+      28:     const value = maybe.insertedCount ?? maybe.count ?? maybe.importedCount;
+      29:     if (typeof value === "number" && Number.isFinite(value)) {
+      30:       return value;
+      31:     }
+      32:   }
+      33: 
+      34:   return 0;
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:28] pattern: import
+      20:   }
+      21: 
+      22:   if (result && typeof result === "object") {
+      23:     const maybe = result as {
+      24:       insertedCount?: unknown;
+      25:       count?: unknown;
+      26:       importedCount?: unknown;
+      27:     };
+>>    28:     const value = maybe.insertedCount ?? maybe.count ?? maybe.importedCount;
+      29:     if (typeof value === "number" && Number.isFinite(value)) {
+      30:       return value;
+      31:     }
+      32:   }
+      33: 
+      34:   return 0;
+      35: }
+      36: 
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:37] pattern: import
+      29:     if (typeof value === "number" && Number.isFinite(value)) {
+      30:       return value;
+      31:     }
+      32:   }
+      33: 
+      34:   return 0;
+      35: }
+      36: 
+>>    37: function detectKind(items: unknown[]): ImportType | null {
+      38:   if (items.some((item) => item && typeof item === "object" && "front" in item && "back" in item)) {
+      39:     return "flashcards";
+      40:   }
+      41: 
+      42:   if (
+      43:     items.some(
+      44:       (item) =>
+      45:         item &&
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:62] pattern: import
+      54: 
+      55:   if (items.some((item) => item && typeof item === "object" && "html" in item)) {
+      56:     return "notebooks";
+      57:   }
+      58: 
+      59:   return null;
+      60: }
+      61: 
+>>    62: function toItems(body: unknown, type: ImportType): unknown[] {
+      63:   if (Array.isArray(body)) {
+      64:     return body;
+      65:   }
+      66: 
+      67:   if (!body || typeof body !== "object") {
+      68:     return [];
+      69:   }
+      70: 
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:94] pattern: import
+      86:   context: { params: Promise<{ type: string }> },
+      87: ) {
+      88:   const { type } = await context.params;
+      89: 
+      90:   if (type !== "flashcards" && type !== "notebooks" && type !== "questions") {
+      91:     return NextResponse.json({ ok: false, error: "Invalid type" }, { status: 400 });
+      92:   }
+      93: 
+>>    94:   const importType = type as ImportType;
+      95:   const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
+      96: 
+      97:   if (importType === "notebooks" && contentType.includes("text/html")) {
+      98:     const html = await request.text();
+      99:     const filename = request.headers.get("x-filename") || "uploaded.html";
+     100:     const title = filename.replace(/\.(html?|HTML?)$/i, "");
+     101: 
+     102:     const result = await bulkImportNotebooks(
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:97] pattern: import
+      89: 
+      90:   if (type !== "flashcards" && type !== "notebooks" && type !== "questions") {
+      91:     return NextResponse.json({ ok: false, error: "Invalid type" }, { status: 400 });
+      92:   }
+      93: 
+      94:   const importType = type as ImportType;
+      95:   const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
+      96: 
+>>    97:   if (importType === "notebooks" && contentType.includes("text/html")) {
+      98:     const html = await request.text();
+      99:     const filename = request.headers.get("x-filename") || "uploaded.html";
+     100:     const title = filename.replace(/\.(html?|HTML?)$/i, "");
+     101: 
+     102:     const result = await bulkImportNotebooks(
+     103:       [{ title, html, source_file: filename }],
+     104:       "api-import",
+     105:     );
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:102] pattern: import
+      94:   const importType = type as ImportType;
+      95:   const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
+      96: 
+      97:   if (importType === "notebooks" && contentType.includes("text/html")) {
+      98:     const html = await request.text();
+      99:     const filename = request.headers.get("x-filename") || "uploaded.html";
+     100:     const title = filename.replace(/\.(html?|HTML?)$/i, "");
+     101: 
+>>   102:     const result = await bulkImportNotebooks(
+     103:       [{ title, html, source_file: filename }],
+     104:       "api-import",
+     105:     );
+     106: 
+     107:     const insertedCount = getInsertedCount(result);
+     108:     return NextResponse.json({ ok: true, insertedCount });
+     109:   }
+     110: 
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:104] pattern: import
+      96: 
+      97:   if (importType === "notebooks" && contentType.includes("text/html")) {
+      98:     const html = await request.text();
+      99:     const filename = request.headers.get("x-filename") || "uploaded.html";
+     100:     const title = filename.replace(/\.(html?|HTML?)$/i, "");
+     101: 
+     102:     const result = await bulkImportNotebooks(
+     103:       [{ title, html, source_file: filename }],
+>>   104:       "api-import",
+     105:     );
+     106: 
+     107:     const insertedCount = getInsertedCount(result);
+     108:     return NextResponse.json({ ok: true, insertedCount });
+     109:   }
+     110: 
+     111:   let body: unknown;
+     112:   try {
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:118] pattern: import
+     110: 
+     111:   let body: unknown;
+     112:   try {
+     113:     body = await request.json();
+     114:   } catch {
+     115:     return NextResponse.json({ ok: false, error: "Invalid JSON payload" }, { status: 400 });
+     116:   }
+     117: 
+>>   118:   const items = toItems(body, importType);
+     119:   if (!items.length) {
+     120:     return NextResponse.json({ ok: false, error: "No items found in payload" }, { status: 400 });
+     121:   }
+     122: 
+     123:   const kind = detectKind(items);
+     124:   if (kind && kind !== importType) {
+     125:     return NextResponse.json(
+     126:       { ok: false, error: `File looks like ${kind}. Switch tab.` },
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:124] pattern: import
+     116:   }
+     117: 
+     118:   const items = toItems(body, importType);
+     119:   if (!items.length) {
+     120:     return NextResponse.json({ ok: false, error: "No items found in payload" }, { status: 400 });
+     121:   }
+     122: 
+     123:   const kind = detectKind(items);
+>>   124:   if (kind && kind !== importType) {
+     125:     return NextResponse.json(
+     126:       { ok: false, error: `File looks like ${kind}. Switch tab.` },
+     127:       { status: 400 },
+     128:     );
+     129:   }
+     130: 
+     131:   let result: unknown;
+     132:   if (importType === "flashcards") {
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:132] pattern: import
+     124:   if (kind && kind !== importType) {
+     125:     return NextResponse.json(
+     126:       { ok: false, error: `File looks like ${kind}. Switch tab.` },
+     127:       { status: 400 },
+     128:     );
+     129:   }
+     130: 
+     131:   let result: unknown;
+>>   132:   if (importType === "flashcards") {
+     133:     result = await bulkImportFlashcards(items, "api-import");
+     134:   } else if (importType === "notebooks") {
+     135:     result = await bulkImportNotebooks(items, "api-import");
+     136:   } else {
+     137:     result = await bulkImportQuestions(items, "api-import");
+     138:   }
+     139: 
+     140:   const insertedCount = getInsertedCount(result);
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:133] pattern: import
+     125:     return NextResponse.json(
+     126:       { ok: false, error: `File looks like ${kind}. Switch tab.` },
+     127:       { status: 400 },
+     128:     );
+     129:   }
+     130: 
+     131:   let result: unknown;
+     132:   if (importType === "flashcards") {
+>>   133:     result = await bulkImportFlashcards(items, "api-import");
+     134:   } else if (importType === "notebooks") {
+     135:     result = await bulkImportNotebooks(items, "api-import");
+     136:   } else {
+     137:     result = await bulkImportQuestions(items, "api-import");
+     138:   }
+     139: 
+     140:   const insertedCount = getInsertedCount(result);
+     141:   return NextResponse.json({ ok: true, insertedCount });
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:134] pattern: import
+     126:       { ok: false, error: `File looks like ${kind}. Switch tab.` },
+     127:       { status: 400 },
+     128:     );
+     129:   }
+     130: 
+     131:   let result: unknown;
+     132:   if (importType === "flashcards") {
+     133:     result = await bulkImportFlashcards(items, "api-import");
+>>   134:   } else if (importType === "notebooks") {
+     135:     result = await bulkImportNotebooks(items, "api-import");
+     136:   } else {
+     137:     result = await bulkImportQuestions(items, "api-import");
+     138:   }
+     139: 
+     140:   const insertedCount = getInsertedCount(result);
+     141:   return NextResponse.json({ ok: true, insertedCount });
+     142: }
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:135] pattern: import
+     127:       { status: 400 },
+     128:     );
+     129:   }
+     130: 
+     131:   let result: unknown;
+     132:   if (importType === "flashcards") {
+     133:     result = await bulkImportFlashcards(items, "api-import");
+     134:   } else if (importType === "notebooks") {
+>>   135:     result = await bulkImportNotebooks(items, "api-import");
+     136:   } else {
+     137:     result = await bulkImportQuestions(items, "api-import");
+     138:   }
+     139: 
+     140:   const insertedCount = getInsertedCount(result);
+     141:   return NextResponse.json({ ok: true, insertedCount });
+     142: }
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts:137] pattern: import
+     129:   }
+     130: 
+     131:   let result: unknown;
+     132:   if (importType === "flashcards") {
+     133:     result = await bulkImportFlashcards(items, "api-import");
+     134:   } else if (importType === "notebooks") {
+     135:     result = await bulkImportNotebooks(items, "api-import");
+     136:   } else {
+>>   137:     result = await bulkImportQuestions(items, "api-import");
+     138:   }
+     139: 
+     140:   const insertedCount = getInsertedCount(result);
+     141:   return NextResponse.json({ ok: true, insertedCount });
+     142: }
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__import__page.tsx:5] pattern: flashcard
+       1: "use client";
+       2: 
+       3: import { useMemo, useState } from "react";
+       4: 
+>>     5: type ImportTab = "flashcards" | "notebooks" | "questions";
+       6: 
+       7: type FilesByTab = Record<ImportTab, File[]>;
+       8: 
+       9: const ACCEPT_BY_TAB: Record<ImportTab, string> = {
+      10:   flashcards: ".json",
+      11:   notebooks: ".json,.html,.htm",
+      12:   questions: ".json",
+      13: };
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__import__page.tsx:10] pattern: flashcard
+       2: 
+       3: import { useMemo, useState } from "react";
+       4: 
+       5: type ImportTab = "flashcards" | "notebooks" | "questions";
+       6: 
+       7: type FilesByTab = Record<ImportTab, File[]>;
+       8: 
+       9: const ACCEPT_BY_TAB: Record<ImportTab, string> = {
+>>    10:   flashcards: ".json",
+      11:   notebooks: ".json,.html,.htm",
+      12:   questions: ".json",
+      13: };
+      14: 
+      15: function parseJsonText(text: string): any {
+      16:   return JSON.parse(text);
+      17: }
+      18: 
+
+----------------------------------------------------------------------------------------------------
+[C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6\.import-rebuild-backup-20260302-145603\src__app__import__page.tsx:27] pattern: flashcard
+      19: function extractItemsFromPayload(payload: any, type: ImportTab): any[] {
+      20:   if (Array.isArray(payload)) return payload;
+      21:   if (!payload || typeof payload !== "object") return [];
+      22: 
+      23:   if (Array.isArray(payload.items)) return payload.items;
+      24:   if (Array.isArray(payload.data)) return payload.data;
+      25:   if (Array.isArray(payload[type])) return payload[type];
+      26: 
+>>    27:   if (type === "flashcards" && Array.isArray(payload.cards)) return payload.cards;
+      28:   if (type === "notebooks" && Array.isArray(payload.notes)) return payload.notes;
+      29:   if (type === "questions" && Array.isArray(payload.questions)) return payload.questions;
+      30: 
+      31:   return [];
+      32: }
+      33: 
+      34: async function readServerErrorText(res: Response): Promise<string> {
+      35:   const raw = await res.text();
+
+----------------------------------------------------------------------------------------------------
+Context output truncated after 80 blocks.
+
+====================================================================================================
+4) LIKELY IMPORT FIELD NAMES
+====================================================================================================
+text   (count=2866)
+id   (count=2120)
+type   (count=1999)
+title   (count=783)
+question   (count=260)
+tags   (count=247)
+options   (count=239)
+difficulty   (count=228)
+content   (count=227)
+body   (count=206)
+front   (count=185)
+back   (count=182)
+explanation   (count=169)
+source   (count=152)
+answer   (count=111)
+topic   (count=100)
+answers   (count=81)
+stem   (count=67)
+correctAnswer   (count=56)
+correctIndex   (count=25)
+prompt   (count=17)
+cloze   (count=11)
+choices   (count=9)
+hint   (count=4)
+
+====================================================================================================
+5) POSSIBLE ROUTES / API ENDPOINTS RELATED TO IMPORT
+====================================================================================================
+./src/app/import/import { sqliteTable, text, integer, rea.js
+./src/app/import/ImportScreen.tsx
+./src/app/import/loading.tsx
+./src/app/import/page.tsx
+./src/app/import/Untitled-1.ts
+./src/components/exam/AddToNotebookModal.tsx
+./src/components/exam/CreateFlashcardModal.tsx
+./src/components/exam/NoteModal.tsx
+./src/components/exam/QuestionCard.tsx
+./src/components/import/ImportFileManager.tsx
+./src/components/import/ImportHistoryTable.tsx
+./src/components/import/ImportUploadPanel.tsx
+./src/components/note-viewer/NotePageShell.tsx
+./src/components/srs/FlashCard.tsx
+./src/components/srs/ImportModal.tsx
+./src/lib/actions/import-actions.ts
+./src/lib/contract/note-viewer.types.ts
+./src/lib/db/queries/flashcards.ts
+./src/lib/db/queries/imports.ts
+./src/lib/db/queries/questions.ts
+./src/lib/exam/campbell-exam-builder.schema.json
+./src/lib/exam/seed-questions.ts
+./src/lib/importers/html-chunk-importer.ts
+./src/lib/importers/import-to-db.ts
+./src/lib/importers/question-importer.ts
+./src/lib/importers/validators.ts
+./uro-killer/apps/web/src/app/api/import/[type]/route.ts
+./uro-killer/apps/web/src/app/import/loading.tsx
+./uro-killer/apps/web/src/app/import/page.tsx
+
+====================================================================================================
+6) HOW TO USE THIS REPORT
+====================================================================================================
+Read in this order:
+1. Find the first real schema or validator:
+   - z.object(...)
+   - safeParse(...)
+   - validate(...)
+   - explicit required field checks
+2. Trace where that validator is called:
+   - import page
+   - preview page
+   - API route
+   - normalization / transform helper
+3. Copy the exact accepted keys into your generator prompts.
+4. Also note aliases the code accepts, e.g.:
+   text OR stem OR question
+5. Use real error messages from the codebase to refine your prompts.
+
+What you want to extract:
+- root type: array or object
+- item type: question / flashcard / note
+- required fields
+- optional fields
+- accepted aliases
+- enum values
+- nested object / array shape
+- normalization rules
+- rejection rules
+

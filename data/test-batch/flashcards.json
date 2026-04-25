@@ -1,0 +1,20 @@
+[
+  {
+    "chapterNo": 132,
+    "cardType": "basic",
+    "deck": "Urology - BPH",
+    "frontHtml": "<p>What are the three zones of the prostate described by McNeal?</p>",
+    "backHtml": "<p><strong>Peripheral zone</strong> (70% of glandular tissue, most common site of carcinoma), <strong>Central zone</strong> (surrounds ejaculatory ducts), and <strong>Transition zone</strong> (site of BPH).</p>",
+    "educationalObjective": "Recall McNeal's prostatic zonal anatomy.",
+    "tags": ["anatomy", "prostate zones", "McNeal"]
+  },
+  {
+    "chapterNo": 132,
+    "cardType": "basic",
+    "deck": "Urology - BPH",
+    "frontHtml": "<p>Name two classes of medications used for BPH and their mechanisms.</p>",
+    "backHtml": "<p><strong>Alpha-1 blockers</strong> (tamsulosin, alfuzosin): relax smooth muscle (dynamic component).<br/><strong>5-alpha reductase inhibitors</strong> (finasteride, dutasteride): shrink prostate tissue (static component).</p>",
+    "educationalObjective": "List first-line medical therapies for BPH.",
+    "tags": ["BPH", "pharmacology", "treatment"]
+  }
+]

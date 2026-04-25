@@ -1,0 +1,67 @@
+884: function NextRecommended() {
+885:   const [idx, setIdx] = useState(0);
+886:   const rec = RECOMMENDATIONS[idx];
+887:   return (
+888:     <Card>
+889:       <SectionHead icon={<Layers size={16} style={{color:"var(--accent)"}}/>}
+890:         title="Next Recommended" sub="AI-curated study path"/>
+891:       <AnimatePresence mode="wait">
+892:         <motion.div key={rec.id}
+893:           initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}}
+894:           transition={{duration:0.25}}
+895:           style={{padding:"14px 16px",borderRadius:12,marginBottom:12,
+896:             background:`color-mix(in srgb, ${rec.color} 10%, transparent)`,
+897:             border:`1px solid color-mix(in srgb, ${rec.color} 25%, transparent)`}}>
+898:           {rec.alert && (
+899:             <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
+900:               <AlertTriangle size={12} style={{color:"var(--rose)"}}/>
+901:               <span style={{fontSize:10,fontWeight:700,color:"var(--rose)",textTransform:"uppercase",
+902:                 letterSpacing:"0.1em"}}>{rec.alert}</span>
+903:             </div>
+904:           )}
+905:           <div style={{fontWeight:700,fontSize:14,color:"var(--text-1)",marginBottom:4}}>{rec.title}</div>
+906:           <div style={{fontSize:12,color:"var(--text-2)",marginBottom:8}}>{rec.reason}</div>
+907:           <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+908:             <Chip label={rec.duration} color="var(--blue)"/>
+909:             <Chip label={`${rec.mcqCount} MCQs`} color="var(--violet)"/>
+910:             <Chip label={`${rec.accuracy}% accuracy`} color={rec.accuracy<70?"var(--rose)":"var(--emerald)"}/>
+911:           </div>
+912:           <div style={{display:"flex",gap:8,marginTop:12}}>
+913:             <button className="hs-btn-primary">
+914:               <Play size={13}/> شروع Session
+915:             </button>
+916:             <button className="hs-btn-ghost"
+917:               onClick={()=>setIdx(i=>(i+1)%RECOMMENDATIONS.length)}>
+918:               بعدی →
+919:             </button>
+920:           </div>
+921:         </motion.div>
+922:       </AnimatePresence>
+923:       {/* Queue pills */}
+924:       <div style={{display:"flex",flexDirection:"column",gap:4}}>
+925:         {RECOMMENDATIONS.map((r,i)=>(
+926:           <div key={r.id} onClick={()=>setIdx(i)}
+927:             style={{display:"flex",alignItems:"center",gap:10,padding:"8px 10px",borderRadius:8,cursor:"pointer",
+928:               background:i===idx?"var(--accent-dim)":"transparent",
+929:               border:`1px solid ${i===idx?"var(--accent)":"transparent"}`,transition:"all 0.18s"}}>
+930:             <div style={{width:20,height:20,borderRadius:6,display:"flex",alignItems:"center",
+931:               justifyContent:"center",fontSize:10,fontWeight:700,
+932:               background:i===idx?"var(--accent)":"var(--border)",
+933:               color:i===idx?"#fff":"var(--text-3)"}}>{i+1}</div>
+934:             <span style={{fontSize:12,color:i===idx?"var(--accent)":"var(--text-2)",
+935:               flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+936:               {r.title}
+937:             </span>
+938:           </div>
+939:         ))}
+940:       </div>
+941:     </Card>
+942:   );
+943: }
+944: 
+945: /* ══════════════════════════════════════════════════════
+946:    PRIORITY  QUEUE
+947: ══════════════════════════════════════════════════════ */
+948: 
+949: function PriorityQueue() {
+950:   const [items, setItems] = useState(INITIAL_QUEUE);

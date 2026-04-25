@@ -1,0 +1,114 @@
+/* ═══════════════════════════════════════════════════════════════════
+   Reader fullscreen / focus-mode overrides
+   ─────────────────────────────────────────────────────────────────
+   Two selector roots are used here:
+     • :root[data-reader-fullscreen="true"]  — set on <html> by
+       useFocusMode, triggers legacy column-width tokens
+     • [data-focus]                          — set on LibraryShell,
+       used for scoped component-level refinements
+
+   What it does
+   ───────────
+   • Slightly larger, more comfortable prose (17px, lh 1.82)
+   • More vertical breathing around the chapter hero
+   • Soft fade-out mask at the bottom of the scroll stage to hint
+     there is more content below
+   • Quiet background tint so the reading surface feels distinct
+     from the rest of the app UI in fullscreen
+═══════════════════════════════════════════════════════════════════ */
+
+/* ── Legacy column tokens (kept for any reader surfaces that still
+      consume --reader-prose-w / --reader-hook-w directly) ── */
+:root[data-reader-fullscreen="true"] {
+  --reader-prose-w: min(92ch, 100%);
+  --reader-hook-w: min(82ch, 100%);
+  --reader-px: clamp(24px, 6vw, 96px);
+}
+
+:root[data-reader-fullscreen="true"] [data-anchor-mode="primary"],
+:root[data-reader-fullscreen="true"] .notion-block-body {
+  padding-inline: var(--reader-px, 0);
+}
+
+/* ── Focus-mode typography ── */
+[data-focus] [data-reader-content] {
+  font-size: 17px;
+  line-height: 1.82;
+}
+
+/* Slightly larger running text for comfortable fullscreen reading */
+[data-focus] [data-reader-content] p,
+[data-focus] [data-reader-content] li {
+  font-size: inherit;
+  line-height: inherit;
+}
+
+/* ── Chapter hero gets more vertical breathing in fullscreen ── */
+[data-focus] [data-chapter-hero] {
+  margin-top: clamp(3rem, 8dvh, 6rem);
+  margin-bottom: clamp(2rem, 5dvh, 4rem);
+}
+
+/* ── Scroll-fade vignette at the bottom of the stage ──
+   Creates a smooth fade to transparent at the last ~96px,
+   hinting that content continues below the fold. The mask
+   is visual-only — content remains interactive. */
+[data-focus] [data-reader-stage] {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black calc(100% - 96px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black calc(100% - 96px),
+    transparent 100%
+  );
+}
+
+/* Touch Safari is more fragile when a momentum-scrolling container is also
+   masked. Keep the fade treatment for desktop/fine-pointer environments and
+   disable it on iPad/touch to preserve scroll/input stability. */
+@media (hover: none), (pointer: coarse) {
+  [data-focus] [data-reader-stage] {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+
+/* ── Subtle background tint — deepens immersion without changing
+   the user's chosen theme. Uses color-mix so it adapts to
+   light and dark mode automatically. ── */
+[data-focus] {
+  background-color: color-mix(
+    in oklab,
+    hsl(var(--background)) 97%,
+    hsl(var(--foreground)) 3%
+  ) !important;
+}
+
+/* ── Section spacing: more breathing between sections ── */
+[data-focus] [data-reader-content] > article {
+  row-gap: 3rem;
+}
+
+/* ── Frame cards: slightly more padding inside frames ── */
+[data-focus] [data-reader-content] [data-frame-tier="callout"] {
+  padding: 1.25rem 1.5rem;
+}
+
+/* Respect reduced-motion & print */
+@media print {
+  :root[data-reader-fullscreen="true"] {
+    --reader-prose-w: 70ch;
+    --reader-hook-w: 62ch;
+    --reader-px: 0;
+  }
+
+  [data-focus] [data-reader-stage] {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}

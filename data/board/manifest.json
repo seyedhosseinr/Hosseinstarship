@@ -1,0 +1,11 @@
+{
+  "id": "board-2025-import",
+  "name": "Campbell Board 2025 Chapters",
+  "version": "1.0",
+  "files": [
+    {
+      "type": "chapters",
+      "path": "campbell-board-2025.json"
+    }
+  ]
+}

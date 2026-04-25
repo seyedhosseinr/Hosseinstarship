@@ -1,0 +1,13 @@
+﻿import Screen from "./NotebooksScreen";
+import { StarshipPage } from "@/components/starship/StarshipPage";
+
+export default function Page() {
+  return (
+    <StarshipPage
+      title="Notebooks"
+      subtitle="نوت‌بوک‌ها در شِل Starship"
+    >
+      <Screen />
+    </StarshipPage>
+  );
+}

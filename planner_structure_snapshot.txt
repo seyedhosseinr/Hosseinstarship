@@ -1,0 +1,659 @@
+﻿PROJECT ROOT: C:\Users\Hossein\Desktop\board\tests\app\urologynet2\opus_4.6
+
+=== FOLDER TREE ===
+.
+  - .import-rebuild-backup-20260302-145603
+  - .import-rebuild-backup-20260302-145630
+  - apps
+    - web
+      - src
+        - app
+        - components
+          - layout
+  - data
+    - test-batch
+  - drizzle
+    - meta
+  - public
+    - fonts
+  - scripts
+  - src
+    - actions
+    - app
+      - analytics
+      - api
+        - dashboard
+          - stats
+        - exams
+          - [id]
+            - analysis
+            - finish
+            - mark
+            - results
+            - review
+            - state
+            - submit
+            - suspend
+          - start
+        - planner
+          - overdue
+          - tasks
+            - [id]
+              - complete
+              - move
+              - reschedule
+              - skip
+          - today
+          - week
+      - create
+      - exam
+        - [id]
+        - active
+        - builder
+      - flashcards
+      - history
+      - import
+      - notebooks
+        - [id]
+      - notes
+        - [docId]
+      - planner
+      - profile
+      - qbank
+      - review
+      - settings
+        - data
+      - space
+      - srs
+        - insights
+      - stores
+    - components
+      - ai
+      - app-shell
+      - command
+      - dashboard
+      - exam
+      - import
+      - layout
+      - notebook
+      - note-viewer
+      - planner
+        - calendar
+        - dnd
+        - ui
+      - review
+      - srs
+      - starship
+      - Theme
+      - ui
+    - db
+    - hooks
+    - lib
+      - actions
+      - contract
+      - dashboard
+      - data
+      - db
+        - queries
+      - exam
+      - gamification
+      - import
+      - importers
+      - notebook
+      - planner
+      - services
+      - space
+      - srs
+      - theme
+      - utils
+    - mission
+    - providers
+    - store
+    - stores
+    - types
+  - uro-killer
+    - apps
+      - web
+        - public
+        - src
+          - app
+            - analytics
+            - api
+              - gemini
+              - grok
+              - import
+                - [type]
+            - create
+            - flashcards
+            - history
+            - import
+            - leaderboard
+            - notebooks
+            - profile
+            - settings
+            - test
+              - [id]
+          - components
+            - layout
+            - providers
+            - ui
+            - voice
+          - hooks
+          - lib
+            - api
+            - import
+            - utils
+            - voice
+          - providers
+          - store
+          - types
+    - packages
+      - config
+        - eslint
+        - typescript
+      - types
+        - src
+
+=== FILE LIST ===
+.eslintrc.json
+.import-rebuild-backup-20260302-145603\src__app__api__import__[type]__route.ts
+.import-rebuild-backup-20260302-145603\src__app__import__page.tsx
+.import-rebuild-backup-20260302-145630\src__app__api__import__[type]__route.ts
+.import-rebuild-backup-20260302-145630\src__app__import__page.tsx
+apps\web\src\app\layout.tsx
+apps\web\src\components\layout\AppShell.tsx
+apps\web\src\components\layout\client-shell.tsx
+apps\web\src\components\layout\command-palette.tsx
+apps\web\src\components\layout\index.ts
+apps\web\src\components\layout\sidebar.tsx
+apps\web\src\components\layout\top-bar.tsx
+data\test-batch\chunks.json
+data\test-batch\flashcards.json
+data\test-batch\manifest.json
+data\test-batch\qc_report.json
+data\test-batch\questions.json
+drizzle.config.ts
+drizzle\0000_wide_captain_marvel.sql
+drizzle\0001_quiet_ender_wiggin.sql
+drizzle\0002_early_tattoo.sql
+drizzle\meta\_journal.json
+drizzle\meta\0000_snapshot.json
+drizzle\meta\0001_snapshot.json
+drizzle\meta\0002_snapshot.json
+next.config.ts
+next-env.d.ts
+package.json
+package-lock.json
+public\sw.js
+public\test-srs.json
+scripts\_check-db.ts
+scripts\_migration-doctor.ts
+scripts\_seed-chapter.ts
+scripts\_test-queries.ts
+scripts\_verify-import.ts
+scripts\import-batch.ts
+scripts\import-questions.ts
+src\actions\ai-actions.ts
+src\actions\analytics-actions.ts
+src\app\analytics\AnalyticsScreen.tsx
+src\app\analytics\loading.tsx
+src\app\analytics\page.tsx
+src\app\api\dashboard\stats\route.ts
+src\app\api\exams\[id]\analysis\route.ts
+src\app\api\exams\[id]\finish\route.ts
+src\app\api\exams\[id]\mark\route.ts
+src\app\api\exams\[id]\results\route.ts
+src\app\api\exams\[id]\review\route.ts
+src\app\api\exams\[id]\state\route.ts
+src\app\api\exams\[id]\submit\route.ts
+src\app\api\exams\[id]\suspend\route.ts
+src\app\api\exams\_shared.ts
+src\app\api\exams\start\route.ts
+src\app\api\planner\_shared.ts
+src\app\api\planner\overdue\route.ts
+src\app\api\planner\tasks\[id]\complete\route.ts
+src\app\api\planner\tasks\[id]\move\route.ts
+src\app\api\planner\tasks\[id]\reschedule\route.ts
+src\app\api\planner\tasks\[id]\skip\route.ts
+src\app\api\planner\today\route.ts
+src\app\api\planner\week\route.ts
+src\app\create\loading.tsx
+src\app\create\page.tsx
+src\app\DashboardClient.tsx
+src\app\error.tsx
+src\app\exam\[id]\page.tsx
+src\app\exam\active\page.tsx
+src\app\exam\builder\page.tsx
+src\app\flashcards\FlashcardsClient.tsx
+src\app\flashcards\FlashcardsScreen.tsx
+src\app\flashcards\loading.tsx
+src\app\flashcards\page.tsx
+src\app\globals.css
+src\app\history\HistoryClient.tsx
+src\app\history\HistoryScreen.tsx
+src\app\history\loading.tsx
+src\app\history\page.tsx
+src\app\import\# Code Citations.md
+src\app\import\import { sqliteTable, text, integer, rea.js
+src\app\import\ImportScreen.tsx
+src\app\import\loading.tsx
+src\app\import\page.tsx
+src\app\import\Untitled-1.ts
+src\app\layout.tsx
+src\app\loading.tsx
+src\app\notebooks\[id]\page.tsx
+src\app\notebooks\NotebooksScreen.tsx
+src\app\notebooks\page.tsx
+src\app\notes\[docId]\loading.tsx
+src\app\notes\[docId]\not-found.tsx
+src\app\notes\[docId]\page.tsx
+src\app\not-found.tsx
+src\app\page.tsx
+src\app\planner\page.tsx
+src\app\planner\PlanList.tsx
+src\app\planner\PlannerClient.tsx
+src\app\planner\PlannerScreen.tsx
+src\app\profile\loading.tsx
+src\app\profile\page.tsx
+src\app\qbank\page.tsx
+src\app\qbank\QBankScreen.tsx
+src\app\review\page.tsx
+src\app\settings\data\page.tsx
+src\app\settings\loading.tsx
+src\app\settings\page.tsx
+src\app\settings\SettingsClient.tsx
+src\app\settings\SettingsScreen.tsx
+src\app\space\page.tsx
+src\app\srs\insights\page.tsx
+src\app\stores\useSRSStore.ts
+src\app\stores\useThemeStore.ts
+src\components\ai\GrokChat.tsx
+src\components\app-shell\AppShell.tsx
+src\components\app-shell\Sidebar.tsx
+src\components\app-shell\Topbar.tsx
+src\components\command\CommandPalette.tsx
+src\components\dashboard\HosseinStarshipDashboard.tsx
+src\components\exam\AddToNotebookModal.tsx
+src\components\exam\Calculator.tsx
+src\components\exam\CreateFlashcardModal.tsx
+src\components\exam\ExamBuilder.tsx
+src\components\exam\ExamComplete.tsx
+src\components\exam\ExamHeader.tsx
+src\components\exam\ExamSidebar.tsx
+src\components\exam\ExamToolbar.tsx
+src\components\exam\ExplanationPane.tsx
+src\components\exam\FinishModal.tsx
+src\components\exam\HighlightableText.tsx
+src\components\exam\index.ts
+src\components\exam\LabValuesPanel.tsx
+src\components\exam\NoteModal.tsx
+src\components\exam\QuestionCard.tsx
+src\components\exam\ReviewTestPage.tsx
+src\components\GrokChat.tsx
+src\components\import\ImportFileManager.tsx
+src\components\import\ImportHistoryTable.tsx
+src\components\import\ImportUploadPanel.tsx
+src\components\layout\AppShell.tsx
+src\components\layout\client-shell.tsx
+src\components\layout\CommandPalette.tsx
+src\components\layout\index.ts
+src\components\layout\sidebar.tsx
+src\components\layout\Topbar.tsx
+src\components\layout\top-bar.tsx
+src\components\notebook\InkLayer.tsx
+src\components\note-viewer\FrameCard.tsx
+src\components\note-viewer\index.ts
+src\components\note-viewer\NotePageShell.tsx
+src\components\planner\calendar\CalendarDayCell.tsx
+src\components\planner\calendar\CalendarDayModal.tsx
+src\components\planner\calendar\PlannerCalendar.tsx
+src\components\planner\calendar\PlannerCalendarGrid.tsx
+src\components\planner\dnd\PlannerDndContext.tsx
+src\components\planner\index.ts
+src\components\planner\OverdueModal.tsx
+src\components\planner\PlannerBucket.tsx
+src\components\planner\PlannerDashboardCard.tsx
+src\components\planner\PlannerPage.tsx
+src\components\planner\PlannerRecommendationCard.tsx
+src\components\planner\PlannerSummary.tsx
+src\components\planner\PlannerTaskCard.tsx
+src\components\planner\RecommendationPanel.tsx
+src\components\planner\RescheduleDialog.tsx
+src\components\planner\TaskCard.tsx
+src\components\planner\task-helpers.ts
+src\components\planner\TodayTaskList.tsx
+src\components\planner\ui\ProgressRing.tsx
+src\components\planner\WeeklyView.tsx
+src\components\providers.tsx
+src\components\review\ReviewPauseMenu.tsx
+src\components\review\ReviewSessionTimer.tsx
+src\components\review\ReviewShortcutOverlay.tsx
+src\components\ShellGate.tsx
+src\components\srs\FlashCard.tsx
+src\components\srs\ImportModal.tsx
+src\components\srs\ReviewStats.tsx
+src\components\starship\StarshipAmbient.tsx
+src\components\starship\StarshipDock.tsx
+src\components\starship\StarshipPage.tsx
+src\components\Theme\ThemeBridge.tsx
+src\components\ui\avatar.tsx
+src\components\ui\badge.tsx
+src\components\ui\button.tsx
+src\components\ui\card.tsx
+src\components\ui\checkbox.tsx
+src\components\ui\dialog.tsx
+src\components\ui\input.tsx
+src\components\ui\label.tsx
+src\components\ui\page-header.tsx
+src\components\ui\PageHero.tsx
+src\components\ui\progress.tsx
+src\components\ui\scroll-area.tsx
+src\components\ui\select.tsx
+src\components\ui\separator.tsx
+src\components\ui\shared-states.tsx
+src\components\ui\skeleton.tsx
+src\components\ui\slider.tsx
+src\components\ui\sonner.tsx
+src\components\ui\surface.tsx
+src\components\ui\switch.tsx
+src\components\ui\system.ts
+src\components\ui\tabs.tsx
+src\components\ui\textarea.tsx
+src\components\ui\tooltip.tsx
+src\db.ts
+src\db\index.ts
+src\db\migrate.ts
+src\db\schema.ts
+src\hooks\index.ts
+src\hooks\useCountdown.ts
+src\hooks\useServerAction.ts
+src\lib\actions\exam-actions.ts
+src\lib\actions\import-actions.ts
+src\lib\actions\planner-actions.ts
+src\lib\actions\planner-recommendation-actions.ts
+src\lib\api.ts
+src\lib\contract\index.ts
+src\lib\contract\note-viewer.types.ts
+src\lib\contract\queries.ts
+src\lib\contract\types.ts
+src\lib\dashboard\queries.ts
+src\lib\dashboard\useDashboardData.ts
+src\lib\data\db.ts
+src\lib\data\index.ts
+src\lib\data\repository.ts
+src\lib\db\queries\chapters.ts
+src\lib\db\queries\chunks.ts
+src\lib\db\queries\exams.ts
+src\lib\db\queries\flashcards.ts
+src\lib\db\queries\imports.ts
+src\lib\db\queries\index.ts
+src\lib\db\queries\planner.ts
+src\lib\db\queries\questions.ts
+src\lib\exam\campbell-exam-builder.schema.json
+src\lib\exam\campbell-exam-builder.ts
+src\lib\exam\campbell-exam-builder.types.ts
+src\lib\exam\seed-questions.ts
+src\lib\exam-engine.ts
+src\lib\format.ts
+src\lib\fsrs.ts
+src\lib\gamification\engine.ts
+src\lib\import\file-parser.ts
+src\lib\import\parsers.ts
+src\lib\importers\aua-pdf-parser.ts
+src\lib\importers\html-chunk-importer.ts
+src\lib\importers\import-to-db.ts
+src\lib\importers\question-importer.ts
+src\lib\importers\validators.ts
+src\lib\import-utils.ts
+src\lib\notebook\inkStore.ts
+src\lib\planner\concept-links.ts
+src\lib\planner\constants.ts
+src\lib\planner\fsrs-integration.ts
+src\lib\planner\queries.ts
+src\lib\planner\recommendation-engine.ts
+src\lib\planner\types.ts
+src\lib\planner\utils.ts
+src\lib\planner\weak-area-engine.ts
+src\lib\scoring.ts
+src\lib\services\exam-result-service.ts
+src\lib\services\exam-review-service.ts
+src\lib\services\exam-service.ts
+src\lib\services\fsrs-service.ts
+src\lib\services\planner-recommendation-service.ts
+src\lib\services\planner-service.ts
+src\lib\services\study-orchestrator-service.ts
+src\lib\space\storage.ts
+src\lib\srs\cardRegistry.ts
+src\lib\srs\content-parser.ts
+src\lib\srs\fsrs.ts
+src\lib\srs\sm2.ts
+src\lib\theme\Glass.tsx
+src\lib\theme\index.ts
+src\lib\theme\Motion.ts
+src\lib\theme\Sidebar.tsx
+src\lib\theme\tokens.ts
+src\lib\theme\TopBar.tsx
+src\lib\types.ts
+src\lib\utils.ts
+src\lib\utils\persian-calendar.ts
+src\lib\utils\shuffle.ts
+src\lib\validations.ts
+src\mission\page.tsx
+src\providers\QueryProvider.tsx
+src\providers\ThemeProvider.tsx
+src\store\main-store.ts
+src\store\useAppStore.ts
+src\store\useExamStore.ts
+src\store\useSRSStore.ts
+src\store\useStore.ts
+src\store\useThemeStore.ts
+src\stores\useSRSStore.ts
+src\types\index.ts
+src\types\srs.ts
+tailwind.config.ts
+tsconfig.json
+uro-killer\apps\web\next.config.js
+uro-killer\apps\web\next.config.ts
+uro-killer\apps\web\package.json
+uro-killer\apps\web\package-lock.json
+uro-killer\apps\web\public\manifest.json
+uro-killer\apps\web\README.md
+uro-killer\apps\web\src\app\analytics\loading.tsx
+uro-killer\apps\web\src\app\analytics\page.tsx
+uro-killer\apps\web\src\app\api\gemini\route.ts
+uro-killer\apps\web\src\app\api\grok\route.ts
+uro-killer\apps\web\src\app\api\import\[type]\route.ts
+uro-killer\apps\web\src\app\create\loading.tsx
+uro-killer\apps\web\src\app\create\page.tsx
+uro-killer\apps\web\src\app\error.tsx
+uro-killer\apps\web\src\app\flashcards\loading.tsx
+uro-killer\apps\web\src\app\flashcards\page.tsx
+uro-killer\apps\web\src\app\globals.css
+uro-killer\apps\web\src\app\history\loading.tsx
+uro-killer\apps\web\src\app\history\page.tsx
+uro-killer\apps\web\src\app\import\loading.tsx
+uro-killer\apps\web\src\app\import\page.tsx
+uro-killer\apps\web\src\app\layout.tsx
+uro-killer\apps\web\src\app\leaderboard\page.tsx
+uro-killer\apps\web\src\app\loading.tsx
+uro-killer\apps\web\src\app\notebooks\page.tsx
+uro-killer\apps\web\src\app\not-found.tsx
+uro-killer\apps\web\src\app\page.tsx
+uro-killer\apps\web\src\app\profile\loading.tsx
+uro-killer\apps\web\src\app\settings\loading.tsx
+uro-killer\apps\web\src\app\settings\page.tsx
+uro-killer\apps\web\src\app\test\[id]\loading.tsx
+uro-killer\apps\web\src\app\test\[id]\page.tsx
+uro-killer\apps\web\src\components\ImportManager.tsx
+uro-killer\apps\web\src\components\layout\AppShell.tsx
+uro-killer\apps\web\src\components\layout\CommandPalette.tsx
+uro-killer\apps\web\src\components\layout\index.ts
+uro-killer\apps\web\src\components\layout\sidebar.tsx
+uro-killer\apps\web\src\components\layout\Topbar.tsx
+uro-killer\apps\web\src\components\providers\index.tsx
+uro-killer\apps\web\src\components\providers\query-provider.tsx
+uro-killer\apps\web\src\components\providers\theme-provider.tsx
+uro-killer\apps\web\src\components\ui\avatar.tsx
+uro-killer\apps\web\src\components\ui\badge.tsx
+uro-killer\apps\web\src\components\ui\button.tsx
+uro-killer\apps\web\src\components\ui\card.tsx
+uro-killer\apps\web\src\components\ui\dialog.tsx
+uro-killer\apps\web\src\components\ui\index.ts
+uro-killer\apps\web\src\components\ui\input.tsx
+uro-killer\apps\web\src\components\ui\progress.tsx
+uro-killer\apps\web\src\components\ui\select.tsx
+uro-killer\apps\web\src\components\ui\separator.tsx
+uro-killer\apps\web\src\components\ui\skeleton.tsx
+uro-killer\apps\web\src\components\ui\sonner.tsx
+uro-killer\apps\web\src\components\ui\switch.tsx
+uro-killer\apps\web\src\components\ui\tabs.tsx
+uro-killer\apps\web\src\components\ui\textarea.tsx
+uro-killer\apps\web\src\components\ui\tooltip.tsx
+uro-killer\apps\web\src\components\voice\index.ts
+uro-killer\apps\web\src\components\voice\voice-button.tsx
+uro-killer\apps\web\src\components\voice\voice-text-input.tsx
+uro-killer\apps\web\src\hooks\index.ts
+uro-killer\apps\web\src\hooks\use-countdown.ts
+uro-killer\apps\web\src\hooks\use-drag-drop.ts
+uro-killer\apps\web\src\hooks\use-file-processor.ts
+uro-killer\apps\web\src\hooks\use-keyboard-shortcut.ts
+uro-killer\apps\web\src\hooks\use-local-storage.ts
+uro-killer\apps\web\src\hooks\use-media-query.ts
+uro-killer\apps\web\src\hooks\use-voice-input.ts
+uro-killer\apps\web\src\lib\api.ts
+uro-killer\apps\web\src\lib\api\client.ts
+uro-killer\apps\web\src\lib\import\file-parser.ts
+uro-killer\apps\web\src\lib\import\index.ts
+uro-killer\apps\web\src\lib\import\ocr-engine.ts
+uro-killer\apps\web\src\lib\import\README.md
+uro-killer\apps\web\src\lib\import-service.ts
+uro-killer\apps\web\src\lib\import-utils.ts
+uro-killer\apps\web\src\lib\types.ts
+uro-killer\apps\web\src\lib\utils.ts
+uro-killer\apps\web\src\lib\utils\index.ts
+uro-killer\apps\web\src\lib\voice\index.ts
+uro-killer\apps\web\src\lib\voice\speech-recognition.ts
+uro-killer\apps\web\src\providers\QueryProvider.tsx
+uro-killer\apps\web\src\providers\query-provider.tsx
+uro-killer\apps\web\src\providers\ThemeProvider.tsx
+uro-killer\apps\web\src\providers\theme-provider.tsx
+uro-killer\apps\web\src\store\main-store.ts
+uro-killer\apps\web\src\store\stores.ts
+uro-killer\apps\web\src\store\useStore.ts
+uro-killer\apps\web\src\types\index.ts
+uro-killer\apps\web\src\types\srs.ts
+uro-killer\apps\web\tailwind.config.ts
+uro-killer\apps\web\tsconfig.json
+uro-killer\package.json
+uro-killer\packages\config\eslint\index.js
+uro-killer\packages\config\package.json
+uro-killer\packages\config\typescript\base.json
+uro-killer\packages\types\package.json
+uro-killer\packages\types\src\index.ts
+uro-killer\tsconfig.json
+
+=== PLANNER-RELATED FILE CANDIDATES ===
+src\app\api\exams\[id]\analysis\route.ts
+src\app\api\exams\[id]\finish\route.ts
+src\app\api\exams\[id]\mark\route.ts
+src\app\api\exams\[id]\results\route.ts
+src\app\api\exams\[id]\review\route.ts
+src\app\api\exams\[id]\state\route.ts
+src\app\api\exams\[id]\submit\route.ts
+src\app\api\exams\[id]\suspend\route.ts
+src\app\api\exams\_shared.ts
+src\app\api\exams\start\route.ts
+src\app\api\planner\_shared.ts
+src\app\api\planner\overdue\route.ts
+src\app\api\planner\tasks\[id]\complete\route.ts
+src\app\api\planner\tasks\[id]\move\route.ts
+src\app\api\planner\tasks\[id]\reschedule\route.ts
+src\app\api\planner\tasks\[id]\skip\route.ts
+src\app\api\planner\today\route.ts
+src\app\api\planner\week\route.ts
+src\app\exam\[id]\page.tsx
+src\app\exam\active\page.tsx
+src\app\exam\builder\page.tsx
+src\app\planner\page.tsx
+src\app\planner\PlanList.tsx
+src\app\planner\PlannerClient.tsx
+src\app\planner\PlannerScreen.tsx
+src\app\review\page.tsx
+src\components\exam\AddToNotebookModal.tsx
+src\components\exam\Calculator.tsx
+src\components\exam\CreateFlashcardModal.tsx
+src\components\exam\ExamBuilder.tsx
+src\components\exam\ExamComplete.tsx
+src\components\exam\ExamHeader.tsx
+src\components\exam\ExamSidebar.tsx
+src\components\exam\ExamToolbar.tsx
+src\components\exam\ExplanationPane.tsx
+src\components\exam\FinishModal.tsx
+src\components\exam\HighlightableText.tsx
+src\components\exam\index.ts
+src\components\exam\LabValuesPanel.tsx
+src\components\exam\NoteModal.tsx
+src\components\exam\QuestionCard.tsx
+src\components\exam\ReviewTestPage.tsx
+src\components\planner\calendar\CalendarDayCell.tsx
+src\components\planner\calendar\CalendarDayModal.tsx
+src\components\planner\calendar\PlannerCalendar.tsx
+src\components\planner\calendar\PlannerCalendarGrid.tsx
+src\components\planner\dnd\PlannerDndContext.tsx
+src\components\planner\index.ts
+src\components\planner\OverdueModal.tsx
+src\components\planner\PlannerBucket.tsx
+src\components\planner\PlannerDashboardCard.tsx
+src\components\planner\PlannerPage.tsx
+src\components\planner\PlannerRecommendationCard.tsx
+src\components\planner\PlannerSummary.tsx
+src\components\planner\PlannerTaskCard.tsx
+src\components\planner\RecommendationPanel.tsx
+src\components\planner\RescheduleDialog.tsx
+src\components\planner\TaskCard.tsx
+src\components\planner\task-helpers.ts
+src\components\planner\TodayTaskList.tsx
+src\components\planner\ui\ProgressRing.tsx
+src\components\planner\WeeklyView.tsx
+src\components\review\ReviewPauseMenu.tsx
+src\components\review\ReviewSessionTimer.tsx
+src\components\review\ReviewShortcutOverlay.tsx
+src\components\srs\ReviewStats.tsx
+src\lib\actions\exam-actions.ts
+src\lib\actions\planner-actions.ts
+src\lib\actions\planner-recommendation-actions.ts
+src\lib\db\queries\exams.ts
+src\lib\db\queries\planner.ts
+src\lib\exam\campbell-exam-builder.schema.json
+src\lib\exam\campbell-exam-builder.ts
+src\lib\exam\campbell-exam-builder.types.ts
+src\lib\exam\seed-questions.ts
+src\lib\exam-engine.ts
+src\lib\planner\concept-links.ts
+src\lib\planner\constants.ts
+src\lib\planner\fsrs-integration.ts
+src\lib\planner\queries.ts
+src\lib\planner\recommendation-engine.ts
+src\lib\planner\types.ts
+src\lib\planner\utils.ts
+src\lib\planner\weak-area-engine.ts
+src\lib\services\exam-result-service.ts
+src\lib\services\exam-review-service.ts
+src\lib\services\exam-service.ts
+src\lib\services\planner-recommendation-service.ts
+src\lib\services\planner-service.ts
+src\lib\services\study-orchestrator-service.ts
+src\lib\utils\persian-calendar.ts
+src\store\useExamStore.ts
+
+=== SUGGESTED MANUAL CHECK PATHS ===
+src\app
+src\components
+src\lib
+src\store
+src\hooks
+app
+components
+lib
+store
+hooks

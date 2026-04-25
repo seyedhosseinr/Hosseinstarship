@@ -1,0 +1,11 @@
+{
+  "source": "test-batch",
+  "schemaVersion": "dna-v3.1",
+  "generatedAt": "2026-03-05T12:00:00Z",
+  "chapters": [132],
+  "counts": {
+    "chunks": 2,
+    "questions": 3,
+    "flashcards": 2
+  }
+}

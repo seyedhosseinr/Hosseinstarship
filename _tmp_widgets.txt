@@ -1,0 +1,176 @@
+=== PriorityQueue ===
+949: function PriorityQueue() {
+950:   const [items, setItems] = useState(INITIAL_QUEUE);
+951:   const toggle = (id:string) => setItems(p=>p.map(i=>i.id===id?{...i,done:!i.done}:i));
+952:   const pColor: Record<string,string> = {critical:"var(--rose)",high:"var(--amber)",medium:"var(--blue)"};
+953:   return (
+954:     <Card>
+955:       <SectionHead icon={<List size={16} style={{color:"var(--accent)"}}/>}
+956:         title="Priority Queue" sub="Focus on what matters most"
+957:         action={<Chip label={`${items.filter(i=>!i.done).length} remaining`} color="var(--accent)"/>}/>
+958:       <div style={{display:"flex",flexDirection:"column",gap:6}}>
+959:         {items.map((item,i)=>(
+960:           <motion.div key={item.id} layout
+961:             onClick={()=>toggle(item.id)}
+962:             style={{display:"flex",alignItems:"flex-start",gap:10,padding:"10px 12px",borderRadius:10,cursor:"pointer",
+963:               background:item.done?"transparent":"var(--bg-hover)",
+964:               border:`1px solid ${item.done?"var(--border)":"var(--border-strong)"}`,
+965:               opacity:item.done?0.55:1,transition:"all 0.2s"}}
+966:             whileHover={{x:3}}>
+967:             {/* Checkbox */}
+968:             <div style={{width:18,height:18,borderRadius:5,border:`2px solid ${item.done?"var(--accent)":"var(--border-strong)"}`,
+969:               background:item.done?"var(--accent)":"transparent",display:"flex",alignItems:"center",
+970:               justifyContent:"center",flexShrink:0,marginTop:1,transition:"all 0.2s"}}>
+971:               {item.done&&<Check size={10} color="#fff" strokeWidth={3}/>}
+972:             </div>
+973:             {/* Priority dot */}
+974:             <div style={{width:8,height:8,borderRadius:"50%",background:pColor[item.priority]||"var(--blue)",
+975:               flexShrink:0,marginTop:5,boxShadow:`0 0 6px ${pColor[item.priority]}80`}}/>
+976:             <div style={{flex:1,minWidth:0}}>
+977:               <div style={{fontSize:13,fontWeight:600,color:"var(--text-1)",
+978:                 textDecoration:item.done?"line-through":"none"}}>{item.title}</div>
+979:               <div style={{fontSize:11,color:"var(--text-3)",marginTop:2}}>{item.detail} · {item.eta}</div>
+980:             </div>
+981:           </motion.div>
+982:         ))}
+983:       </div>
+984:     </Card>
+985:   );
+986: }
+
+=== DailyGoals ===
+1326: function DailyGoals() {
+1327:   const goals = [
+1328:     {label:"سوال پاسخ داده", cur:34, target:50, color:"var(--violet)"},
+1329:     {label:"یادداشت مرور",   cur:12, target:20, color:"var(--blue)"},
+1330:     {label:"Trap حل‌شده",    cur:3,  target:5,  color:"var(--amber)"},
+1331:     {label:"ساعت مطالعه",    cur:2.5,target:4,  color:"var(--emerald)"},
+1332:   ];
+1333:   return (
+1334:     <Card>
+1335:       <SectionHead icon={<Flame size={16} style={{color:"var(--amber)"}}/>}
+1336:         title="Daily Goals" sub="پیشرفت امروز"/>
+1337:       <div style={{display:"flex",flexDirection:"column",gap:12}}>
+1338:         {goals.map((g,i)=>{
+1339:           const pct = Math.min(g.cur/g.target*100,100);
+1340:           return (
+1341:             <motion.div key={g.label} initial={{opacity:0,y:6}} animate={{opacity:1,y:0}}
+1342:               transition={{delay:i*0.06}}>
+1343:               <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,
+1344:                 fontSize:12,color:"var(--text-2)"}}>
+1345:                 <span>{g.label}</span>
+1346:                 <span style={{fontWeight:700,color:pct>=100?"var(--emerald)":g.color}}>
+1347:                   {g.cur}/{g.target} {pct>=100&&"✓"}
+1348:                 </span>
+1349:               </div>
+1350:               <ProgressBar pct={pct} color={g.color} height={5}/>
+1351:             </motion.div>
+1352:           );
+1353:         })}
+1354:       </div>
+1355:     </Card>
+1356:   );
+1357: }
+
+=== KPIRow ===
+839: function KPIRow() {
+840:   const liveData = useLiveData();
+841:   const accuracy = liveData?.serverStats?.accuracy ?? KPI_ACCURACY;
+842:   const streakVal = liveData?.streak ?? KPI_STREAK;
+843:   const xpVal = liveData?.xp ?? KPI_XP_TODAY;
+844:   const xpGoal = liveData ? (liveData.level * 100) : KPI_XP_GOAL;
+845:   const weakCount = liveData?.serverStats?.weakAreaCount ?? KPI_WEAK;
+846:   const kpis = [
+847:     { label:"Readiness Score", value:`${KPI_READINESS}%`, sub:"Exam confidence", color:"var(--violet)", ring:KPI_READINESS },
+848:     { label:"Accuracy Rate",   value:`${accuracy}%`,      sub:"Last 200 Qs",     color:"var(--blue)",   ring:accuracy  },
+849:     { label:"Study Streak",    value:`${streakVal}d`,     sub:"Consecutive days", color:"var(--amber)"              },
+850:     { label:"XP امروز",        value:xpVal,               sub:`از ${xpGoal} هدف`, color:"var(--emerald)", ring:Math.round(xpVal/Math.max(1,xpGoal)*100) },
+851:     { label:"Weak Spots",      value:weakCount,           sub:"نیاز به مرور",   color:"var(--rose)"              },
+852:   ];
+853:   return (
+854:     <div className="hs-kpi-row">
+855:       {kpis.map((k,i)=>(
+856:         <motion.div key={k.label} className="hs-kpi-card"
+857:           initial={{opacity:0,y:18}} animate={{opacity:1,y:0}}
+858:           transition={{delay:0.08*i,duration:0.45}}>
+859:           <div style={{position:"absolute",top:0,right:0,width:80,height:80,borderRadius:"50%",
+860:             background:`${k.color}`, opacity:0.06, filter:"blur(20px)", pointerEvents:"none"}}/>
+861:           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+862:             <span style={{fontSize:11,fontWeight:600,color:"var(--text-3)",letterSpacing:"0.08em",
+863:               textTransform:"uppercase"}}>{k.label}</span>
+864:             {k.ring!==undefined && (
+865:               <Ring value={k.ring} size={38} stroke={3} color={k.color}>
+866:                 <span style={{fontSize:9,fontWeight:700,color:k.color}}>{k.ring}%</span>
+867:               </Ring>
+868:             )}
+869:           </div>
+870:           <div style={{fontSize:28,fontWeight:800,color:k.color,letterSpacing:"-0.02em",lineHeight:1}}>
+871:             {k.value}
+872:           </div>
+873:           <div style={{fontSize:11,color:"var(--text-3)",marginTop:6}}>{k.sub}</div>
+874:         </motion.div>
+875:       ))}
+876:     </div>
+877:   );
+878: }
+
+=== buildRecommendations ===
+417: function buildRecommendations(liveData: DashboardLiveData | null): Recommendation[] {
+418:   const radar = buildRadarData(liveData);
+419:   const weak = [...radar].sort((a, b) => a.you - b.you).slice(0, 2);
+420:   const dueToday = liveData?.dueToday ?? 0;
+421:   const recs: Recommendation[] = [];
+422: 
+423:   weak.forEach((w, i) => {
+424:     recs.push({
+425:       id: `live-rec-${i}`,
+426:       title: `${w.domain} Focus Session`,
+427:       subtitle: "Targeted • QBank",
+428:       accuracy: w.you,
+429:       duration: "20 min",
+430:       mcqCount: 12 + i * 4,
+431:       reason: `Current accuracy ${w.you}% in this domain`,
+432:       alert: w.you < 65 ? "Weakness detected" : undefined,
+433:       icon: w.icon,
+434:       color: w.color,
+435:       href: ROUTES.qbank,
+436:     });
+437:   });
+438: 
+439:   if (dueToday > 0) {
+440:     recs.push({
+441:       id: "live-rec-review",
+442:       title: "SRS Review Session",
+443:       subtitle: "Spaced repetition",
+444:       accuracy: Math.max(40, Math.min(100, liveData?.serverStats?.accuracy ?? 0)),
+445:       duration: `${Math.max(8, Math.ceil(dueToday * 0.6))} min`,
+446:       mcqCount: dueToday,
+447:       reason: `${dueToday} cards are due today`,
+448:       icon: <RotateCcw className="w-5 h-5"/>,
+449:       color: "var(--violet)",
+450:       href: ROUTES.review,
+451:     });
+452:   }
+453: 
+454:   return recs.length ? recs.slice(0, 3) : RECOMMENDATIONS;
+455: }
+456: 
+457: function buildActivityFeed(liveData: DashboardLiveData | null): ActivityItem[] {
+458:   const recent = liveData?.serverStats?.recentExams ?? [];
+459:   if (!recent.length) return ACTIVITY_FEED;
+460:   return recent.slice(0, 5).map((e, i) => ({
+461:     id: e.id || `exam-${i}`,
+462:     text: `${e.title || "Exam"} — ${e.scorePercent ?? 0}% accuracy`,
+463:     time: timeAgo(e.completedAt),
+464:     tone: (e.scorePercent ?? 0) >= 70 ? "emerald" : "rose",
+465:   }));
+466: }
+467: 
+468: /* ══════════════════════════════════════════════════════
+469:    HELPERS
+470: ══════════════════════════════════════════════════════ */
+471: 
+472: const uid = () => Math.random().toString(36).slice(2,9);
+473: 
+474: function useClickOutside(ref: React.RefObject<HTMLElement|null>, fn: ()=>void) {
+475:   useEffect(()=>{

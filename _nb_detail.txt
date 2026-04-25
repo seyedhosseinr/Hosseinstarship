@@ -1,0 +1,2143 @@
+﻿"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  ArrowRight,
+  BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  Eraser,
+  Highlighter,
+  List,
+  PenLine,
+  Redo2,
+  Search,
+  Trash2,
+  Undo2,
+  X,
+  Maximize2,
+  Minimize2,
+  Pin,
+  StickyNote,
+  Copy,
+  Palette,
+} from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { getNotebook, type NotebookRow } from "@/lib/data";
+import { colorLight } from "@/lib/theme/tokens";
+import { cn } from "@/lib/utils";
+
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   Types
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+type TocEntry = { id: string; text: string; level: number };
+type InkTool = "pen" | "highlighter" | "eraser";
+type InkPoint = { x: number; y: number };
+type InkStroke = { tool: InkTool; color: string; size: number; points: InkPoint[] };
+
+type Annotation = {
+  id: string;
+  notebookId: number;
+  createdAt: number;
+  updatedAt: number;
+  quote?: string;
+  text: string;
+  // best-effort anchors:
+  headingId?: string;
+  pinId?: string; // the DOM pin marker id
+};
+
+const NB_DB = "uro-notebook-v2";
+const STORE_INK = "ink";
+const STORE_DOC = "doc";
+const STORE_ANN = "ann";
+
+const LS_INK = (id: number) => `nb-ink-${id}`;
+const LS_DOC = (id: number) => `nb-doc-${id}`;
+const LS_ANN = (id: number) => `nb-ann-${id}`;
+
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   Visual: paper typography wrapper (outer app)
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+// Phase 5â€“ visual constants removed; using colorLight inline styles
+
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   Iframe bridge CSS (pins, search hits, highlights)
+   - does NOT kill your HTML CSS, only adds small utility classes
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+const IFRAME_BRIDGE_CSS = `
+  /* keep your HTML CSS intact; only add minimal helpers */
+  .nb-search-hit {
+    background: rgba(14,165,164,.18);
+    border-radius: 6px;
+    padding: 0 .12em;
+    box-shadow: 0 0 0 1px rgba(14,165,164,.12) inset;
+  }
+  mark[data-nb-hl]{
+    border-radius: 6px;
+    padding: 0 .12em;
+  }
+  .nb-pin{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:18px; height:18px;
+    margin-inline-start:.35em;
+    border-radius:999px;
+    background: rgba(0,0,0,.06);
+    border: 1px solid rgba(0,0,0,.14);
+    cursor:pointer;
+    user-select:none;
+    vertical-align: middle;
+  }
+  .nb-pin:hover{ background: rgba(0,0,0,.10); }
+  .nb-pin::after{ content:"ðŸ“Œ"; font-size:12px; line-height:1; }
+  .nb-pin[data-active="true"]{
+    background: rgba(14,165,164,.18);
+    border-color: rgba(14,165,164,.30);
+    box-shadow: 0 0 0 3px rgba(14,165,164,.10);
+  }
+
+  /* keep body predictable inside paper */
+  html, body { margin:0; padding:0; }
+`;
+
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   Utils
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+function uid(prefix = "id") {
+  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function decodeHTMLEntities(raw: string): string {
+  if (typeof window === "undefined") return raw;
+  const ta = document.createElement("textarea");
+  ta.innerHTML = raw;
+  return ta.value;
+}
+
+function countMatches(input: string, regex: RegExp): number {
+  const m = input.match(regex);
+  return m ? m.length : 0;
+}
+
+function detectEscapedHTML(input: string): boolean {
+  const escapedCount = countMatches(input, /&lt;|&gt;/gi);
+  const angleCount = countMatches(input, /[<>]/g);
+  return escapedCount >= 4 || (escapedCount >= 2 && escapedCount > angleCount);
+}
+
+function looksLikeHTML(s: string): boolean {
+  return /<[a-z][\s\S]*?>/i.test(s);
+}
+
+function makeDocFromFragment(htmlFragment: string, title = "Notebook") {
+  // Wrap fragment in a complete HTML document so CSS (if any) is valid
+  return `<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${title}</title>
+<style>${IFRAME_BRIDGE_CSS}</style>
+</head>
+<body>${htmlFragment}</body>
+</html>`;
+}
+
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   IndexedDB helpers (ink + doc + annotations)
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+function openDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === "undefined") {
+      reject(new Error("indexedDB unavailable"));
+      return;
+    }
+    const req = indexedDB.open(NB_DB, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+
+      if (!db.objectStoreNames.contains(STORE_INK)) {
+        db.createObjectStore(STORE_INK, { keyPath: "id" }); // id = notebookId
+      }
+      if (!db.objectStoreNames.contains(STORE_DOC)) {
+        db.createObjectStore(STORE_DOC, { keyPath: "id" }); // id = notebookId
+      }
+      if (!db.objectStoreNames.contains(STORE_ANN)) {
+        const store = db.createObjectStore(STORE_ANN, { keyPath: "id" }); // id = annotationId
+        store.createIndex("byNotebook", "notebookId", { unique: false });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error ?? new Error("IndexedDB open failed"));
+  });
+}
+
+async function dbGet<T>(storeName: string, key: any): Promise<T | undefined> {
+  const db = await openDB();
+  const out = await new Promise<T | undefined>((resolve, reject) => {
+    const tx = db.transaction(storeName, "readonly");
+    const store = tx.objectStore(storeName);
+    const req = store.get(key);
+    req.onsuccess = () => resolve(req.result as T | undefined);
+    req.onerror = () => reject(req.error ?? new Error("IDB read failed"));
+  });
+  db.close();
+  return out;
+}
+
+async function dbPut(storeName: string, value: any): Promise<void> {
+  const db = await openDB();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(storeName, "readwrite");
+    tx.objectStore(storeName).put(value);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error("IDB write failed"));
+  });
+  db.close();
+}
+
+async function dbDelete(storeName: string, key: any): Promise<void> {
+  const db = await openDB();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(storeName, "readwrite");
+    tx.objectStore(storeName).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error ?? new Error("IDB delete failed"));
+  });
+  db.close();
+}
+
+async function dbQueryAnnotations(notebookId: number): Promise<Annotation[]> {
+  const db = await openDB();
+  const out = await new Promise<Annotation[]>((resolve, reject) => {
+    const tx = db.transaction(STORE_ANN, "readonly");
+    const store = tx.objectStore(STORE_ANN);
+    const idx = store.index("byNotebook");
+    const req = idx.getAll(notebookId);
+    req.onsuccess = () => resolve((req.result as Annotation[]) ?? []);
+    req.onerror = () => reject(req.error ?? new Error("IDB query failed"));
+  });
+  db.close();
+  return out;
+}
+
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   Ink drawing helpers
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+function drawStroke(ctx: CanvasRenderingContext2D, stroke: InkStroke): void {
+  if (stroke.points.length < 2) return;
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  if (stroke.tool === "eraser") {
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = "rgba(0,0,0,1)";
+    ctx.lineWidth = stroke.size;
+  } else if (stroke.tool === "highlighter") {
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 0.28;
+    ctx.strokeStyle = stroke.color;
+    ctx.lineWidth = stroke.size * 2.0;
+  } else {
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = stroke.color;
+    ctx.lineWidth = stroke.size;
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+  for (let i = 1; i < stroke.points.length; i += 1) ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   Iframe DOM helpers: TOC + Search + Serialize
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+function ensureBridgeStyle(doc: Document) {
+  const head = doc.head || doc.getElementsByTagName("head")[0];
+  if (!head) return;
+
+  // If notebook already has bridge style, skip.
+  if (head.querySelector('style[data-nb-bridge="1"]')) return;
+
+  const style = doc.createElement("style");
+  style.setAttribute("data-nb-bridge", "1");
+  style.textContent = IFRAME_BRIDGE_CSS;
+  head.appendChild(style);
+}
+
+function collectTOC(doc: Document): TocEntry[] {
+  const toc: TocEntry[] = [];
+  let c = 0;
+  doc.body.querySelectorAll("h1,h2,h3").forEach((el) => {
+    const text = (el.textContent ?? "").trim();
+    if (!text) return;
+    c += 1;
+    if (!el.id) el.id = `nb-heading-${c}`;
+    toc.push({ id: el.id, text, level: Number(el.tagName[1] || 1) });
+  });
+  return toc;
+}
+
+function unwrap(el: Element) {
+  const parent = el.parentNode;
+  if (!parent) return;
+  while (el.firstChild) parent.insertBefore(el.firstChild, el);
+  parent.removeChild(el);
+}
+
+function serializeDoc(doc: Document): string {
+  // Clone the DOM, remove ephemeral search markers, keep user highlights/pins.
+  const clone = doc.documentElement.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll(".nb-search-hit").forEach((hit) => unwrap(hit));
+  // Keep bridge CSS; itâ€™s harmless and ensures pins/highlights keep styling.
+  return "<!doctype html>\n" + clone.outerHTML;
+}
+
+function clearSearchHits(doc: Document) {
+  doc.querySelectorAll(".nb-search-hit").forEach((hit) => unwrap(hit));
+}
+
+function applySearch(doc: Document, query: string): { count: number; nodes: Element[] } {
+  clearSearchHits(doc);
+  const q = query.trim();
+  if (q.length < 2) return { count: 0, nodes: [] };
+
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(escaped, "gi");
+
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      const t = node.nodeValue ?? "";
+      if (!t || t.trim().length === 0) return NodeFilter.FILTER_REJECT;
+      if (!re.test(t)) return NodeFilter.FILTER_REJECT;
+      // reset lastIndex after test
+      re.lastIndex = 0;
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+
+  const hits: Element[] = [];
+  const textNodes: Text[] = [];
+  while (walker.nextNode()) textNodes.push(walker.currentNode as Text);
+
+  for (const tn of textNodes) {
+    const text = tn.nodeValue ?? "";
+    if (!text) continue;
+
+    const parent = tn.parentElement;
+    if (!parent) continue;
+    // Skip inside script/style just in case
+    const tag = parent.tagName?.toLowerCase();
+    if (tag === "script" || tag === "style") continue;
+
+    const frag = doc.createDocumentFragment();
+    let last = 0;
+    let m: RegExpExecArray | null;
+
+    re.lastIndex = 0;
+    while ((m = re.exec(text)) !== null) {
+      const start = m.index;
+      const end = start + m[0].length;
+
+      if (start > last) frag.appendChild(doc.createTextNode(text.slice(last, start)));
+
+      const span = doc.createElement("span");
+      span.className = "nb-search-hit";
+      span.textContent = text.slice(start, end);
+      frag.appendChild(span);
+      hits.push(span);
+
+      last = end;
+    }
+    if (last < text.length) frag.appendChild(doc.createTextNode(text.slice(last)));
+
+    parent.replaceChild(frag, tn);
+  }
+
+  return { count: hits.length, nodes: hits };
+}
+
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   Selection highlight + pin actions (Amboss-like)
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+const HIGHLIGHT_COLORS = [
+  { key: "yellow", label: "Yellow", bg: "rgba(253,224,71,.65)" },
+  { key: "cyan", label: "Cyan", bg: "rgba(34,211,238,.40)" },
+  { key: "pink", label: "Pink", bg: "rgba(244,114,182,.38)" },
+  { key: "green", label: "Green", bg: "rgba(52,211,153,.35)" },
+] as const;
+
+function rangeToQuote(range: Range): string {
+  const t = range.toString().trim();
+  return t.length > 260 ? t.slice(0, 260) + "â€¦" : t;
+}
+
+function closestBlock(el: Element | null): Element | null {
+  if (!el) return null;
+  return (
+    el.closest("p,li,blockquote,td,th,pre,code,h1,h2,h3,h4,h5,h6,div") || el
+  );
+}
+
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+   Component
+â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+export default function NotebookViewerPage() {
+  const params = useParams<{ id: string }>();
+  const router = useRouter();
+
+  const nbId = Number(params.id);
+  const [notebook, setNotebook] = useState<NotebookRow | null | undefined>(undefined);
+
+  // Fullscreen (root-based so all UI stays visible)
+  const fullscreenRootRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // UI panels
+  const [sidePanelOpen, setSidePanelOpen] = useState(false);
+  const [zenMode, setZenMode] = useState(false);
+
+  // Study / Ink
+  const [inkMode, setInkMode] = useState(false);
+  const [inkTool, setInkTool] = useState<InkTool>("pen");
+  const [inkStrokes, setInkStrokes] = useState<InkStroke[]>([]);
+  const [redoStack, setRedoStack] = useState<InkStroke[]>([]);
+
+  // Annotations
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [noteModal, setNoteModal] = useState<{
+    open: boolean;
+    mode: "create" | "edit";
+    annId?: string;
+    text: string;
+    quote?: string;
+    pinId?: string;
+  }>({ open: false, mode: "create", text: "" });
+
+  // TOC + Search
+  const [toc, setToc] = useState<TocEntry[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchMatchCount, setSearchMatchCount] = useState(0);
+  const [searchMatchIndex, setSearchMatchIndex] = useState(0);
+  const searchNodesRef = useRef<Element[]>([]);
+
+  // Amboss selection menu
+  const [selMenu, setSelMenu] = useState<{ open: boolean; x: number; y: number; text: string }>({
+    open: false,
+    x: 0,
+    y: 0,
+    text: "",
+  });
+  const selectionRangeRef = useRef<Range | null>(null);
+
+  // Paper refs
+  const paperViewportRef = useRef<HTMLDivElement>(null);
+  const paperInnerRef = useRef<HTMLDivElement>(null);
+
+  // Iframe + canvas overlay
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const isDrawingRef = useRef(false);
+  const currentStrokeRef = useRef<InkStroke | null>(null);
+
+  const rawContent = String(notebook?.content ?? "");
+
+  // Build initial srcDoc: prefer stored doc override, else use notebook.content.
+  const [srcDoc, setSrcDoc] = useState<string>("");
+
+  const baseDoc = useMemo(() => {
+    // Create a robust HTML document string that preserves CSS of imported HTML.
+    if (!rawContent) return "";
+
+    const escaped = detectEscapedHTML(rawContent);
+    const decoded = escaped ? decodeHTMLEntities(rawContent) : rawContent;
+
+    // If it's already a full doc, keep it
+    const hasHtmlTag = /<html[\s>]/i.test(decoded) || /<!doctype/i.test(decoded);
+    if (hasHtmlTag) return decoded;
+
+    // If it looks like an HTML fragment, wrap it
+    if (looksLikeHTML(decoded)) return makeDocFromFragment(decoded, notebook?.title || "Notebook");
+
+    // Otherwise treat as plain text and wrap in paragraphs
+    const safeText = decoded
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    const html = safeText
+      .split(/\n{2,}/)
+      .map((block) => `<p>${block.replace(/\n/g, "<br/>")}</p>`)
+      .join("");
+
+    return makeDocFromFragment(html, notebook?.title || "Notebook");
+  }, [rawContent, notebook?.title]);
+
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Load notebook
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  useEffect(() => {
+    if (!Number.isFinite(nbId) || nbId <= 0) {
+      setNotebook(null);
+      return;
+    }
+    let cancelled = false;
+    getNotebook(nbId).then((nb) => {
+      if (!cancelled) setNotebook(nb ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [nbId]);
+
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Fullscreen state sync
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  useEffect(() => {
+    const onFs = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
+  }, []);
+
+  const toggleFullscreen = useCallback(async () => {
+    const el = fullscreenRootRef.current;
+    if (!el) return;
+    try {
+      if (!document.fullscreenElement) await el.requestFullscreen();
+      else await document.exitFullscreen();
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Load persisted: doc html + ink + annotations
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  useEffect(() => {
+    if (!Number.isFinite(nbId) || nbId <= 0) return;
+
+    let cancelled = false;
+
+    (async () => {
+      // DOC
+      try {
+        const docRow = await dbGet<{ id: number; html: string }>(STORE_DOC, nbId);
+        const html = docRow?.html || localStorage.getItem(LS_DOC(nbId)) || "";
+        if (!cancelled) setSrcDoc(html || baseDoc);
+      } catch {
+        const html = localStorage.getItem(LS_DOC(nbId)) || "";
+        if (!cancelled) setSrcDoc(html || baseDoc);
+      }
+
+      // INK
+      try {
+        const inkRow = await dbGet<{ id: number; strokes?: InkStroke[] }>(STORE_INK, nbId);
+        const strokes = Array.isArray(inkRow?.strokes) ? inkRow!.strokes! : [];
+        if (!cancelled) {
+          setInkStrokes(strokes);
+          setRedoStack([]);
+        }
+      } catch {
+        try {
+          const raw = localStorage.getItem(LS_INK(nbId));
+          const parsed = raw ? (JSON.parse(raw) as InkStroke[]) : [];
+          if (!cancelled) {
+            setInkStrokes(Array.isArray(parsed) ? parsed : []);
+            setRedoStack([]);
+          }
+        } catch {
+          if (!cancelled) {
+            setInkStrokes([]);
+            setRedoStack([]);
+          }
+        }
+      }
+
+      // ANNOTATIONS
+      try {
+        const rows = await dbQueryAnnotations(nbId);
+        const list = Array.isArray(rows) ? rows : [];
+        if (!cancelled) setAnnotations(list.sort((a, b) => b.updatedAt - a.updatedAt));
+      } catch {
+        try {
+          const raw = localStorage.getItem(LS_ANN(nbId));
+          const parsed = raw ? (JSON.parse(raw) as Annotation[]) : [];
+          if (!cancelled) setAnnotations(Array.isArray(parsed) ? parsed : []);
+        } catch {
+          if (!cancelled) setAnnotations([]);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [nbId, baseDoc]);
+
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Persist ink (debounced)
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  useEffect(() => {
+    if (!Number.isFinite(nbId) || nbId <= 0) return;
+    const t = setTimeout(async () => {
+      try {
+        await dbPut(STORE_INK, { id: nbId, strokes: inkStrokes, updatedAt: Date.now() });
+      } catch {
+        localStorage.setItem(LS_INK(nbId), JSON.stringify(inkStrokes));
+      }
+    }, 180);
+    return () => clearTimeout(t);
+  }, [nbId, inkStrokes]);
+
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Persist annotations (fallback LS) on change
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  useEffect(() => {
+    if (!Number.isFinite(nbId) || nbId <= 0) return;
+    localStorage.setItem(LS_ANN(nbId), JSON.stringify(annotations));
+  }, [nbId, annotations]);
+
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Iframe: init bridge, toc, height, search, selection handlers
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const syncIframeHeightAndCanvas = useCallback(() => {
+    const iframe = iframeRef.current;
+    const canvas = canvasRef.current;
+    const inner = paperInnerRef.current;
+    if (!iframe || !canvas || !inner) return;
+
+    const doc = iframe.contentDocument;
+    if (!doc) return;
+
+    // Height of iframe = document body height
+    const body = doc?.body ?? null;
+    const html = doc?.documentElement ?? null;
+    const height = Math.max(
+      body?.scrollHeight ?? 0,
+      body?.offsetHeight ?? 0,
+      body?.clientHeight ?? 0,
+      html?.scrollHeight ?? 0,
+      html?.offsetHeight ?? 0,
+      html?.clientHeight ?? 0,
+      1
+    );
+    iframe.style.height = `${height}px`;
+
+    // Canvas should cover exactly the same area
+    const cssWidth = Math.max(inner.clientWidth, 1);
+    const cssHeight = Math.max(height, 1);
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.style.width = `${cssWidth}px`;
+    canvas.style.height = `${cssHeight}px`;
+    canvas.width = Math.floor(cssWidth * dpr);
+    canvas.height = Math.floor(cssHeight * dpr);
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cssWidth, cssHeight);
+    inkStrokes.forEach((s) => drawStroke(ctx, s));
+    if (currentStrokeRef.current) drawStroke(ctx, currentStrokeRef.current);
+  }, [inkStrokes]);
+
+  const refreshTocAndSearch = useCallback(() => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+
+    setToc(collectTOC(doc));
+
+    const { count, nodes } = applySearch(doc, searchQuery);
+    searchNodesRef.current = nodes;
+    setSearchMatchCount(count);
+    setSearchMatchIndex(count > 0 ? 0 : 0);
+  }, [searchQuery]);
+
+  // Setup iframe load
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    let mo: MutationObserver | null = null;
+    let onClick: ((e: any) => void) | null = null;
+    let onMouseUp: ((e: any) => void) | null = null;
+    let onKeyUp: ((e: any) => void) | null = null;
+
+    const setup = () => {
+      const doc = iframe.contentDocument;
+      if (!doc) return;
+
+      ensureBridgeStyle(doc);
+
+      // Build TOC
+      setToc(collectTOC(doc));
+
+      // Search highlight
+      const { count, nodes } = applySearch(doc, searchQuery);
+      searchNodesRef.current = nodes;
+      setSearchMatchCount(count);
+      setSearchMatchIndex(count > 0 ? 0 : 0);
+
+      // Height + canvas
+      syncIframeHeightAndCanvas();
+
+      // MutationObserver to keep size correct (after highlights/pins)
+      mo = new MutationObserver(() => {
+        syncIframeHeightAndCanvas();
+        // Keep TOC stable if headings were inserted by user content
+        setToc(collectTOC(doc));
+      });
+      mo.observe(doc.body, { childList: true, subtree: true, characterData: true });
+
+      // Click: pins
+      onClick = (e: MouseEvent) => {
+        const t = e.target as HTMLElement | null;
+        if (!t) return;
+        const pin = t.closest?.(".nb-pin") as HTMLElement | null;
+        if (pin && pin.dataset.nbPin) {
+          const pinId = pin.dataset.nbPin;
+          const ann = annotations.find((a) => a.pinId === pinId);
+          if (ann) {
+            // set active pin
+            doc.querySelectorAll(".nb-pin[data-active='true']").forEach((p) => (p as HTMLElement).dataset.active = "false");
+            pin.dataset.active = "true";
+
+            setNoteModal({
+              open: true,
+              mode: "edit",
+              annId: ann.id,
+              text: ann.text,
+              quote: ann.quote,
+              pinId: ann.pinId,
+            });
+          }
+        }
+      };
+
+      // Selection popover (Amboss-like)
+      const computeSelectionMenu = () => {
+        if (inkMode) return; // only in study mode
+        const sel = doc.getSelection();
+        if (!sel || sel.rangeCount === 0) {
+          selectionRangeRef.current = null;
+          setSelMenu((m) => ({ ...m, open: false }));
+          return;
+        }
+        const range = sel.getRangeAt(0);
+        const text = range.toString().trim();
+        if (!text || text.length < 2) {
+          selectionRangeRef.current = null;
+          setSelMenu((m) => ({ ...m, open: false }));
+          return;
+        }
+
+        const rect = range.getBoundingClientRect();
+        const iframeRect = iframe.getBoundingClientRect();
+
+        selectionRangeRef.current = range.cloneRange();
+        setSelMenu({
+          open: true,
+          x: iframeRect.left + rect.left + rect.width / 2,
+          y: iframeRect.top + rect.top - 10,
+          text: text.length > 140 ? text.slice(0, 140) + "â€¦" : text,
+        });
+      };
+
+      onMouseUp = () => computeSelectionMenu();
+      onKeyUp = (e: KeyboardEvent) => {
+        if (e.key === "Escape") setSelMenu((m) => ({ ...m, open: false }));
+        else computeSelectionMenu();
+      };
+
+      doc.addEventListener("click", onClick as any);
+      doc.addEventListener("mouseup", onMouseUp as any);
+      doc.addEventListener("keyup", onKeyUp as any);
+    };
+
+    // When iframe loads, setup
+    const onLoad = () => setup();
+    iframe.addEventListener("load", onLoad);
+
+    // If it is already loaded
+    try {
+      if (iframe.contentDocument?.readyState === "complete") setup();
+    } catch {
+      // ignore
+    }
+
+    return () => {
+      iframe.removeEventListener("load", onLoad);
+      if (mo) mo.disconnect();
+
+      const doc = iframe.contentDocument;
+      if (doc) {
+        if (onClick) doc.removeEventListener("click", onClick as any);
+        if (onMouseUp) doc.removeEventListener("mouseup", onMouseUp as any);
+        if (onKeyUp) doc.removeEventListener("keyup", onKeyUp as any);
+      }
+    };
+  }, [annotations, inkMode, searchQuery, syncIframeHeightAndCanvas]);
+
+  // Re-apply search when query changes
+  useEffect(() => {
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+    const { count, nodes } = applySearch(doc, searchQuery);
+    searchNodesRef.current = nodes;
+    setSearchMatchCount(count);
+    setSearchMatchIndex(count > 0 ? 0 : 0);
+    syncIframeHeightAndCanvas();
+  }, [searchQuery, syncIframeHeightAndCanvas]);
+
+  // Scroll to active search hit
+  useEffect(() => {
+    if (searchMatchCount <= 0) return;
+    const hits = searchNodesRef.current;
+    const el = hits[searchMatchIndex] as HTMLElement | undefined;
+    if (!el) return;
+
+    // compute y relative to iframe doc (outer scroll is paperViewport)
+    const iframe = iframeRef.current;
+    const viewport = paperViewportRef.current;
+    if (!iframe || !viewport) return;
+
+    const doc = iframe.contentDocument;
+    if (!doc) return;
+
+    // element position inside iframe document (no iframe scroll)
+    const y = (el as any).offsetTop ?? 0;
+
+    // iframe top within viewport content:
+    const iframeTop = iframe.offsetTop;
+    viewport.scrollTo({ top: Math.max(0, iframeTop + y - 120), behavior: "smooth" });
+  }, [searchMatchIndex, searchMatchCount]);
+
+  // Keep canvas sizing on resize
+  useEffect(() => {
+    const onResize = () => syncIframeHeightAndCanvas();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [syncIframeHeightAndCanvas]);
+
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Canvas redraw helper
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const redrawCanvas = useCallback(
+    (preview?: InkStroke | null) => {
+      const canvas = canvasRef.current;
+      const inner = paperInnerRef.current;
+      if (!canvas || !inner) return;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, inner.clientWidth, canvas.height / dpr);
+
+      inkStrokes.forEach((stroke) => drawStroke(ctx, stroke));
+      if (preview) drawStroke(ctx, preview);
+    },
+    [inkStrokes]
+  );
+
+  useEffect(() => {
+    redrawCanvas(currentStrokeRef.current);
+  }, [inkStrokes, redrawCanvas]);
+
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Canvas pointer (ink mode)
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const getEventPoint = useCallback((e: React.PointerEvent<HTMLCanvasElement>): InkPoint => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }, []);
+
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      if (!inkMode) return;
+      const p = getEventPoint(e);
+      isDrawingRef.current = true;
+      e.currentTarget.setPointerCapture(e.pointerId);
+
+      const stroke: InkStroke = {
+        tool: inkTool,
+        color: inkTool === "highlighter" ? "#f59e0b" : "#111827",
+        size: inkTool === "highlighter" ? 10 : inkTool === "eraser" ? 18 : 2.6,
+        points: [p],
+      };
+
+      currentStrokeRef.current = stroke;
+    },
+    [getEventPoint, inkMode, inkTool]
+  );
+
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      if (!inkMode || !isDrawingRef.current || !currentStrokeRef.current) return;
+      const p = getEventPoint(e);
+      currentStrokeRef.current.points.push(p);
+      redrawCanvas(currentStrokeRef.current);
+    },
+    [getEventPoint, inkMode, redrawCanvas]
+  );
+
+  const finishStroke = useCallback(() => {
+    if (!isDrawingRef.current) return;
+    isDrawingRef.current = false;
+
+    const stroke = currentStrokeRef.current;
+    currentStrokeRef.current = null;
+
+    if (!stroke || stroke.points.length < 2) {
+      redrawCanvas(null);
+      return;
+    }
+
+    setInkStrokes((prev) => [...prev, stroke]);
+    setRedoStack([]);
+  }, [redrawCanvas]);
+
+  const undoInk = useCallback(() => {
+    setInkStrokes((prev) => {
+      if (prev.length === 0) return prev;
+      const next = prev.slice(0, -1);
+      const popped = prev[prev.length - 1];
+      setRedoStack((r) => [...r, popped]);
+      return next;
+    });
+  }, []);
+
+  const redoInk = useCallback(() => {
+    setRedoStack((prev) => {
+      if (prev.length === 0) return prev;
+      const restored = prev[prev.length - 1];
+      setInkStrokes((strokes) => [...strokes, restored]);
+      return prev.slice(0, -1);
+    });
+  }, []);
+
+  const clearInk = useCallback(() => {
+    setInkStrokes([]);
+    setRedoStack([]);
+    currentStrokeRef.current = null;
+  }, []);
+
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Amboss-like actions: highlight + pin note
+  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const saveDocNow = useCallback(async () => {
+    if (!Number.isFinite(nbId) || nbId <= 0) return;
+    const doc = iframeRef.current?.contentDocument;
+    if (!doc) return;
+
+    try {
+      const html = serializeDoc(doc);
+      await dbPut(STORE_DOC, { id: nbId, html, updatedAt: Date.now() });
+    } catch {
+      const html = serializeDoc(doc);
+      localStorage.setItem(LS_DOC(nbId), html);
+    }
+  }, [nbId]);
+
+  const applyHighlightToSelection = useCallback(
+    async (bg: string) => {
+      const iframe = iframeRef.current;
+      const doc = iframe?.contentDocument;
+      const range = selectionRangeRef.current;
+      if (!iframe || !doc || !range) return;
+
+      // Extract + wrap (more reliable than surroundContents)
+      try {
+        const frag = range.extractContents();
+        const mark = doc.createElement("mark");
+        mark.setAttribute("data-nb-hl", uid("hl"));
+        mark.style.background = bg;
+        mark.appendChild(frag);
+        range.insertNode(mark);
+
+        // clear selection
+        doc.getSelection()?.removeAllRanges();
+        selectionRangeRef.current = null;
+        setSelMenu((m) => ({ ...m, open: false }));
+
+        // persist
+        await saveDocNow();
+        refreshTocAndSearch();
+        syncIframeHeightAndCanvas();
+      } catch {
+        // if extraction fails, just close menu
+        setSelMenu((m) => ({ ...m, open: false }));
+      }
+    },
+    [refreshTocAndSearch, saveDocNow, syncIframeHeightAndCanvas]
+  );
+
+  const openNoteForSelection = useCallback(() => {
+    const doc = iframeRef.current?.contentDocument;
+    const range = selectionRangeRef.current;
+    if (!doc || !range) return;
+
+    setNoteModal({
+      open: true,
+      mode: "create",
+      text: "",
+      quote: rangeToQuote(range),
+      pinId: undefined,
+    });
+  }, []);
+
+  const insertPinNearSelection = useCallback(
+    (pinId: string) => {
+      const doc = iframeRef.current?.contentDocument;
+      const range = selectionRangeRef.current;
+      if (!doc || !range) return;
+
+      const ancestorNode = range.commonAncestorContainer;
+      const ancestorEl =
+        ancestorNode.nodeType === Node.ELEMENT_NODE
+          ? (ancestorNode as Element)
+          : (ancestorNode.parentElement as Element | null);
+
+      const block = closestBlock(ancestorEl);
+      if (!block) return;
+
+      // Find nearest heading above if any
+      let headingId: string | undefined;
+      const headings = Array.from(doc.body.querySelectorAll("h1,h2,h3")) as HTMLElement[];
+      for (let i = headings.length - 1; i >= 0; i -= 1) {
+        const h = headings[i];
+        if ((h as any).offsetTop <= (block as any).offsetTop) {
+          if (!h.id) h.id = uid("h");
+          headingId = h.id;
+          break;
+        }
+      }
+
+      const pin = doc.createElement("span");
+      pin.className = "nb-pin";
+      pin.setAttribute("contenteditable", "false");
+      pin.dataset.nbPin = pinId;
+
+      // place pin at the end of the block heading/paragraph line
+      block.appendChild(pin);
+
+      return headingId;
+    },
+    []
+  );
+
+  const saveNoteModal = useCallback(async () => {
+    if (!Number.isFinite(nbId) || nbId <= 0) return;
+    const text = noteModal.text.trim();
+    if (!text) {
+      setNoteModal((m) => ({ ...m, open: false }));
+      return;
+    }
+
+    const now = Date.now();
+
+    if (noteModal.mode === "edit" && noteModal.annId) {
+      // update existing
+      setAnnotations((prev) => {
+        const next = prev.map((a) =>
+          a.id === noteModal.annId ? { ...a, text, updatedAt: now } : a
+        );
+        // persist idb best-effort
+        (async () => {
+          try {
+            const updated = next.find((a) => a.id === noteModal.annId);
+            if (updated) await dbPut(STORE_ANN, updated);
+          } catch {
+            // fallback already in LS via effect
+          }
+        })();
+        return next.sort((a, b) => b.updatedAt - a.updatedAt);
+      });
+
+      setNoteModal({ open: false, mode: "create", text: "" });
+      return;
+    }
+
+    // create
+    const annId = uid("ann");
+    const pinId = uid("pin");
+
+    const headingId = insertPinNearSelection(pinId);
+
+    const ann: Annotation = {
+      id: annId,
+      notebookId: nbId,
+      createdAt: now,
+      updatedAt: now,
+      quote: noteModal.quote,
+      text,
+      headingId,
+      pinId,
+    };
+
+    setAnnotations((prev) => [ann, ...prev].sort((a, b) => b.updatedAt - a.updatedAt));
+
+    // Persist annotation record
+    try {
+      await dbPut(STORE_ANN, ann);
+    } catch {
+      // fallback already in LS
+    }
+
+    // Persist doc with inserted pin
+    await saveDocNow();
+
+    // clear selection
+    const doc = iframeRef.current?.contentDocument;
+    doc?.getSelection()?.removeAllRanges();
+    selectionRangeRef.current = null;
+    setSelMenu((m) => ({ ...m, open: false }));
+
+    setNoteModal({ open: false, mode: "create", text: "" });
+    refreshTocAndSearch();
+    syncIframeHeightAndCanvas();
+  }, [insertPinNearSelection, nbId, noteModal, refreshTocAndSearch, saveDocNow, syncIframeHeightAndCanvas]);
+
+  const deleteAnnotation = useCallback(async (annId: string) => {
+    const ann = annotations.find((a) => a.id === annId);
+    setAnnotations((prev) => prev.filter((a) => a.id !== annId));
+
+    try {
+      await dbDelete(STORE_ANN, annId);
+    } catch {
+      // ignore (LS fallback already updated)
+    }
+
+    // Remove pin in iframe if present
+    const doc = iframeRef.current?.contentDocument;
+    if (doc && ann?.pinId) {
+      const pinEl = doc.querySelector(`.nb-pin[data-nb-pin="${ann.pinId}"]`);
+      pinEl?.parentNode?.removeChild(pinEl);
+      await saveDocNow();
+    }
+  }, [annotations, saveDocNow]);
+
+  const jumpToAnnotation = useCallback((ann: Annotation) => {
+    const iframe = iframeRef.current;
+    const doc = iframe?.contentDocument;
+    const viewport = paperViewportRef.current;
+    if (!iframe || !doc || !viewport) return;
+
+    // clear active pins
+    doc.querySelectorAll(".nb-pin[data-active='true']").forEach((p) => (p as HTMLElement).dataset.active = "false");
+
+    // prefer pin position
+    if (ann.pinId) {
+      const pin = doc.querySelector(`.nb-pin[data-nb-pin="${ann.pinId}"]`) as HTMLElement | null;
+      if (pin) {
+        pin.dataset.active = "true";
+        const y = (pin as any).offsetTop ?? 0;
+        viewport.scrollTo({ top: Math.max(0, iframe.offsetTop + y - 140), behavior: "smooth" });
+        setNoteModal({
+          open: true,
+          mode: "edit",
+          annId: ann.id,
+          text: ann.text,
+          quote: ann.quote,
+          pinId: ann.pinId,
+        });
+        return;
+      }
+    }
+
+    // fallback: heading
+    if (ann.headingId) {
+      const h = doc.getElementById(ann.headingId);
+      if (h) {
+        const y = (h as any).offsetTop ?? 0;
+        viewport.scrollTo({ top: Math.max(0, iframe.offsetTop + y - 120), behavior: "smooth" });
+      }
+    }
+  }, []);
+
+  // Search next/prev
+  const goToNextMatch = useCallback(() => {
+    if (searchMatchCount <= 0) return;
+    setSearchMatchIndex((prev) => (prev + 1) % searchMatchCount);
+  }, [searchMatchCount]);
+
+  const goToPrevMatch = useCallback(() => {
+    if (searchMatchCount <= 0) return;
+    setSearchMatchIndex((prev) => (prev - 1 + searchMatchCount) % searchMatchCount);
+  }, [searchMatchCount]);
+
+  // Scroll TOC
+  const scrollToHeading = useCallback((id: string) => {
+    const iframe = iframeRef.current;
+    const doc = iframe?.contentDocument;
+    const viewport = paperViewportRef.current;
+    if (!iframe || !doc || !viewport) return;
+
+    const el = doc.getElementById(id);
+    if (!el) return;
+
+    const y = (el as any).offsetTop ?? 0;
+    viewport.scrollTo({ top: Math.max(0, iframe.offsetTop + y - 120), behavior: "smooth" });
+  }, []);
+
+  // Copy selected text (from stored selection preview)
+  const copySelectionPreview = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(selMenu.text);
+    } catch {
+      // ignore
+    }
+  }, [selMenu.text]);
+
+  // Close selection menu on scroll
+  useEffect(() => {
+    const viewport = paperViewportRef.current;
+    if (!viewport) return;
+    const onScroll = () => setSelMenu((m) => ({ ...m, open: false }));
+    viewport.addEventListener("scroll", onScroll, { passive: true });
+    return () => viewport.removeEventListener("scroll", onScroll as any);
+  }, []);
+
+  // In ink mode, kill selection menu
+  useEffect(() => {
+    if (inkMode) setSelMenu((m) => ({ ...m, open: false }));
+  }, [inkMode]);
+
+  /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+     Loading / empty states
+  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  if (notebook === undefined) {
+    return (
+      <div
+        className="flex items-center justify-center min-h-[60vh]"
+        dir="rtl"
+      >
+        <div
+          className="h-8 w-8 animate-spin rounded-full border-2"
+          style={{ borderColor: colorLight.border, borderTopColor: colorLight.accent }}
+        />
+      </div>
+    );
+  }
+
+  if (notebook === null) {
+    return (
+      <div
+        className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4"
+        dir="rtl"
+      >
+        <div
+          className="mx-auto mb-6 h-20 w-20 rounded-full grid place-items-center"
+          style={{ background: colorLight.accentSoft }}
+        >
+          <BookOpen className="h-8 w-8" style={{ color: colorLight.accent }} />
+        </div>
+        <h2 className="text-xl font-bold mb-2" style={{ color: colorLight.text }}>
+          Ù†ÙˆØªâ€ŒØ¨ÙˆÚ© ÛŒØ§ÙØª Ù†Ø´Ø¯
+        </h2>
+        <p className="mb-6 text-sm" style={{ color: colorLight.textMuted }}>
+          Ø§ÛŒÙ† Ù†ÙˆØªâ€ŒØ¨ÙˆÚ© ÙˆØ¬ÙˆØ¯ Ù†Ø¯Ø§Ø±Ø¯ ÛŒØ§ Ø­Ø°Ù Ø´Ø¯Ù‡ Ø§Ø³Øª.
+        </p>
+        <button
+          onClick={() => router.push("/notebooks")}
+          className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition"
+          style={{
+            border: `1px solid ${colorLight.border}`,
+            background: colorLight.surfaceSubtle,
+            color: colorLight.text,
+          }}
+        >
+          <ArrowRight className="h-4 w-4" />
+          Ø¨Ø§Ø²Ú¯Ø´Øª Ø¨Ù‡ Ù†ÙˆØªâ€ŒØ¨ÙˆÚ©â€ŒÙ‡Ø§
+        </button>
+      </div>
+    );
+  }
+
+  const date = new Date(notebook.updatedAt || notebook.createdAt);
+  const dateStr = date.toLocaleDateString("fa-IR", { year: "numeric", month: "long", day: "numeric" });
+
+  /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+     Phase 5 â€“ Render (premium medical reading workspace)
+  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  return (
+    <motion.div
+      ref={fullscreenRootRef}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
+      className={cn(
+        "relative",
+        isFullscreen ? "w-screen h-screen max-w-none p-0 overflow-hidden" : ""
+      )}
+      dir="rtl"
+    >
+
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          TOOLBAR
+      â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {!zenMode && (
+        <div className={cn(isFullscreen ? "p-3" : "mb-5")}>
+          <div
+            className="rounded-2xl px-3 py-2.5"
+            style={{
+              background: colorLight.surface,
+              border: `1px solid ${colorLight.border}`,
+              boxShadow: "0 1px 4px rgba(15,23,42,0.05)",
+            }}
+          >
+            {/* Row 1: nav â€” title â€” actions */}
+            <div className="flex flex-wrap items-center gap-2">
+
+              {/* Back nav */}
+              <button
+                onClick={() => router.push("/notebooks")}
+                className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs transition"
+                style={{ color: colorLight.textMuted }}
+                onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = colorLight.textSoft)}
+                onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = colorLight.textMuted)}
+              >
+                <ArrowRight className="h-3.5 w-3.5" />
+                Ù†ÙˆØªâ€ŒØ¨ÙˆÚ©â€ŒÙ‡Ø§
+              </button>
+
+              <div className="h-4 w-px mx-0.5" style={{ background: colorLight.border }} />
+
+              {/* Title + meta */}
+              <div className="min-w-0 flex-1">
+                <div
+                  className="text-sm font-bold tracking-tight truncate"
+                  style={{ color: colorLight.text }}
+                >
+                  {notebook.title}
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                  {notebook.subject && (
+                    <span
+                      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px]"
+                      style={{
+                        border: `1px solid ${colorLight.border}`,
+                        color: colorLight.textMuted,
+                        background: colorLight.surfaceSubtle,
+                      }}
+                    >
+                      <BookOpen className="h-3 w-3" />
+                      {notebook.subject}
+                    </span>
+                  )}
+                  {notebook.tags?.slice(0, 3)?.map((t) => (
+                    <span
+                      key={t}
+                      className="rounded-full px-2 py-0.5 text-[11px]"
+                      style={{
+                        border: `1px solid ${colorLight.border}`,
+                        color: colorLight.textMuted,
+                        background: colorLight.surfaceSubtle,
+                      }}
+                    >
+                      {t}
+                    </span>
+                  ))}
+                  <span className="text-[11px]" style={{ color: colorLight.textMuted }}>
+                    {dateStr}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action group */}
+              <div className="flex items-center gap-1.5 mr-auto">
+
+                {/* TOC panel */}
+                <button
+                  onClick={() => setSidePanelOpen((v) => !v)}
+                  className="inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition"
+                  style={{
+                    background: sidePanelOpen ? colorLight.accentSoft : "transparent",
+                    border: `1px solid ${sidePanelOpen ? colorLight.accentBorder : colorLight.border}`,
+                    color: sidePanelOpen ? colorLight.accent : colorLight.textSoft,
+                  }}
+                  title="ÙÙ‡Ø±Ø³Øª"
+                >
+                  <List className="h-4 w-4" />
+                  <span className="hidden sm:inline">ÙÙ‡Ø±Ø³Øª</span>
+                  {sidePanelOpen
+                    ? <ChevronLeft className="h-3.5 w-3.5" />
+                    : <ChevronRight className="h-3.5 w-3.5" />}
+                </button>
+
+                {/* Zen */}
+                <button
+                  onClick={() => setZenMode((v) => !v)}
+                  className="inline-flex items-center rounded-xl px-3 py-1.5 text-xs font-mono tracking-widest transition"
+                  style={{
+                    background: zenMode ? colorLight.accentSoft : "transparent",
+                    border: `1px solid ${zenMode ? colorLight.accentBorder : colorLight.border}`,
+                    color: zenMode ? colorLight.accent : colorLight.textSoft,
+                  }}
+                  title="Zen Mode"
+                >
+                  ZEN
+                </button>
+
+                {/* Study / Ink toggle */}
+                <div
+                  className="inline-flex rounded-xl overflow-hidden"
+                  style={{ border: `1px solid ${colorLight.border}` }}
+                >
+                  <button
+                    onClick={() => setInkMode(false)}
+                    className="px-3 py-1.5 text-xs font-medium transition"
+                    style={{
+                      background: !inkMode ? colorLight.accentSoft : "transparent",
+                      color: !inkMode ? colorLight.accent : colorLight.textSoft,
+                      borderRight: `1px solid ${colorLight.border}`,
+                    }}
+                  >
+                    Study
+                  </button>
+                  <button
+                    onClick={() => setInkMode(true)}
+                    className="px-3 py-1.5 text-xs font-medium transition"
+                    style={{
+                      background: inkMode ? colorLight.accentSoft : "transparent",
+                      color: inkMode ? colorLight.accent : colorLight.textSoft,
+                    }}
+                  >
+                    Ink
+                  </button>
+                </div>
+
+                {/* Fullscreen */}
+                <button
+                  onClick={toggleFullscreen}
+                  className="inline-flex items-center justify-center rounded-xl p-2 transition"
+                  style={{
+                    border: `1px solid ${colorLight.border}`,
+                    color: colorLight.textSoft,
+                  }}
+                  onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = colorLight.text)}
+                  onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = colorLight.textSoft)}
+                  title="Fullscreen"
+                >
+                  {isFullscreen
+                    ? <Minimize2 className="h-4 w-4" />
+                    : <Maximize2 className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Row 2: search + ink tools */}
+            <div className="mt-2.5 flex flex-wrap items-center gap-2">
+
+              {/* Search */}
+              <div className="relative flex-1 min-w-[200px]">
+                <Search
+                  className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none"
+                  style={{ color: colorLight.textMuted }}
+                />
+                <input
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchMatchIndex(0);
+                    setSearchQuery(e.target.value);
+                  }}
+                  placeholder="Ø¬Ø³ØªØ¬Ùˆ Ø¯Ø± Ù…ØªÙ†â€¦"
+                  className="w-full rounded-xl pr-10 pl-6 py-2 text-sm outline-none transition"
+                  style={{
+                    background: colorLight.surfaceSubtle,
+                    border: `1px solid ${colorLight.border}`,
+                    color: colorLight.text,
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = colorLight.accentBorder;
+                    e.currentTarget.style.background = colorLight.surface;
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = colorLight.border;
+                    e.currentTarget.style.background = colorLight.surfaceSubtle;
+                  }}
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 transition"
+                    style={{ color: colorLight.textMuted }}
+                    title="Clear"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+                {searchQuery.trim().length >= 2 && (
+                  <div className="absolute left-10 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                    <button
+                      onClick={goToPrevMatch}
+                      className="h-7 w-7 rounded-lg grid place-items-center transition"
+                      style={{
+                        border: `1px solid ${colorLight.border}`,
+                        color: colorLight.textSoft,
+                      }}
+                      title="Previous"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={goToNextMatch}
+                      className="h-7 w-7 rounded-lg grid place-items-center transition"
+                      style={{
+                        border: `1px solid ${colorLight.border}`,
+                        color: colorLight.textSoft,
+                      }}
+                      title="Next"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <span
+                      className="font-mono text-[10px] tabular-nums"
+                      style={{ color: colorLight.textMuted }}
+                    >
+                      {searchMatchCount > 0
+                        ? `${searchMatchIndex + 1}/${searchMatchCount}`
+                        : "0/0"}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Ink tools â€” slide in when ink mode active */}
+              <AnimatePresence>
+                {inkMode && (
+                  <motion.div
+                    initial={{ opacity: 0, x: 8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 8 }}
+                    className="flex items-center gap-1.5"
+                  >
+                    <div className="h-5 w-px mx-1" style={{ background: colorLight.border }} />
+
+                    {(
+                      [
+                        { tool: "pen" as InkTool,        icon: <PenLine     className="h-4 w-4" />, title: "Pen"        },
+                        { tool: "highlighter" as InkTool, icon: <Highlighter className="h-4 w-4" />, title: "Highlighter"},
+                        { tool: "eraser" as InkTool,      icon: <Eraser      className="h-4 w-4" />, title: "Eraser"     },
+                      ] as const
+                    ).map(({ tool, icon, title }) => (
+                      <button
+                        key={tool}
+                        onClick={() => setInkTool(tool)}
+                        className="inline-flex items-center justify-center rounded-xl p-2 transition"
+                        style={{
+                          background: inkTool === tool ? colorLight.accentSoft : "transparent",
+                          border: `1px solid ${inkTool === tool ? colorLight.accentBorder : colorLight.border}`,
+                          color: inkTool === tool ? colorLight.accent : colorLight.textSoft,
+                        }}
+                        title={title}
+                      >
+                        {icon}
+                      </button>
+                    ))}
+
+                    <div className="h-5 w-px mx-0.5" style={{ background: colorLight.border }} />
+
+                    <button
+                      onClick={undoInk}
+                      className="inline-flex items-center justify-center rounded-xl p-2 transition"
+                      style={{ border: `1px solid ${colorLight.border}`, color: colorLight.textSoft }}
+                      title="Undo"
+                    >
+                      <Undo2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={redoInk}
+                      className="inline-flex items-center justify-center rounded-xl p-2 transition"
+                      style={{ border: `1px solid ${colorLight.border}`, color: colorLight.textSoft }}
+                      title="Redo"
+                    >
+                      <Redo2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={clearInk}
+                      className="inline-flex items-center justify-center rounded-xl p-2 transition"
+                      style={{ border: `1px solid ${colorLight.border}`, color: colorLight.danger }}
+                      title="Clear"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          MAIN LAYOUT (paper + side panel)
+      â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <div
+        className={cn(
+          "flex gap-4 justify-center",
+          isFullscreen && "h-[calc(100vh-84px)] md:h-[calc(100vh-92px)]"
+        )}
+      >
+        {/* Paper column */}
+        <div
+          className={cn(
+            "w-full max-w-4xl min-w-0 transition-all duration-300",
+            sidePanelOpen && !zenMode && "md:max-w-3xl"
+          )}
+        >
+          {/* Paper shell */}
+          <div
+            className="rounded-2xl overflow-hidden"
+            style={{
+              background: "#ffffff",
+              border: `1px solid ${colorLight.border}`,
+              boxShadow:
+                "0 2px 20px rgba(15,23,42,0.07), 0 1px 4px rgba(15,23,42,0.04)",
+            }}
+          >
+            {/* Scroll viewport */}
+            <div
+              ref={paperViewportRef}
+              className={cn(
+                "relative overflow-auto",
+                isFullscreen
+                  ? "h-[calc(100vh-120px)] md:h-[calc(100vh-140px)]"
+                  : "max-h-[calc(100vh-220px)]"
+              )}
+            >
+              <div ref={paperInnerRef} className={cn("relative", inkMode && "select-none")}>
+
+                {/* CONTENT LAYER â€” iframe preserves your HTML CSS 1:1 */}
+                <iframe
+                  ref={iframeRef}
+                  title="NotebookContent"
+                  sandbox="allow-same-origin"
+                  srcDoc={
+                    srcDoc ||
+                    baseDoc ||
+                    makeDocFromFragment("<p>â€¦</p>", notebook.title)
+                  }
+                  className="block w-full border-0"
+                  style={{
+                    pointerEvents: inkMode ? "none" : "auto",
+                    background: "transparent",
+                  }}
+                />
+
+                {/* INK LAYER â€” canvas overlay */}
+                <canvas
+                  ref={canvasRef}
+                  className={cn(
+                    "absolute inset-0 z-20 transition-opacity duration-200",
+                    inkMode ? "opacity-100" : "opacity-0"
+                  )}
+                  style={{
+                    pointerEvents: inkMode ? "auto" : "none",
+                    touchAction: "none",
+                  }}
+                  onPointerDown={onPointerDown}
+                  onPointerMove={onPointerMove}
+                  onPointerUp={finishStroke}
+                  onPointerCancel={finishStroke}
+                  onPointerLeave={finishStroke}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Study hint */}
+          {!inkMode && !zenMode && (
+            <div
+              className="mt-2.5 text-center text-[11px]"
+              style={{ color: colorLight.textMuted }}
+            >
+              Ø¯Ø±{" "}
+              <span style={{ color: colorLight.textSoft, fontWeight: 600 }}>
+                Study Mode
+              </span>{" "}
+              Ù…ØªÙ† Ø§Ù†ØªØ®Ø§Ø¨ Ú©Ù†ÛŒØ¯ ØªØ§ Highlight ÛŒØ§ ÛŒØ§Ø¯Ø¯Ø§Ø´Øª Ø§Ø¶Ø§ÙÙ‡ Ø´ÙˆØ¯.
+            </div>
+          )}
+        </div>
+
+        {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            SIDE PANEL (TOC + notes)
+        â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+        <AnimatePresence>
+          {sidePanelOpen && !zenMode && (
+            <motion.aside
+              initial={{ x: 20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: 20, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 280, damping: 26 }}
+              className="w-[280px] shrink-0 hidden md:block"
+            >
+              <div className="sticky top-6">
+                <div
+                  className="rounded-2xl p-4 max-h-[80vh] overflow-y-auto"
+                  style={{
+                    background: colorLight.surface,
+                    border: `1px solid ${colorLight.border}`,
+                  }}
+                >
+
+                  {/* TOC header */}
+                  <div className="flex items-center justify-between mb-3">
+                    <span
+                      className="text-[10px] font-semibold uppercase tracking-wider"
+                      style={{ color: colorLight.textMuted }}
+                    >
+                      ÙÙ‡Ø±Ø³Øª
+                    </span>
+                    <button
+                      onClick={() => setSidePanelOpen(false)}
+                      className="transition"
+                      style={{ color: colorLight.textMuted }}
+                      onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = colorLight.text)}
+                      onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = colorLight.textMuted)}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {/* TOC entries */}
+                  {toc.length === 0 ? (
+                    <p
+                      className="text-xs italic"
+                      style={{ color: colorLight.textMuted }}
+                    >
+                      Heading ÛŒØ§ÙØª Ù†Ø´Ø¯
+                    </p>
+                  ) : (
+                    <nav className="space-y-0.5">
+                      {toc.map((entry) => (
+                        <button
+                          key={entry.id}
+                          onClick={() => scrollToHeading(entry.id)}
+                          className="block w-full text-right rounded-lg px-2.5 py-1.5 text-xs transition"
+                          style={{
+                            color:
+                              entry.level === 1
+                                ? colorLight.text
+                                : entry.level === 2
+                                ? colorLight.textSoft
+                                : colorLight.textMuted,
+                            paddingRight:
+                              entry.level === 2
+                                ? "1.25rem"
+                                : entry.level === 3
+                                ? "2rem"
+                                : undefined,
+                            fontWeight: entry.level === 1 ? 600 : undefined,
+                          }}
+                          onMouseEnter={(e) =>
+                            ((e.currentTarget as HTMLElement).style.background =
+                              colorLight.surfaceSubtle)
+                          }
+                          onMouseLeave={(e) =>
+                            ((e.currentTarget as HTMLElement).style.background =
+                              "transparent")
+                          }
+                        >
+                          {entry.text}
+                        </button>
+                      ))}
+                    </nav>
+                  )}
+
+                  {/* Divider */}
+                  <div
+                    className="my-4 h-px"
+                    style={{ background: colorLight.border }}
+                  />
+
+                  {/* Notes header */}
+                  <div className="flex items-center justify-between mb-3">
+                    <span
+                      className="text-[10px] font-semibold uppercase tracking-wider"
+                      style={{ color: colorLight.textMuted }}
+                    >
+                      ÛŒØ§Ø¯Ø¯Ø§Ø´Øªâ€ŒÙ‡Ø§ ({annotations.length})
+                    </span>
+                    <button
+                      onClick={() =>
+                        setNoteModal({ open: true, mode: "create", text: "" })
+                      }
+                      className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] transition"
+                      style={{
+                        border: `1px solid ${colorLight.border}`,
+                        background: colorLight.surfaceSubtle,
+                        color: colorLight.textSoft,
+                      }}
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLElement).style.borderColor =
+                          colorLight.accentBorder;
+                        (e.currentTarget as HTMLElement).style.color =
+                          colorLight.accent;
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.borderColor =
+                          colorLight.border;
+                        (e.currentTarget as HTMLElement).style.color =
+                          colorLight.textSoft;
+                      }}
+                      title="New note"
+                    >
+                      <StickyNote className="h-3.5 w-3.5" />
+                      Ø¬Ø¯ÛŒØ¯
+                    </button>
+                  </div>
+
+                  {/* Note list */}
+                  {annotations.length === 0 ? (
+                    <p
+                      className="text-xs italic"
+                      style={{ color: colorLight.textMuted }}
+                    >
+                      ÛŒØ§Ø¯Ø¯Ø§Ø´ØªÛŒ Ø«Ø¨Øª Ù†Ø´Ø¯Ù‡.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {annotations.slice(0, 60).map((a) => (
+                        <button
+                          key={a.id}
+                          onClick={() => jumpToAnnotation(a)}
+                          className="w-full text-right rounded-xl p-3 transition"
+                          style={{
+                            background: colorLight.surfaceSubtle,
+                            border: `1px solid ${colorLight.border}`,
+                          }}
+                          onMouseEnter={(e) =>
+                            ((e.currentTarget as HTMLElement).style.borderColor =
+                              colorLight.borderStrong)
+                          }
+                          onMouseLeave={(e) =>
+                            ((e.currentTarget as HTMLElement).style.borderColor =
+                              colorLight.border)
+                          }
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div
+                                className="text-xs line-clamp-2"
+                                style={{ color: colorLight.text }}
+                              >
+                                {a.text}
+                              </div>
+                              {a.quote && (
+                                <div
+                                  className="mt-1 text-[11px] line-clamp-2"
+                                  style={{ color: colorLight.textMuted }}
+                                >
+                                  Â«{a.quote}Â»
+                                </div>
+                              )}
+                              <div
+                                className="mt-1.5 text-[10px] font-mono tabular-nums"
+                                style={{ color: colorLight.textMuted }}
+                              >
+                                {new Date(a.updatedAt).toLocaleString("fa-IR", {
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-1.5 shrink-0">
+                              <span
+                                className="inline-flex items-center gap-1 text-[10px]"
+                                style={{ color: colorLight.accent }}
+                              >
+                                <Pin className="h-3 w-3" /> pin
+                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  deleteAnnotation(a.id);
+                                }}
+                                className="text-[10px] transition"
+                                style={{ color: colorLight.danger }}
+                                title="Delete"
+                              >
+                                Ø­Ø°Ù
+                              </button>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.aside>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          SELECTION MENU
+      â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <AnimatePresence>
+        {selMenu.open && !inkMode && (
+          <motion.div
+            initial={{ opacity: 0, y: 6, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.97 }}
+            transition={{ duration: 0.15 }}
+            className="fixed z-[200] -translate-x-1/2"
+            style={{ left: selMenu.x, top: selMenu.y }}
+          >
+            <div
+              className="rounded-xl overflow-hidden"
+              style={{
+                background: colorLight.surface,
+                border: `1px solid ${colorLight.border}`,
+                boxShadow: "0 4px 20px rgba(15,23,42,0.12), 0 1px 4px rgba(15,23,42,0.06)",
+              }}
+            >
+              {/* Header row */}
+              <div
+                className="px-3 py-2 flex items-center gap-2"
+                style={{ borderBottom: `1px solid ${colorLight.border}` }}
+              >
+                <Palette className="h-4 w-4" style={{ color: colorLight.textMuted }} />
+                <span
+                  className="text-[11px]"
+                  style={{ color: colorLight.textSoft }}
+                >
+                  Highlight / Note
+                </span>
+                <button
+                  onClick={() => setSelMenu((m) => ({ ...m, open: false }))}
+                  className="mr-auto transition"
+                  style={{ color: colorLight.textMuted }}
+                  onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = colorLight.text)}
+                  onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = colorLight.textMuted)}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Color swatches + action buttons */}
+              <div className="p-2 flex items-center gap-1.5">
+                {HIGHLIGHT_COLORS.map((c) => (
+                  <button
+                    key={c.key}
+                    onClick={() => applyHighlightToSelection(c.bg)}
+                    className="h-8 w-8 rounded-lg transition"
+                    title={c.label}
+                    style={{
+                      background: c.bg,
+                      border: `1px solid ${colorLight.border}`,
+                    }}
+                  />
+                ))}
+
+                <div
+                  className="h-6 w-px mx-1"
+                  style={{ background: colorLight.border }}
+                />
+
+                <button
+                  onClick={openNoteForSelection}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] transition"
+                  style={{
+                    border: `1px solid ${colorLight.border}`,
+                    color: colorLight.textSoft,
+                    background: colorLight.surfaceSubtle,
+                  }}
+                  title="Add note"
+                >
+                  <StickyNote className="h-4 w-4" />
+                  ÛŒØ§Ø¯Ø¯Ø§Ø´Øª
+                </button>
+
+                <button
+                  onClick={copySelectionPreview}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] transition"
+                  style={{
+                    border: `1px solid ${colorLight.border}`,
+                    color: colorLight.textSoft,
+                    background: colorLight.surfaceSubtle,
+                  }}
+                  title="Copy"
+                >
+                  <Copy className="h-4 w-4" />
+                  Ú©Ù¾ÛŒ
+                </button>
+              </div>
+
+              {/* Selected-text preview */}
+              {selMenu.text && (
+                <div
+                  className="px-3 pb-2 text-[11px] max-w-[340px]"
+                  style={{ color: colorLight.textMuted }}
+                >
+                  <span className="line-clamp-2">{selMenu.text}</span>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+          NOTE MODAL
+      â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <AnimatePresence>
+        {noteModal.open && (
+          <motion.div
+            className="fixed inset-0 z-[300] flex items-center justify-center p-4"
+            style={{ background: "rgba(15,23,42,0.50)", backdropFilter: "blur(4px)" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget)
+                setNoteModal({ open: false, mode: "create", text: "" });
+            }}
+          >
+            <motion.div
+              initial={{ y: 14, opacity: 0, scale: 0.98 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 10, opacity: 0, scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 280, damping: 24 }}
+              className="w-full max-w-lg rounded-2xl overflow-hidden"
+              style={{
+                background: colorLight.surface,
+                border: `1px solid ${colorLight.border}`,
+                boxShadow: "0 20px 60px rgba(15,23,42,0.18)",
+              }}
+            >
+              {/* Header */}
+              <div
+                className="px-5 py-4 flex items-center gap-2.5"
+                style={{ borderBottom: `1px solid ${colorLight.border}` }}
+              >
+                <StickyNote className="h-5 w-5" style={{ color: colorLight.accent }} />
+                <div
+                  className="text-sm font-semibold flex-1"
+                  style={{ color: colorLight.text }}
+                >
+                  {noteModal.mode === "edit"
+                    ? "ÙˆÛŒØ±Ø§ÛŒØ´ ÛŒØ§Ø¯Ø¯Ø§Ø´Øª"
+                    : "ÛŒØ§Ø¯Ø¯Ø§Ø´Øª Ø¬Ø¯ÛŒØ¯"}
+                </div>
+                <button
+                  onClick={() =>
+                    setNoteModal({ open: false, mode: "create", text: "" })
+                  }
+                  className="transition"
+                  style={{ color: colorLight.textMuted }}
+                  onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = colorLight.text)}
+                  onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = colorLight.textMuted)}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Quote context */}
+              {noteModal.quote && (
+                <div className="px-5 pt-4">
+                  <div
+                    className="rounded-xl p-3"
+                    style={{
+                      background: colorLight.surfaceSubtle,
+                      border: `1px solid ${colorLight.border}`,
+                    }}
+                  >
+                    <div
+                      className="text-[10px] font-semibold uppercase tracking-wider mb-1"
+                      style={{ color: colorLight.textMuted }}
+                    >
+                      QUOTE
+                    </div>
+                    <div
+                      className="text-[12px] leading-relaxed"
+                      style={{ color: colorLight.textSoft }}
+                    >
+                      Â«{noteModal.quote}Â»
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Body */}
+              <div className="px-5 py-4">
+                <textarea
+                  value={noteModal.text}
+                  onChange={(e) =>
+                    setNoteModal((m) => ({ ...m, text: e.target.value }))
+                  }
+                  placeholder="ÛŒØ§Ø¯Ø¯Ø§Ø´Øª Ø®ÙˆØ¯ Ø±Ø§ Ø¨Ù†ÙˆÛŒØ³ÛŒØ¯â€¦"
+                  rows={6}
+                  className="w-full rounded-xl p-3.5 text-sm leading-relaxed outline-none transition resize-none"
+                  style={{
+                    background: colorLight.surfaceSubtle,
+                    border: `1px solid ${colorLight.border}`,
+                    color: colorLight.text,
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = colorLight.accentBorder;
+                    e.currentTarget.style.background = colorLight.surface;
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = colorLight.border;
+                    e.currentTarget.style.background = colorLight.surfaceSubtle;
+                  }}
+                />
+
+                <div className="mt-4 flex items-center justify-between">
+                  <button
+                    onClick={() =>
+                      setNoteModal({ open: false, mode: "create", text: "" })
+                    }
+                    className="text-xs transition"
+                    style={{ color: colorLight.textMuted }}
+                    onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = colorLight.textSoft)}
+                    onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = colorLight.textMuted)}
+                  >
+                    Ø§Ù†ØµØ±Ø§Ù
+                  </button>
+
+                  <button
+                    onClick={saveNoteModal}
+                    className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition"
+                    style={{
+                      background: colorLight.accent,
+                      color: "#ffffff",
+                      boxShadow: `0 2px 10px ${colorLight.accent}30`,
+                    }}
+                    onMouseEnter={(e) =>
+                      ((e.currentTarget as HTMLButtonElement).style.background =
+                        colorLight.accentHover)
+                    }
+                    onMouseLeave={(e) =>
+                      ((e.currentTarget as HTMLButtonElement).style.background =
+                        colorLight.accent)
+                    }
+                  >
+                    Ø°Ø®ÛŒØ±Ù‡
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+    </motion.div>
+  );
+}
+

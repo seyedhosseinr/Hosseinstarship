@@ -1,0 +1,48 @@
+/*
+ * Reader on-text annotation paint via CSS Custom Highlight API.
+ *
+ * Each ::highlight() name maps to a registry entry maintained by
+ * ReaderHighlightLayer. Buckets are name + colour; underline is a single
+ * bucket. Browsers without `CSS.highlights` ignore these rules and the
+ * layer falls back to an absolute-positioned overlay.
+ *
+ * Naming convention: rdr-hl-<HEX-without-hash>, rdr-ul (default).
+ *
+ * Palette must match SelectionPopup's HIGHLIGHT_COLORS. Adding a swatch
+ * means adding a rule here too.
+ */
+
+@supports selector(::highlight(rdr-hl-DFFF4F)) {
+  ::highlight(rdr-hl-DFFF4F) {
+    background-color: #DFFF4F;
+    color: inherit;
+  }
+  ::highlight(rdr-hl-B8F36B) {
+    background-color: #B8F36B;
+    color: inherit;
+  }
+  ::highlight(rdr-hl-98F0FF) {
+    background-color: #98F0FF;
+    color: inherit;
+  }
+  ::highlight(rdr-hl-F7A8D7) {
+    background-color: #F7A8D7;
+    color: inherit;
+  }
+  ::highlight(rdr-hl-F7BE62) {
+    background-color: #F7BE62;
+    color: inherit;
+  }
+  /* Fallback bucket for any colour not in the palette. */
+  ::highlight(rdr-hl-default) {
+    background-color: #DFFF4F;
+    color: inherit;
+  }
+  ::highlight(rdr-ul) {
+    text-decoration-line: underline;
+    text-decoration-style: solid;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.18em;
+    text-decoration-color: color-mix(in oklab, hsl(var(--primary)) 65%, transparent);
+  }
+}

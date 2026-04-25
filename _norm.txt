@@ -1,0 +1,40 @@
+          id: String(t.id ?? ""),
+          title: String(t.title ?? ""),
+          taskType: String(t.taskType ?? ""),
+          status: String(t.status ?? "pending"),
+          estimatedMinutes: Number(t.estimatedMinutes) || 0,
+          priority: Number(t.priority) || 0,
+          scheduledFor: t.scheduledFor ?? null,
+        }))
+      : [],
+
+    overdueTaskObjects: Array.isArray(json.overdueTasks)
+      ? json.overdueTasks.map((t: any) => ({
+          id: String(t.id ?? ""),
+          title: String(t.title ?? ""),
+          taskType: String(t.taskType ?? ""),
+          status: String(t.status ?? "overdue"),
+          estimatedMinutes: Number(t.estimatedMinutes) || 0,
+          priority: Number(t.priority) || 0,
+          scheduledFor: t.scheduledFor ?? null,
+        }))
+      : [],
+
+    activePlanInfo:
+      json.activePlan && typeof json.activePlan === "object"
+        ? {
+            id: String(json.activePlan.id ?? ""),
+            title: json.activePlan.title ?? null,
+            status: String(json.activePlan.status ?? ""),
+            startDate: json.activePlan.startDate ?? null,
+            endDate: json.activePlan.endDate ?? null,
+            totalTasks: Number(json.activePlan.totalTasks) || 0,
+            completedTasks: Number(json.activePlan.completedTasks) || 0,
+            progressPercent: Number(json.activePlan.progressPercent) || 0,
+          }
+        : null,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main hook                                                          */

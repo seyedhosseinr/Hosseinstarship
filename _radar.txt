@@ -1,0 +1,64 @@
+/* ══════════════════════════════════════════════════════
+   MASTERY  RADAR
+══════════════════════════════════════════════════════ */
+
+function MasteryRadar() {
+  const { theme } = useTheme();
+  const gridColor = theme==="dark"?"rgba(76,154,255,0.1)":"rgba(0,82,204,0.08)";
+  const tickColor = theme==="dark"?"#505f79":"#8993a4";
+  const tooltipBg = theme==="dark"?"rgba(13,27,46,0.95)":"rgba(255,255,255,0.97)";
+  const tooltipBorder = theme==="dark"?"rgba(76,154,255,0.25)":"rgba(0,82,204,0.2)";
+
+  return (
+    <Card>
+      <SectionHead icon={<GraduationCap size={16} style={{color:"var(--violet)"}}/>}
+        title="Mastery Radar" sub="Domain proficiency overview"/>
+      <div style={{width:"100%",height:260}}>
+        <ResponsiveContainer>
+          <RechartsRadarChart cx="50%" cy="50%" outerRadius="68%"
+            data={RADAR_DATA.map(d=>({subject:d.domain,you:d.you,avg:d.avg}))}>
+            <PolarGrid stroke={gridColor} gridType="polygon"/>
+            <PolarAngleAxis dataKey="subject"
+              tick={{fill:tickColor,fontSize:11,fontFamily:"inherit"}}/>
+            <PolarRadiusAxis domain={[0,100]} axisLine={false}
+              tick={{fill:tickColor,fontSize:9,fontFamily:"inherit"}}/>
+            <RechartsRadar name="You" dataKey="you" stroke="var(--blue)"
+              fill="var(--blue)" fillOpacity={0.25} strokeWidth={2}
+              dot={{r:3,fill:"var(--blue)",stroke:"var(--bg-surface)",strokeWidth:1.5}}/>
+            <RechartsRadar name="Avg" dataKey="avg" stroke="var(--text-3)"
+              fill="var(--text-3)" fillOpacity={0.1} strokeWidth={1.5} strokeDasharray="4 2"/>
+            <RechartsTooltip contentStyle={{background:tooltipBg,border:`1px solid ${tooltipBorder}`,
+              borderRadius:10,fontSize:12,fontFamily:"inherit",color:"var(--text-1)"}}
+              formatter={(v:number,n:string)=>[`${v}%`,n==="you"?"شما":"میانگین"]}/>
+          </RechartsRadarChart>
+        </ResponsiveContainer>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,marginTop:4}}>
+        {RADAR_DATA.map(d=>(
+          <div key={d.domain} style={{display:"flex",alignItems:"center",gap:6,
+            padding:"5px 8px",borderRadius:7,background:"var(--bg-hover)"}}>
+            <span style={{color:d.color,flexShrink:0}}>{d.icon}</span>
+            <span style={{fontSize:11,color:"var(--text-2)",flex:1,minWidth:0,
+              overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.domain}</span>
+            <span style={{fontSize:11,fontWeight:700,
+              color:d.you>=80?"var(--emerald)":d.you>=60?"var(--amber)":"var(--rose)"}}>{d.you}%</span>
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+/* ══════════════════════════════════════════════════════
+   ACCURACY  TREND
+══════════════════════════════════════════════════════ */
+
+function AccuracyTrend() {
+  const { theme } = useTheme();
+  const gridColor = theme==="dark"?"rgba(76,154,255,0.07)":"rgba(0,82,204,0.06)";
+  const tickColor = theme==="dark"?"#505f79":"#8993a4";
+  const tooltipBg = theme==="dark"?"rgba(13,27,46,0.95)":"rgba(255,255,255,0.97)";
+  return (
+    <Card>
+      <SectionHead icon={<TrendingUp size={16} style={{color:"var(--emerald)"}}/>}
+        title="Accuracy Trend" sub="عملکرد هفته جاری"/>

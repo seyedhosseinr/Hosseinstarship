@@ -1,0 +1,14 @@
+.next/
+.git/
+node_modules/
+node_modules_backup/
+.venv/
+.claude/
+.claude-worktrees/
+.pglite/
+*.log
+liara-deploy-log.txt
+.turbo/
+dist/
+coverage/
+.env.local

@@ -1,0 +1,56 @@
+# Tooling / agent local state
+.claude/
+.codex/
+.cursor/
+.windsurf/
+.vercel/
+
+# Dependencies / build output
+node_modules/
+.next/
+dist/
+build/
+coverage/
+.venv/
+
+# Rust build artifacts (crates/*/target)
+target/
+
+# Recovery / report dumps
+_flashcard_recovery_report/
+_recovery*/
+tsc-errors*.txt
+tsc-out.txt
+
+# Local PGlite dev data
+.pglite/
+
+# Archives / logs / temp / backups
+*.zip
+*.tar
+*.7z
+*.log
+*.tmp
+*.bak
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+tmp/
+tsc-out.txt
+node_modules.zip
+*backup*/
+*_backups*/
+*.backup.*
+opus_4.6_git_backup/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Env files — keep ONLY root .env.example tracked
+.env
+.env.*
+!/.env.example

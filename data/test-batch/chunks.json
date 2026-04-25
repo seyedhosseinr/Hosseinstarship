@@ -1,0 +1,30 @@
+[
+  {
+    "chapterNo": 132,
+    "chunkIndex": 0,
+    "title": "Anatomy of the Prostate",
+    "slug": "ch132-chunk-0-anatomy-prostate",
+    "pageStart": 3100,
+    "pageEnd": 3104,
+    "chunkKind": "notes",
+    "tokenEstimate": 850,
+    "wordCount": 620,
+    "notesHtml": "<h2>Anatomy of the Prostate</h2><p>The prostate is a walnut-sized gland located below the bladder. It consists of peripheral, central, and transition zones described by McNeal.</p>",
+    "plainText": "Anatomy of the Prostate\nThe prostate is a walnut-sized gland located below the bladder. It consists of peripheral, central, and transition zones described by McNeal.",
+    "isPublished": true
+  },
+  {
+    "chapterNo": 132,
+    "chunkIndex": 1,
+    "title": "BPH Pathophysiology",
+    "slug": "ch132-chunk-1-bph-pathophysiology",
+    "pageStart": 3104,
+    "pageEnd": 3110,
+    "chunkKind": "notes",
+    "tokenEstimate": 1200,
+    "wordCount": 900,
+    "notesHtml": "<h2>BPH Pathophysiology</h2><p>Benign prostatic hyperplasia (BPH) involves both static (tissue enlargement) and dynamic (smooth muscle tone) components. The transition zone is the primary site of BPH development.</p>",
+    "plainText": "BPH Pathophysiology\nBenign prostatic hyperplasia (BPH) involves both static (tissue enlargement) and dynamic (smooth muscle tone) components. The transition zone is the primary site of BPH development.",
+    "isPublished": true
+  }
+]

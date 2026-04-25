@@ -1,0 +1,104 @@
+Arvan Registry Push Failure Report — starship:arvan-9
+=======================================================
+Date: 2026-04-24
+Registry: registry-05d3394d4a-starship.apps.ir-central1.arvancaas.ir
+Project: urologynet2/opus_4.6
+
+IMAGE
+-----
+Tag:        registry-05d3394d4a-starship.apps.ir-central1.arvancaas.ir/starship:arvan-9
+Also tagged as: starship-arvan9-local:latest
+Image ID:   sha256:22f379d93f7aaf80f2b7b61f3e17305e6acf4eed0eebed34a2783d00805578f8
+Arch/OS:    amd64/linux
+Created:    2026-04-24T21:23:34Z
+Config Size (docker image inspect .Size): 123,883,608 bytes (~118 MiB)
+Layer count (RootFS.Layers): 9
+Non-zero layer sizes (docker history, top-to-bottom):
+  19.9 MB
+  107  MB   <-- largest layer (likely standalone server + static assets)
+  14.7 MB
+  8.19 kB
+  20.5 kB
+  7.39 MB
+  154  MB   <-- base node_modules / runtime layer (from builder/base)
+  397  kB
+  92.7 MB   <-- node:22-bullseye-slim base layer
+Total image size on disk (docker images): ~520 MB
+
+LOGIN
+-----
+Login endpoint:  registry-05d3394d4a-starship.apps.ir-central1.arvancaas.ir
+Username:        starship
+Method:          --password-stdin
+Result:          Login Succeeded (confirmed multiple times during the session)
+
+PUSH
+----
+Target tag: registry-05d3394d4a-starship.apps.ir-central1.arvancaas.ir/starship:arvan-9
+Total attempts across three retry loops: ~15 (plus earlier arvan-7 loop; pattern identical)
+Outcome: FAILED on every attempt
+
+Failing endpoint pattern:
+  PUT https://registry-05d3394d4a-starship.apps.ir-central1.arvancaas.ir/v2/starship/blobs/uploads/<uuid>?_state=...&digest=sha256:<digest>
+
+Exact error returned by Arvan gateway:
+  unknown: failed to copy: unexpected status from PUT request to
+  https://registry-05d3394d4a-starship.apps.ir-central1.arvancaas.ir/v2/starship/blobs/uploads/<uuid>?...&digest=sha256:<digest>:
+  502 Bad Gateway
+
+The 502 Bad Gateway is consistently returned during the blob upload PUT phase,
+after a successful POST to /v2/starship/blobs/uploads/ initiates the upload session.
+Specific blob digests that repeatedly 502'd:
+  sha256:416e2d5cbd5a384665f2326dd3d89bc6542c5964f9573fcfb8bd96f4370ac80b
+  sha256:d472eff9088e1d9d04f6b3e97bcd8cf2cb6a48152ec8d1021596d5b1000cd658
+  sha256:7263c37a27b96bd5e0c0de77a44122fc986156c49e3c82b0ba12448611753e10
+  sha256:164c0e647e8dd1d9e72d0625c36c0c7cdf75dcf75f3355563d215b63ded39df5
+
+Smaller layers succeeded individually (e.g. 5bb47b96e92f, 2f5bd4fd97aa, 60fb1d5aba60,
+0ca069bf5c04, 3086067a76ea, 9bce65cb5031 all reported "Layer already exists" or "Pushed").
+The 502 is reproducible on multi-megabyte blob uploads.
+
+WHAT WORKS
+----------
+- Docker daemon <-> Arvan TLS: OK
+- DNS resolution for registry hostname: OK
+- Docker login (HTTP 200 on /v2/ auth flow): OK
+- POST /v2/starship/blobs/uploads/ (initiating upload): returns 202 Accepted
+- HEAD /v2/starship/blobs/<digest> (existence check): OK
+- Small-blob pushes: OK (several layers successfully uploaded in earlier attempts)
+
+WHAT FAILS
+----------
+- PUT /v2/starship/blobs/uploads/<uuid>?digest=...: returns 502 Bad Gateway
+  from Arvan's ingress/gateway, consistently, on the larger blobs.
+
+RETRY BEHAVIOR
+--------------
+- Retries with 20–60 second backoff did not help.
+- Re-login between attempts did not help.
+- The same registry was deleted and re-created by the user; the same 502 pattern
+  persists on the new registry at the same hostname.
+
+CONCLUSION
+----------
+This is an Arvan registry-side failure during Docker Registry v2 blob upload.
+It is NOT:
+  - an app build issue (image builds cleanly, inspects cleanly locally)
+  - a Docker login / auth issue (login succeeds, HEAD/GET work)
+  - a tag issue (tag is correct and matches registry namespace)
+  - a client-side network issue (small blobs and metadata calls succeed)
+
+It IS:
+  - a 502 Bad Gateway from Arvan's ingress/gateway specifically on the blob upload
+    PUT endpoint for larger layers. This indicates the gateway is timing out,
+    crashing, or failing to proxy to the backing object-store during write of
+    multi-megabyte blobs.
+
+RECOMMENDED NEXT STEPS (for Arvan support ticket)
+-------------------------------------------------
+- Ask Arvan to check the registry ingress/backend logs for 502s on
+  PUT /v2/starship/blobs/uploads/ around 2026-04-24 ~15:30 UTC for the
+  "starship" repository in project registry-05d3394d4a-starship.
+- Verify backing object-store (S3-compatible) health and write timeouts.
+- Confirm ingress body-size limits and upstream proxy read/write timeouts
+  are sized for multi-hundred-MB Docker blob uploads.

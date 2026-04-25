@@ -1,0 +1,267 @@
+/*
+  LIBRARY DESIGN TOKENS — Unified namespace (--lib-*)
+  ─────────────────────────────────────────────────────
+  Replaces --al-*, --rs-*, and scattered inline tokens.
+  Scoped under [data-library] so non-library surfaces are unaffected.
+
+  Core colors reference the existing HSL design system so theme
+  changes propagate automatically. Library-specific additions
+  (glass, layout, motion, radii) are defined fresh.
+*/
+
+/* ═══════════════════ LIGHT ═══════════════════ */
+
+[data-library] {
+  /* ── Surfaces ── */
+  --lib-bg:              hsl(var(--background));
+  --lib-surface:         hsl(var(--card));
+  --lib-surface-raised:  hsl(0 0% 100%);
+  --lib-glass:           hsla(0, 0%, 100%, 0.88);
+  --lib-glass-border:    hsla(var(--border), 0.6);
+
+  /* ── Borders ── */
+  --lib-border:          hsl(var(--border));
+  --lib-border-subtle:   hsl(var(--border) / 0.5);
+
+  /* ── Text ── */
+  --lib-text:            hsl(var(--foreground));
+  --lib-text-secondary:  hsl(var(--muted-foreground));
+  --lib-text-muted:      hsl(var(--muted-foreground) / 0.6);
+
+  /* ── Accent ── */
+  --lib-accent:          hsl(var(--primary));
+  --lib-accent-fg:       hsl(var(--primary-foreground));
+  --lib-accent-soft:     hsl(var(--primary) / 0.08);
+  --lib-accent-hover:    hsl(var(--primary) / 0.12);
+
+  /* ── Semantic ── */
+  --lib-success:         hsl(var(--success));
+  --lib-success-fg:      hsl(var(--success-foreground));
+  --lib-success-soft:    hsl(var(--success) / 0.08);
+  --lib-warning:         hsl(var(--warning));
+  --lib-warning-fg:      hsl(var(--warning-foreground));
+  --lib-warning-soft:    hsl(var(--warning) / 0.08);
+  --lib-danger:          hsl(var(--destructive));
+  --lib-danger-fg:       hsl(var(--destructive-foreground));
+  --lib-danger-soft:     hsl(var(--destructive) / 0.08);
+
+  /* ── Interaction ── */
+  --lib-hover:           hsl(var(--foreground) / 0.03);
+  --lib-active:          hsl(var(--primary) / 0.10);
+  --lib-active-border:   hsl(var(--primary));
+
+  /* ── Reader annotations ── */
+  --lib-highlight:       hsl(var(--reader-highlight));
+  --lib-underline:       hsl(var(--reader-underline));
+  --lib-comment-bg:      hsl(var(--reader-comment));
+
+  /* ── Radii ── */
+  --lib-radius-sm:       8px;
+  --lib-radius-md:       12px;
+  --lib-radius-lg:       16px;
+  --lib-radius-xl:       24px;
+
+  /* ── Layout ── */
+  --lib-measure:         80ch;
+  --lib-spine-width:     280px;
+  --lib-gutter-width:    220px;
+  --lib-dock-height:     56px;
+  --lib-touch-min:       44px;
+  --lib-header-height:   52px;
+
+  /* ── Motion (spring-like curve) ── */
+  --lib-spring-duration: 320ms;
+  --lib-spring-easing:   cubic-bezier(0.22, 0.68, 0.31, 1.0);
+  --lib-fade-duration:   150ms;
+  --lib-fade-easing:     cubic-bezier(0.2, 0.0, 0.0, 1.0);
+
+  /* ── Typography ── */
+  --lib-font-sans:       var(--font-vazir, 'Vazirmatn'), 'SF Pro Text', system-ui, sans-serif;
+  --lib-font-persian:    var(--font-vazir, 'Vazirmatn'), Tahoma, sans-serif;
+  --lib-font-mono:       ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
+  --lib-line-height:     1.8;
+  --lib-line-height-persian: 1.9;
+
+  /* ── Frame kind edge-strip colors (light) ── */
+  --lib-kind-core:                hsl(var(--border));
+  --lib-kind-pearl:               hsl(45 93% 47%);
+  --lib-kind-warning:             hsl(25 95% 53%);
+  --lib-kind-pitfall:             hsl(0 84% 60%);
+  --lib-kind-keypoint:            hsl(152 69% 31%);
+  --lib-kind-concept:             hsl(var(--muted-foreground));
+  --lib-kind-trap:                hsl(0 84% 60%);
+  --lib-kind-threshold:           hsl(270 67% 47%);
+  --lib-kind-indication:          hsl(174 72% 30%);
+  --lib-kind-differential:        hsl(239 84% 67%);
+  --lib-kind-algorithm:           hsl(263 70% 50%);
+  --lib-kind-clinical_decision:   hsl(213 94% 57%);
+  --lib-kind-complication:        hsl(25 95% 53%);
+  --lib-kind-follow_up:           hsl(199 89% 48%);
+  --lib-kind-high_yield:          hsl(45 93% 47%);
+  --lib-kind-interactive_algorithm: hsl(174 72% 30%);
+}
+
+/* ═══════════════════ DARK ═══════════════════ */
+
+.dark [data-library] {
+  --lib-surface-raised:  hsl(213 11% 16%);
+  --lib-glass:           hsla(213, 11%, 11%, 0.88);
+  --lib-glass-border:    hsla(var(--border), 0.4);
+
+  --lib-text-muted:      hsl(var(--muted-foreground) / 0.5);
+
+  --lib-hover:           hsl(var(--foreground) / 0.04);
+
+  /* Kind edge-strip (dark) */
+  --lib-kind-pearl:               hsl(45 80% 60%);
+  --lib-kind-warning:             hsl(30 85% 55%);
+  --lib-kind-pitfall:             hsl(0 72% 65%);
+  --lib-kind-keypoint:            hsl(152 60% 50%);
+  --lib-kind-trap:                hsl(0 72% 65%);
+  --lib-kind-threshold:           hsl(270 55% 65%);
+  --lib-kind-indication:          hsl(174 55% 50%);
+  --lib-kind-differential:        hsl(239 70% 72%);
+  --lib-kind-algorithm:           hsl(263 55% 65%);
+  --lib-kind-clinical_decision:   hsl(213 80% 65%);
+  --lib-kind-complication:        hsl(30 85% 55%);
+  --lib-kind-follow_up:           hsl(199 70% 55%);
+  --lib-kind-high_yield:          hsl(45 80% 60%);
+  --lib-kind-interactive_algorithm: hsl(174 55% 50%);
+}
+
+/* ═══════════════════ FOCUS MODE ═══════════════════ */
+
+/*
+  Focus mode is a true layout-mode switch, not a cosmetic shell change.
+  LibraryShell sets --lib-measure-max and --lib-stage-padding-x inline
+  (those win on specificity), and the rules below tear out the inner
+  centering and width caps so the reading column actually claims the
+  available width instead of re-balancing it into matching gutters.
+*/
+
+[data-library][data-focus] {
+  --lib-measure: 100%;
+}
+
+/* MeasureColumn: keep centering in focus mode — the column now has a
+   sensible max-width (1100px) so auto margins center it correctly on
+   wide screens. Previously margin-inline:0 was correct when the column
+   filled the entire viewport; with a bounded measure, auto is needed. */
+[data-library][data-focus] [data-measure-column] {
+  margin-inline: auto !important;
+  max-width: var(--lib-measure-max, 100%) !important;
+}
+
+/* The reader article and any inline-style max-width descendants
+   (filter tray, related-flashcards card, etc.) follow the same rule
+   so a stray prose/editorial width cap can't trap the content. */
+[data-library][data-focus] [data-reader-content],
+[data-library][data-focus] [data-reader-content] > article,
+[data-library][data-focus] [data-reader-content] > section {
+  max-width: 100% !important;
+  margin-inline: 0 !important;
+  width: 100%;
+}
+
+/* Structured frames widen to the full column in focus mode — they
+   carry no own max-width but this guards against any future cap. */
+[data-library][data-focus] [data-reader-content] [data-frame-tier] {
+  max-width: 100% !important;
+}
+
+/* ═══════════════════ BREAKPOINT UTILITIES ═══════════════════ */
+
+/*
+  iPad 11" portrait:  834px  → spine overlay, gutter hidden
+  iPad 13" portrait:  1024px → spine persistent, gutter overlay
+  iPad 11" landscape: 1194px → spine + gutter both persistent
+*/
+
+@media (max-width: 1023px) {
+  [data-library] {
+    --lib-spine-width: 0px;
+  }
+}
+
+/* gutter panel removed — TOC merged into spine */
+
+/* ═══════════════════ EXAM SURFACE ═══════════════════ */
+/*
+  Scoped under [data-exam] (always nested inside [data-library]).
+  Replaces --ea-*, --ex-*, --sp-*, --qb-* CSS variable bridges.
+*/
+
+[data-exam] {
+  /* ── Outcome ── */
+  --lib-correct:          #16a34a;
+  --lib-correct-bg:       #f0fdf4;
+  --lib-correct-border:   #86efac;
+  --lib-incorrect:        #dc2626;
+  --lib-incorrect-bg:     #fef2f2;
+  --lib-incorrect-border: #fca5a5;
+  --lib-omitted-bg:       #f1f5f9;
+
+  /* ── Marked / flagged ── */
+  --lib-marked:           #d97706;
+  --lib-marked-bg:        #fffbeb;
+
+  /* ── Toolbar ── */
+  --lib-bar:              #F5F7F9;
+  --lib-bar-border:       #E0E6EB;
+  --lib-bar-text:         #1A1C1C;
+  --lib-bar-muted:        #6B7780;
+
+  /* ── Question nav ── */
+  --lib-nav-bg:           #FFFFFF;
+  --lib-nav-item:         #F5F7F9;
+
+  /* ── Explanation panel ── */
+  --lib-exp-bg:           #FFFFFF;
+  --lib-exp-border:       #E0E6EB;
+
+  /* ── Exam layout ── */
+  --lib-question-measure: 860px;
+  --lib-nav-rail-width:   200px;
+  --lib-study-panel-width: 380px;
+}
+
+/* ── Exam dark overrides ── */
+
+.dark [data-exam] {
+  --lib-correct:          #22c55e;
+  --lib-correct-bg:       #052e16;
+  --lib-correct-border:   #166534;
+  --lib-incorrect:        #ef4444;
+  --lib-incorrect-bg:     #450a0a;
+  --lib-incorrect-border: #991b1b;
+  --lib-omitted-bg:       #2A2E33;
+
+  --lib-marked:           #f59e0b;
+  --lib-marked-bg:        #3D2806;
+
+  --lib-bar:              #1A1C1C;
+  --lib-bar-border:       #32363E;
+  --lib-bar-text:         #E8EAED;
+  --lib-bar-muted:        #6B7780;
+
+  --lib-nav-bg:           #24282D;
+  --lib-nav-item:         #2A2E33;
+
+  --lib-exp-bg:           #24282D;
+  --lib-exp-border:       #32363E;
+}
+
+/* ── Exam responsive overrides ── */
+
+@media (max-width: 1023px) {
+  [data-exam] {
+    --lib-nav-rail-width: 0px;
+    --lib-study-panel-width: 0px;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1193px) {
+  [data-exam] {
+    --lib-study-panel-width: 320px;
+  }
+}

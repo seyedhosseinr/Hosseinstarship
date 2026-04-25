@@ -1,0 +1,375 @@
+/*
+  READER 2027 — Flagship polish layer
+  ─────────────────────────────────────────────────────
+  Scoped to [data-reader-content] and its surrounding chrome.
+  Uses modern CSS: @property, color-mix, text-wrap, font-features,
+  fluid scrollbars, refined selection, subtle motion on hover.
+
+  Philosophy: invisible until you notice, then every line feels
+  intentional. Notion grammar × Linear chrome × Stripe hierarchy.
+*/
+
+/* ═══════════════════ TYPOGRAPHY ═══════════════════ */
+/*
+  OpenType features make Vazirmatn + SF Pro feel like a premium
+  editorial surface: proper ligatures, contextual alternates,
+  oldstyle numerals for body, tabular numerals for data.
+*/
+
+[data-reader-content] {
+  font-feature-settings:
+    "kern" 1,  /* kerning */
+    "liga" 1,  /* standard ligatures */
+    "calt" 1,  /* contextual alternates */
+    "ss01" 1,  /* stylistic set 1 */
+    "cv11" 1;  /* character variant (Vazirmatn 6-digit) */
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  hanging-punctuation: first last;
+}
+
+/* Numbers in data contexts stay tabular */
+[data-reader-content] .tabular-nums,
+[data-reader-content] time,
+[data-reader-content] [data-numeric] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Headings: balanced wrapping (no orphan single word on last line) */
+[data-reader-content] h1,
+[data-reader-content] h2,
+[data-reader-content] h3,
+[data-reader-content] h4 {
+  text-wrap: balance;
+}
+
+/* Paragraphs: pretty wrapping (avoid widows/orphans) */
+[data-reader-content] p,
+[data-reader-content] li {
+  text-wrap: pretty;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  hyphenate-limit-chars: 8 3 3;
+}
+
+/* ═══════════════════ SELECTION ═══════════════════ */
+/*
+  Selection uses color-mix so it adapts to theme automatically.
+*/
+
+[data-reader-content] ::selection {
+  background: color-mix(in oklab, hsl(var(--primary)) 22%, transparent);
+  color: hsl(var(--foreground));
+  text-shadow: none;
+}
+
+[data-reader-content] ::-moz-selection {
+  background: color-mix(in oklab, hsl(var(--primary)) 22%, transparent);
+  color: hsl(var(--foreground));
+}
+
+/* ═══════════════════ FRAME HOVER MOTION ═══════════════════ */
+/*
+  Plain frames subtly lift on hover:
+  - Left border brightens (opacity ramp via color-mix fallback)
+  - Body gains a whisper of warm surface mix
+  - Title nudges right by a hair
+  The goal is editorial, not webby — invisible unless you pay attention.
+*/
+
+[data-reader-content] [data-frame-tier="plain"] {
+  transition:
+    background-color var(--lib-spring-duration, 320ms) var(--lib-spring-easing, cubic-bezier(0.22, 0.68, 0.31, 1.0)),
+    border-color var(--lib-spring-duration, 320ms) var(--lib-spring-easing, cubic-bezier(0.22, 0.68, 0.31, 1.0));
+}
+
+[data-reader-content] [data-frame-tier="plain"]:hover {
+  background-color: color-mix(in oklab, hsl(var(--foreground)) 2%, transparent);
+}
+
+[data-reader-content] [data-frame-tier="plain"] > h3 {
+  transition: transform var(--lib-spring-duration, 320ms) var(--lib-spring-easing, cubic-bezier(0.22, 0.68, 0.31, 1.0));
+}
+
+[data-reader-content] [data-frame-tier="plain"]:hover > h3 {
+  transform: translateX(2px);
+}
+
+[dir="rtl"] [data-reader-content] [data-frame-tier="plain"]:hover > h3 {
+  transform: translateX(-2px);
+}
+
+/* Callout frames: edge thickens on hover */
+[data-reader-content] [data-frame-tier="callout"] {
+  transition:
+    border-left-width var(--lib-spring-duration, 320ms) var(--lib-spring-easing, cubic-bezier(0.22, 0.68, 0.31, 1.0)),
+    box-shadow var(--lib-spring-duration, 320ms) var(--lib-spring-easing, cubic-bezier(0.22, 0.68, 0.31, 1.0));
+}
+
+[data-reader-content] [data-frame-tier="callout"]:hover {
+  box-shadow: 0 1px 0 color-mix(in oklab, hsl(var(--foreground)) 6%, transparent);
+}
+
+/* Structured frames: edge strip brightens on hover */
+[data-reader-content] [data-frame-tier="structured"] {
+  transition: box-shadow var(--lib-spring-duration, 320ms) var(--lib-spring-easing, cubic-bezier(0.22, 0.68, 0.31, 1.0));
+}
+
+[data-reader-content] [data-frame-tier="structured"]:hover {
+  box-shadow:
+    0 1px 0 color-mix(in oklab, hsl(var(--foreground)) 4%, transparent),
+    0 4px 16px -6px color-mix(in oklab, hsl(var(--foreground)) 10%, transparent);
+}
+
+/* ═══════════════════ SCROLLBAR ═══════════════════ */
+/*
+  Thin, semi-transparent, adapts to theme. Only on reader stage.
+*/
+
+[data-reader-stage] {
+  scrollbar-width: thin;
+  scrollbar-color:
+    color-mix(in oklab, hsl(var(--foreground)) 20%, transparent)
+    transparent;
+}
+
+[data-reader-stage]::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+[data-reader-stage]::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+[data-reader-stage]::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, hsl(var(--foreground)) 14%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background 200ms ease;
+}
+
+[data-reader-stage]::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, hsl(var(--foreground)) 28%, transparent);
+  background-clip: padding-box;
+}
+
+/* ═══════════════════ FOCUS RINGS ═══════════════════ */
+/*
+  2027: focus-visible only, soft color-mixed ring, proper offset.
+  No blocky blue outlines.
+*/
+
+[data-library] :focus-visible {
+  outline: 2px solid color-mix(in oklab, hsl(var(--primary)) 70%, transparent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+[data-library] button:focus-visible,
+[data-library] a:focus-visible,
+[data-library] [role="button"]:focus-visible {
+  outline-offset: 3px;
+}
+
+/* ═══════════════════ LINKS ═══════════════════ */
+/*
+  Underline sits below the baseline on its own axis,
+  thickens smoothly on hover.
+*/
+
+[data-reader-content] a {
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in oklab, hsl(var(--primary)) 40%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 200ms ease, text-decoration-thickness 200ms ease;
+}
+
+[data-reader-content] a:hover {
+  text-decoration-color: hsl(var(--primary));
+  text-decoration-thickness: 2px;
+}
+
+/* ═══════════════════ QUOTE MARKS ═══════════════════ */
+
+[data-reader-content] blockquote {
+  quotes: "\201C" "\201D" "\2018" "\2019";
+}
+
+[data-reader-content][dir="rtl"] blockquote,
+[dir="rtl"] [data-reader-content] blockquote {
+  quotes: "\00AB" "\00BB" "\2039" "\203A";
+}
+
+/* ═══════════════════ ANNOTATION UNDERLINE STYLE ═══════════════════ */
+/*
+  Underline annotations use a doubled accent stroke that
+  mixes with the page background.
+*/
+
+[data-reader-content] [data-annotation-type="underline"] {
+  text-decoration-line: underline;
+  text-decoration-style: solid;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  text-decoration-color: color-mix(in oklab, hsl(var(--primary)) 65%, transparent);
+}
+
+/* ═══════════════════ SECTION RHYTHM ═══════════════════ */
+/*
+  Quiet visual breath between sections — a hairline gradient rule that
+  fades at both ends, never a hard divider. Reads as pacing, not chrome.
+*/
+
+[data-reader-content] > section + section,
+[data-reader-content] > article + section,
+[data-reader-content] > section + article {
+  position: relative;
+}
+
+[data-reader-content] > section + section::before {
+  content: "";
+  position: absolute;
+  inset-inline: 12%;
+  top: -3rem;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    color-mix(in oklab, hsl(var(--foreground)) 8%, transparent) 30%,
+    color-mix(in oklab, hsl(var(--foreground)) 8%, transparent) 70%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+/* ═══════════════════ PEARL / MARGIN-NOTE ═══════════════════ */
+/*
+  Pearls and margin notes feel like editorial asides — softer borders,
+  reduced background saturation, refined inner padding rhythm.
+*/
+
+[data-reader-content] aside {
+  border-radius: var(--lib-radius-md, 12px);
+}
+
+[data-reader-content] aside :where(p, ul, ol) {
+  text-wrap: pretty;
+}
+
+/* ═══════════════════ FRAME BREATHING SPACE ═══════════════════ */
+/*
+  Slightly tighter rhythm between frames inside the same section so
+  related ideas cluster, while still leaving enough air for scanability.
+*/
+
+[data-reader-content] [data-frame-tier="plain"] + [data-frame-tier="plain"] {
+  margin-top: 0.25rem;
+}
+
+/* ═══════════════════ STRUCTURED HOVER REFINEMENT ═══════════════════ */
+/*
+  Structured frames lift on hover with a softer shadow than the
+  earlier 16px blur — keeps the page calm.
+*/
+
+[data-reader-content] [data-frame-tier="structured"]:hover {
+  box-shadow:
+    0 1px 0 color-mix(in oklab, hsl(var(--foreground)) 4%, transparent),
+    0 6px 20px -10px color-mix(in oklab, hsl(var(--foreground)) 12%, transparent);
+}
+
+/* ═══════════════════ TABLE POLISH ═══════════════════ */
+/*
+  Numeric cells become tabular automatically when wrapped in <code>
+  or carrying [data-numeric]. Header row gets a microcap feel via
+  the inline classes (uppercase + 0.12em tracking).
+*/
+
+[data-reader-content] table th {
+  background-clip: padding-box;
+}
+
+/* ═══════════════════ ADAPTIVE FONT SCALE ═══════════════════ */
+/*
+  `--reader-font-scale` is set as an inline style on the
+  <article data-reader-content> element by ChapterReaderV2.
+  Each rule below overrides Tailwind's lower-specificity arbitrary-
+  value classes via calc(BASE × var(--reader-font-scale, 1)).
+
+  Specificity: these attribute + descendant selectors are (0,2,0)
+  or (0,3,0), beating Tailwind's (0,1,0) class selectors. At
+  scale=1.0 the calc() resolves to the original px value, so the
+  default appearance is pixel-identical to what Tailwind produced.
+
+  Primary (non-compact) paragraphs and lists are differentiated from
+  their compact siblings by the `mx-auto` class that FrameBody
+  applies exclusively to non-compact prose blocks.
+*/
+
+/* ── Primary paragraphs (compact=false → has mx-auto) ── */
+[data-reader-content] [data-anchor-mode="primary"] > p.mx-auto {
+  font-size: calc(15.5px * var(--reader-font-scale, 1));
+}
+
+/* ── Compact paragraphs (compact=true in primary → no mx-auto) ── */
+[data-reader-content] [data-anchor-mode="primary"] > p:not(.mx-auto) {
+  font-size: calc(13.5px * var(--reader-font-scale, 1));
+}
+
+/* ── Primary bullet / ordered lists (has mx-auto) ── */
+[data-reader-content] [data-anchor-mode="primary"] > ul.mx-auto,
+[data-reader-content] [data-anchor-mode="primary"] > ol.mx-auto {
+  font-size: calc(15.5px * var(--reader-font-scale, 1));
+}
+
+/* ── Compact lists (no mx-auto) ── */
+[data-reader-content] [data-anchor-mode="primary"] > ul:not(.mx-auto),
+[data-reader-content] [data-anchor-mode="primary"] > ol:not(.mx-auto) {
+  font-size: calc(13.5px * var(--reader-font-scale, 1));
+}
+
+/* ── Blockquotes (primary base; compact variant is rare) ── */
+[data-reader-content] [data-anchor-mode="primary"] blockquote {
+  font-size: calc(15px * var(--reader-font-scale, 1));
+}
+
+/* ── Tables (primary base; compact variant is rare) ── */
+[data-reader-content] [data-anchor-mode="primary"] table {
+  font-size: calc(14.25px * var(--reader-font-scale, 1));
+}
+
+/* ── Dim-mode anchor sections — single rule cascades to all children ── */
+[data-reader-content] [data-anchor-mode="compact"] {
+  font-size: calc(13px * var(--reader-font-scale, 1));
+}
+
+/* ── Section headings ── */
+[data-reader-content] [data-section-header]:not([data-section-variant="quiet"]) h2 {
+  font-size: calc(24px * var(--reader-font-scale, 1)) !important;
+}
+[data-reader-content] [data-section-header][data-section-variant="quiet"] h2 {
+  font-size: calc(18px * var(--reader-font-scale, 1)) !important;
+}
+
+/* ── Frame headings ── */
+[data-reader-content] [data-frame-tier="plain"] > h3 {
+  font-size: calc(19.5px * var(--reader-font-scale, 1)) !important;
+}
+[data-reader-content] [data-frame-tier="callout"] h3 {
+  font-size: calc(16.5px * var(--reader-font-scale, 1)) !important;
+}
+
+/* ═══════════════════ MOTION REDUCE ═══════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  [data-reader-content] [data-frame-tier="plain"],
+  [data-reader-stage]::-webkit-scrollbar-thumb,
+  [data-reader-content] a {
+    transition: none !important;
+  }
+}

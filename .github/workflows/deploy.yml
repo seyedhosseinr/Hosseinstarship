@@ -1,0 +1,15 @@
+name: Legacy Arvan Registry Deploy Disabled
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  disabled:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Disabled
+        run: echo "Arvan Registry push is disabled. Use .github/workflows/ghcr-image.yml for GHCR images."

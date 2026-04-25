@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bg" cx="38%" cy="32%" r="85%">
+      <stop offset="0%" stop-color="#2DC7D8"/>
+      <stop offset="55%" stop-color="#0AA6B8"/>
+      <stop offset="100%" stop-color="#067985"/>
+    </radialGradient>
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#C9A13E"/>
+      <stop offset="50%" stop-color="#F5D06A"/>
+      <stop offset="100%" stop-color="#C9A13E"/>
+    </linearGradient>
+    <clipPath id="ringBackClip">
+      <rect x="0" y="0" width="512" height="256"/>
+    </clipPath>
+    <clipPath id="ringFrontClip">
+      <rect x="0" y="256" width="512" height="256"/>
+    </clipPath>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6.144"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="512" height="512" rx="112.64" ry="112.64" fill="url(#bg)"/>
+
+  <g transform="rotate(-22 256 256)" clip-path="url(#ringBackClip)">
+    <ellipse cx="256" cy="256" rx="240.2304" ry="70.656"
+      fill="none" stroke="url(#ringGrad)" stroke-width="14.336" opacity="0.95"/>
+    <ellipse cx="256" cy="256" rx="211.402752" ry="55.11168000000001"
+      fill="none" stroke="url(#ringGrad)" stroke-width="7.884800000000001" opacity="0.55"/>
+  </g>
+
+  <g filter="url(#softShadow)" opacity="0.35">
+    <rect x="145.95327999999998" y="130.93888" width="54.405120000000004" height="277.9136" rx="9.7929216" fill="#00343A"/>
+    <rect x="311.64160000000004" y="130.93888" width="54.405120000000004" height="277.9136" rx="9.7929216" fill="#00343A"/>
+  </g>
+
+  <g fill="#FFFFFF">
+    <rect x="132.35199999999998" y="117.04320000000001" width="54.405120000000004" height="277.9136" rx="11.9691264"/>
+    <rect x="325.24288" y="117.04320000000001" width="54.405120000000004" height="277.9136" rx="11.9691264"/>
+    <rect x="178.59635199999997" y="230.987776" width="154.807296" height="50.02444799999999" rx="17.508556799999997"/>
+  </g>
+
+  <g transform="rotate(-22 256 256)" clip-path="url(#ringFrontClip)">
+    <ellipse cx="256" cy="256" rx="240.2304" ry="70.656"
+      fill="none" stroke="url(#ringGrad)" stroke-width="14.336" opacity="0.98"/>
+    <ellipse cx="256" cy="256" rx="211.402752" ry="55.11168000000001"
+      fill="none" stroke="url(#ringGrad)" stroke-width="7.884800000000001" opacity="0.6"/>
+  </g>
+</svg>

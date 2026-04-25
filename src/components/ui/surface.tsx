@@ -1,0 +1,94 @@
+// src/components/ui/surface.tsx
+// Phase 1 – Design Foundation
+// Replaces ad-hoc card/panel/div patterns with a single, token-aware container.
+
+"use client";
+
+import * as React from "react";
+import { cn } from "@/lib/utils";
+
+// ─── Variant maps ─────────────────────────────────────────────────────────────
+
+const variantClasses = {
+  /** Card with a subtle border — default for most content areas. */
+  default:
+    "bg-card border border-border/40",
+  /** Muted tinted surface for secondary panels. */
+  subtle:
+    "bg-muted/30 border border-border/40",
+  /** Card with a perceptible drop-shadow for floating/modal-like sections. */
+  elevated:
+    "bg-card border border-border/40 shadow-[0_10px_24px_rgba(15,23,42,0.06)] dark:shadow-[0_10px_24px_rgba(0,0,0,0.2)]",
+  /** Transparent — use when only radius + padding are needed. */
+  ghost:
+    "bg-transparent border-transparent",
+} as const;
+
+const paddingClasses = {
+  none: "p-0",
+  sm:   "p-4",
+  md:   "p-6",
+  lg:   "p-8",
+} as const;
+
+const radiusClasses = {
+  sm: "rounded-[10px]",
+  md: "rounded-[14px]",
+  lg: "rounded-[18px]",
+  xl: "rounded-[24px]",
+} as const;
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export type SurfaceVariant = keyof typeof variantClasses;
+export type SurfacePadding = keyof typeof paddingClasses;
+export type SurfaceRadius  = keyof typeof radiusClasses;
+
+export interface SurfaceProps extends React.HTMLAttributes<HTMLElement> {
+  children: React.ReactNode;
+  className?: string;
+  variant?: SurfaceVariant;
+  padding?: SurfacePadding;
+  radius?: SurfaceRadius;
+  /**
+   * When true, adds hover/active micro-interactions suitable for
+   * clickable cards (e.g. navigation tiles, selectable items).
+   */
+  interactive?: boolean;
+  /** Render as a different HTML element — default "div". */
+  as?: React.ElementType;
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export function Surface({
+  children,
+  className,
+  variant   = "default",
+  padding   = "md",
+  radius    = "md",
+  interactive = false,
+  as: Tag   = "div",
+  ...props
+}: SurfaceProps) {
+  return (
+    <Tag
+      className={cn(
+        "transition-all duration-150",
+        variantClasses[variant],
+        paddingClasses[padding],
+        radiusClasses[radius],
+        interactive && [
+          "cursor-pointer",
+          "hover:border-primary/25",
+          "hover:shadow-[0_4px_10px_rgba(15,23,42,0.06)] dark:hover:shadow-[0_4px_10px_rgba(0,0,0,0.15)]",
+          "active:scale-[0.995]",
+        ],
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </Tag>
+  );
+}
