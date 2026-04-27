@@ -20,3 +20,11 @@ export { ProgressRing } from "./ProgressRing";
 export { ChapterCrumb } from "./ChapterCrumb";
 export { StatusBadge } from "./StatusBadge";
 export { SectionHeader } from "./SectionHeader";
+
+// Inline source bubble (MCQ → note, flashcard → note, yield → note, etc.)
+export {
+  ReaderAnchorProvider,
+  useReaderAnchor,
+  useReaderDeepLink,
+} from "./ReaderAnchorProvider";
+export { InlineSourceBubble } from "./InlineSourceBubble";

@@ -3,6 +3,7 @@
 @import "../styles/lib-tokens.css";
 @import "../styles/reader-2027.css";
 @import "../styles/reader-fullscreen.css";
+@import "../styles/reader-anchor.css";
 
 @tailwind base;
 @tailwind components;

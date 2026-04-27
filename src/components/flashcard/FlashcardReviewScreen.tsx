@@ -750,7 +750,7 @@ export function FlashcardReviewScreen({ initialCards }: { initialCards: ReviewCa
                   <div className="FR-src-row">
                     {current.sourceDocId && (
                       <Link
-                        href={`/notes/${current.sourceDocId}${current.sourceFrameId ? `?frame=${current.sourceFrameId}` : ""}`}
+                        href={`/notes/${current.sourceDocId}${current.sourceFrameId ? `?frame=${current.sourceFrameId}&ref=flashcard` : ""}`}
                         className="FR-src-btn"
                       >
                         <BookOpen size={12} /> باز کردن منبع

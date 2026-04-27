@@ -14,7 +14,12 @@ export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{ docId: string }>;
-  searchParams?: Promise<{ frame?: string }>;
+  searchParams?: Promise<{ frame?: string; ref?: string }>;
+}
+
+const VALID_REFS = new Set(["mcq", "flashcard", "yield", "annotation", "note-link"]);
+function normalizeRef(value: string | undefined) {
+  return value && VALID_REFS.has(value) ? (value as "mcq" | "flashcard" | "yield" | "annotation" | "note-link") : undefined;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -88,6 +93,7 @@ export default async function NotePage({ params, searchParams }: PageProps) {
     <NotePageShell
       note={note}
       initialFrameId={resolvedSearchParams?.frame}
+      initialFrameRef={normalizeRef(resolvedSearchParams?.ref)}
       navigation={navigation}
       initialStatus={initialStatus}
       relatedFlashcards={relatedFlashcards}

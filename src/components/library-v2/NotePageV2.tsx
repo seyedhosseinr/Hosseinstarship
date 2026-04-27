@@ -55,6 +55,12 @@ import { ReaderHighlightLayer } from "./ReaderHighlightLayer";
 import { NoteMarkerLayer } from "./NoteMarkerLayer";
 import { SegmentRenderer } from "./SegmentRenderer";
 import { StatusBadge } from "./StatusBadge";
+import {
+  ReaderAnchorProvider,
+  useReaderAnchor,
+  useReaderDeepLink,
+} from "./ReaderAnchorProvider";
+import { InlineSourceBubble } from "./InlineSourceBubble";
 
 const QuickCardEditor = dynamic(
   () => import("@/components/flashcard/QuickCardEditor").then((m) => m.QuickCardEditor),
@@ -83,6 +89,11 @@ const STUDY_TABS: { id: StudyTab; label: string }[] = [
 interface NotePageV2Props {
   note: NoteViewerModel;
   initialFrameId?: string;
+  /**
+   * Source kind for the initial deep-link, derived from `?ref=`. Defaults
+   * to "note-link" when caller is anonymous (raw `#hash` deep link).
+   */
+  initialFrameRef?: "mcq" | "flashcard" | "yield" | "annotation" | "note-link";
   navigation: CampbellVolumeGroup[];
   initialStatus: ChapterStatus;
   relatedFlashcards: Array<{ id: string; frontHtml: string; dueAt: number | null }>;
@@ -99,9 +110,23 @@ interface NotePageV2Props {
    Tabs: Note | Yield  (MCQ/Flashcard are action links, not tabs)
 ════════════════════════════════════════════════════════ */
 
-export function NotePageV2({
+/**
+ * Wrapper that mounts the ReaderAnchorProvider so source-link bubbles
+ * (MCQ → note, flashcard → note, yield → note, deep-link) coordinate
+ * scroll + highlight + bubble inside this Reader surface only.
+ */
+export function NotePageV2(props: NotePageV2Props) {
+  return (
+    <ReaderAnchorProvider>
+      <NotePageV2Inner {...props} />
+    </ReaderAnchorProvider>
+  );
+}
+
+function NotePageV2Inner({
   note,
   initialFrameId,
+  initialFrameRef,
   navigation,
   initialStatus,
   relatedFlashcards,
@@ -110,6 +135,11 @@ export function NotePageV2({
 }: NotePageV2Props) {
   const shellRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { jumpToAnchor } = useReaderAnchor();
+
+  // Hash deep-link consumer. The `?frame=`/`?ref=` query is consumed below
+  // via the dedicated effect so we can pass a typed source kind.
+  useReaderDeepLink(null);
 
   // NotePageV2 has no pen/draw mode — always-on pen-selection is safe.
   useReaderPenSelection({
@@ -270,11 +300,18 @@ export function NotePageV2({
     [note.meta.chapterNo, resetThreshold],
   );
 
+  // Initial source-link jump from `?frame=<id>&ref=<kind>`. The route
+  // params are server-resolved and forwarded into the props; we route them
+  // through `jumpToAnchor` so the inline bubble fires with the correct
+  // source kind (e.g. "flashcard" for the FlashcardReviewScreen "باز کردن
+  // منبع" link).
   useEffect(() => {
-    if (initialFrameId) {
-      document.getElementById(initialFrameId)?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [initialFrameId]);
+    if (!initialFrameId) return;
+    const handle = requestAnimationFrame(() => {
+      void jumpToAnchor(initialFrameId, { kind: initialFrameRef ?? "note-link" });
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [initialFrameId, initialFrameRef, jumpToAnchor]);
 
   const microNav = useMemo((): MicroNavContext | null => {
     if (activeTab === "note" && note.sections.length > 0) {
@@ -737,9 +774,11 @@ export function NotePageV2({
               scrollContainerRef={scrollRef}
               onActiveSectionChange={setActiveYieldSection}
               onJumpToNote={(anchor) => {
+                if (!anchor) return;
                 switchTab("note");
+                // Wait one frame for the article to mount before jumping.
                 requestAnimationFrame(() => {
-                  document.getElementById(anchor)?.scrollIntoView({ behavior: "smooth", block: "center" });
+                  void jumpToAnchor(anchor, { kind: "yield" });
                 });
               }}
               onOpenMCQ={(ch) => { window.location.href = `/qbank?chapter=ch-${ch}`; }}
@@ -781,7 +820,7 @@ export function NotePageV2({
         isOpen={panels.annotations}
         onClose={() => panels.close("annotations")}
         onJumpToFrame={(id) => {
-          if (id) document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "center" });
+          if (id) void jumpToAnchor(id, { kind: "annotation" });
         }}
         onDelete={removeAnnotation}
       />
@@ -822,6 +861,9 @@ export function NotePageV2({
       )}
 
       {isFigureOpen && <FigureViewer {...viewerProps} />}
+
+      {/* Inline source bubble — portaled into the active target frame. */}
+      <InlineSourceBubble />
     </LibraryShell>
   );
 }

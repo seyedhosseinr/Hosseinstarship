@@ -47,6 +47,8 @@ import { ReaderStage } from "./ReaderStage";
 import { MeasureColumn } from "./MeasureColumn";
 import { SegmentRenderer } from "./SegmentRenderer";
 import { StatusBadge } from "./StatusBadge";
+import { ReaderAnchorProvider, useReaderDeepLink } from "./ReaderAnchorProvider";
+import { InlineSourceBubble } from "./InlineSourceBubble";
 
 const SelectionPopup = dynamic(
   () => import("@/components/flashcard/SelectionPopup").then((m) => m.SelectionPopup),
@@ -87,12 +89,30 @@ const DRAW_WIDTHS = [
    Slim top bar: Back | TOC | Annotations | Focus | Pen
 ════════════════════════════════════════════════════════ */
 
-export function ChapterReaderV2({
+/**
+ * Wrapper that mounts the ReaderAnchorProvider for source-link bubbles
+ * (MCQ → note, flashcard → note, yield → note, deep-link). Kept local to
+ * the Reader surface so the bubble state never leaks to other pages.
+ */
+export function ChapterReaderV2(props: ChapterReaderV2Props) {
+  return (
+    <ReaderAnchorProvider>
+      <ChapterReaderV2Inner {...props} />
+    </ReaderAnchorProvider>
+  );
+}
+
+function ChapterReaderV2Inner({
   chapter,
   notes,
   initialStatus,
   navigation,
 }: ChapterReaderV2Props) {
+  // Hash deep-link: opening `/library/.../chapter/N#<frameId>` scrolls and
+  // shows a "linked" bubble. ChapterReaderV2 has no `?frame=` route param
+  // today, so we only feed the hash. NotePageV2 also pipes `?frame=`.
+  useReaderDeepLink(null);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
 
@@ -780,6 +800,9 @@ export function ChapterReaderV2({
         scrollRef={scrollRef}
         visible={highlightsVisible}
       />
+
+      {/* Inline source bubble — portaled into the active target frame. */}
+      <InlineSourceBubble />
     </LibraryShell>
   );
 }
