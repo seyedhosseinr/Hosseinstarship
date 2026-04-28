@@ -826,7 +826,7 @@ export function NotePageV2({
                 } as React.CSSProperties}
                 onClick={handleReaderClick}
               >
-                <MediaRefProvider>
+                <MediaRefProvider chapterNo={note.meta.chapterNo}>
                   <SegmentRenderer
                     sections={note.sections}
                     initialFrameId={initialFrameId}

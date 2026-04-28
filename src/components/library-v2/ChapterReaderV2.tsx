@@ -758,7 +758,7 @@ export function ChapterReaderV2({
                 "--reader-prose-w": `${readerSettings.maxWidth}px`,
               } as React.CSSProperties}
             >
-              <MediaRefProvider>
+              <MediaRefProvider chapterNo={chapter.chapterNo}>
                 {notes.map((note) => (
                   <SegmentRenderer
                     key={note.meta.logicalChunkId}

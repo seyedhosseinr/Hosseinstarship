@@ -1980,3 +1980,79 @@ export const lfUserNotes = pgTable(
     deletedIdx: index("lf_user_notes_deleted_idx").on(t.isDeleted),
   }),
 );
+
+/* -------------------------------------------------------------------------- */
+/* MEDIA ASSETS — Phase 2 (read-only registry for the media-reference reader) */
+/* -------------------------------------------------------------------------- */
+/*
+ * `media_assets` is the deterministic lookup registry the Reader uses to
+ * resolve detected figure / image / table references against imported assets.
+ *
+ * Phase 2 scope:
+ *   - read-only from the app's perspective (no UI writes here)
+ *   - decoupled from `chunk_assets` (which is per-chunk import metadata);
+ *     `media_assets` is keyed by chapter + ref so the resolver can match
+ *     references that appear anywhere in the chapter's prose
+ *   - the importer that populates this table is intentionally NOT included
+ *     in this phase. Inserting rows by hand or via a future importer is
+ *     enough to flip a reference from fallback to populated.
+ *
+ * Compatibility:
+ *   - Plain `text` and `integer` (bigint-as-number) columns; works on
+ *     Postgres and PGlite without dialect-specific types
+ *   - Boolean stored as `integer` 0/1 (project-wide convention; see
+ *     `lf_user_notes.is_deleted` and `note_frames.high_yield`)
+ *   - JSON-shaped fields stored as `text` and typed via `.$type<>()` so
+ *     the same column round-trips on both runtimes
+ */
+
+export const mediaAssetKind = {
+  figure: "figure",
+  image: "image",
+  table: "table",
+} as const;
+
+export type MediaAssetKind = (typeof mediaAssetKind)[keyof typeof mediaAssetKind];
+
+export const mediaAssets = pgTable(
+  "media_assets",
+  {
+    id: text("id").primaryKey(),
+    /** Logical, importer-stable id (e.g. "campbell-164-fig-164-4"). Unique. */
+    mediaId: text("media_id").notNull(),
+    /** Owning chapter — denormalised for cheap per-chapter manifest queries. */
+    chapterNumber: integer("chapter_number").notNull(),
+    /** Optional segment-level scope (matches `notes.meta.logicalChunkId`). */
+    segmentId: text("segment_id"),
+    /** Stable resolver key matching the detector's output, e.g. "figure:164.4". */
+    refId: text("ref_id"),
+    /** Human-readable label as it should appear in the lightbox. */
+    figureLabel: text("figure_label"),
+    /** "figure" | "image" | "table" — narrow union enforced in TS. */
+    kind: text("kind").$type<MediaAssetKind>().notNull(),
+    /** Filename of the asset on disk (no path). */
+    filename: text("filename"),
+    /** Relative storage path the lightbox uses to render the image. */
+    storagePath: text("storage_path"),
+    /** Source page in the print edition, if known. */
+    sourcePage: integer("source_page"),
+    /** Caption / longer description shown beneath the image. */
+    caption: text("caption"),
+    /** Free-form tags (importer-defined). Stored as JSON array of strings. */
+    tagsJson: text("tags_json").$type<string[] | null>(),
+    /** High-yield flag — surfaces a badge in the lightbox header. */
+    highYield: integer("high_yield").notNull().default(0),
+    createdAt: integer("created_at").notNull().default(nowMs),
+    updatedAt: integer("updated_at").notNull().default(nowMs),
+  },
+  (t) => ({
+    mediaIdUnique: uniqueIndex("media_assets_media_id_unique").on(t.mediaId),
+    chapterIdx: index("media_assets_chapter_idx").on(t.chapterNumber),
+    refIdIdx: index("media_assets_ref_id_idx").on(t.refId),
+    kindIdx: index("media_assets_kind_idx").on(t.kind),
+    chapterKindIdx: index("media_assets_chapter_kind_idx").on(
+      t.chapterNumber,
+      t.kind,
+    ),
+  }),
+);

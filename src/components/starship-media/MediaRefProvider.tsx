@@ -2,6 +2,8 @@
 
 import React from "react";
 import { isStarshipMediaReaderEnabled } from "@/lib/starship-media/flag";
+import { resolveMediaAsset } from "@/lib/starship-media/resolveMediaAsset";
+import type { MediaAsset } from "@/lib/starship-media/types";
 import {
   MediaRefDispatchContext,
   MediaRefRenderContext,
@@ -10,6 +12,7 @@ import {
   type MediaRefRenderScope,
 } from "./MediaRefContext";
 import { MediaLightbox } from "./MediaLightbox";
+import { useMediaRegistry } from "./useMediaRegistry";
 
 interface MediaRefProviderProps {
   /**
@@ -20,50 +23,86 @@ interface MediaRefProviderProps {
    * Reader's anchor surface to flicker on/off mid-session.
    */
   enabled?: boolean;
+  /**
+   * Owning chapter number. When provided, the provider fetches the
+   * read-only manifest from `/api/media-registry/:chapter` once and
+   * caches it for the lifetime of the page. When `null` / omitted,
+   * the registry is empty and every click falls through to the
+   * existing "Image not imported yet" dialog.
+   */
+  chapterNo?: number | null;
+  /**
+   * Test / probe injection. When provided, bypasses the network fetch
+   * entirely and seeds the in-memory registry with this array. The
+   * dev probe and the integration test both rely on this.
+   */
+  assets?: readonly MediaAsset[] | null;
   children: React.ReactNode;
 }
 
 /**
- * Top-level provider. Mounts the lightbox singleton and supplies the
- * `open()` dispatcher to every <MediaRefAnchor> nested below.
+ * Top-level provider. Mounts the lightbox singleton, fetches the
+ * per-chapter media registry, and supplies the `open()` dispatcher
+ * to every <MediaRefAnchor> nested below.
  *
- * The render-side context (chapterNo + segmentId) is supplied per
- * <SegmentRenderer> via <MediaRefSegmentScope>, NOT here — one chapter
- * page contains many segments, each with a distinct id.
+ * Click flow:
+ *   anchor.onClick → dispatch.open({ ref, chapterNo, segmentId })
+ *     → provider runs `resolveMediaAsset(ref, ctx, registry)`
+ *     → MediaLightbox receives the resolved asset (or null) and renders
+ *       either the populated view or the existing fallback view
+ *
+ * The registry is the only IO performed; resolution itself is a pure,
+ * synchronous in-memory match.
  */
 export function MediaRefProvider({
   enabled,
+  chapterNo,
+  assets,
   children,
 }: MediaRefProviderProps) {
   const [resolvedEnabled, setResolvedEnabled] = React.useState<boolean>(
     () => enabled ?? false,
   );
-  // Resolve env+localStorage on the client only. SSR returns false from
-  // isStarshipMediaReaderEnabled() (no window), so skipping it server-side
-  // means the anchor surface mounts identically on hydrate.
   React.useEffect(() => {
     if (enabled !== undefined) return;
     setResolvedEnabled(isStarshipMediaReaderEnabled());
   }, [enabled]);
+
+  // Always call the hook so React's hook-order rules hold even when the
+  // flag is off (the hook is cheap when chapterNo===null or override
+  // supplied — it never fires fetch in either case).
+  const registry = useMediaRegistry(
+    resolvedEnabled ? chapterNo ?? null : null,
+    assets ?? undefined,
+  );
 
   const [open, setOpen] = React.useState(false);
   const [payload, setPayload] = React.useState<MediaRefOpenPayload | null>(
     null,
   );
 
+  // Keep a ref to the latest registry so the dispatch closure stays
+  // stable across registry refetches (no anchor re-render storms).
+  const registryRef = React.useRef(registry);
+  React.useEffect(() => {
+    registryRef.current = registry;
+  }, [registry]);
+
   const dispatch = React.useMemo<MediaRefDispatch>(
     () => ({
-      open: (next) => {
-        setPayload(next);
+      open: ({ ref, chapterNo: cn, segmentId }) => {
+        const asset = resolveMediaAsset(
+          ref,
+          { chapterNo: cn, segmentId },
+          registryRef.current,
+        );
+        setPayload({ ref, chapterNo: cn, segmentId, asset });
         setOpen(true);
       },
     }),
     [],
   );
 
-  // If the flag is OFF, we render children with NO dispatch context, so
-  // <MediaLeaf> short-circuits to plain text (the kill-switch). The
-  // lightbox is also not mounted, costing nothing.
   if (!resolvedEnabled) {
     return <>{children}</>;
   }
@@ -82,17 +121,6 @@ interface MediaRefSegmentScopeProps {
   children: React.ReactNode;
 }
 
-/**
- * Per-segment render scope. Wraps a single <SegmentRenderer> output and
- * supplies the (chapterNo, segmentId) tuple every <MediaLeaf> below
- * needs to attribute matched references.
- *
- * Stable scope reference — only re-publishes when the tuple changes,
- * which means React.memo'd descendants don't re-render.
- *
- * Cheaply tolerates a missing dispatch context (no <MediaRefProvider>
- * upstream): the render scope's `enabled` flips off automatically.
- */
 export function MediaRefSegmentScope({
   chapterNo,
   segmentId,

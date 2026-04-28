@@ -2,6 +2,7 @@
 
 import { createContext, useContext } from "react";
 import type { MediaRefMatch } from "@/lib/starship-media/detectMediaRefs";
+import type { MediaAsset } from "@/lib/starship-media/types";
 
 /**
  * Two contexts so the static rendering decision (do we linkify?) and the
@@ -24,14 +25,28 @@ export interface MediaRefRenderScope {
   segmentId: string | null;
 }
 
-export interface MediaRefOpenPayload {
+/**
+ * Anchor → provider request. The anchor knows only what it can see in
+ * the prose (the detected ref + the segment scope it's rendered in).
+ * The provider is the one that runs the resolver.
+ */
+export interface MediaRefOpenRequest {
   ref: MediaRefMatch;
   chapterNo: number | null;
   segmentId: string | null;
 }
 
+/**
+ * Provider → lightbox payload. Same as the request, plus the resolved
+ * registry row (or null if no row matched). The lightbox stays a pure
+ * render component — it never touches the resolver itself.
+ */
+export interface MediaRefOpenPayload extends MediaRefOpenRequest {
+  asset: MediaAsset | null;
+}
+
 export interface MediaRefDispatch {
-  open: (payload: MediaRefOpenPayload) => void;
+  open: (request: MediaRefOpenRequest) => void;
 }
 
 export const MediaRefRenderContext = createContext<MediaRefRenderScope | null>(

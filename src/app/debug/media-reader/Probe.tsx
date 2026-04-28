@@ -203,7 +203,11 @@ export default function MediaReaderProbe() {
         className="reader-content"
         style={{ maxWidth: "70ch", margin: "0 auto" }}
       >
-        <MediaRefProvider>
+        {/* chapterNo on the provider is what triggers the per-chapter
+            media-registry fetch in Phase 2+. Without it the hook is
+            called with null and no manifest is fetched, so the dispatch
+            always sees an empty registry → fallback dialog only. */}
+        <MediaRefProvider chapterNo={CHAPTER_NO}>
           <SegmentRenderer
             sections={SECTIONS}
             chapterNo={CHAPTER_NO}

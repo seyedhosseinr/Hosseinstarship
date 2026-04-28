@@ -300,8 +300,24 @@ export const migration_0002: BundledMigration = {
   ],
 };
 
+export const migration_0003: BundledMigration = {
+  idx: 3,
+  tag: "0003_media_assets",
+  when: 1777308000000,
+  hash: "78ba11d87c2d785281ae6186aabacea36a5dc70d66304c692632e10e366cf0e0",
+  statements: [
+    "-- 0003_media_assets\n--\n-- Hossein Starship Phase 2 — media-reference reader registry.\n-- Adds a read-only lookup table that the Reader's resolver uses to match\n-- detected figure / image / table references in NOTE prose against\n-- imported assets. The table is intentionally decoupled from the\n-- per-chunk `chunk_assets` row set so refs can be looked up by\n-- chapter+ref alone, without joining through the chunk that authored them.\n--\n-- Compatibility: plain text + integer (bigint-as-number) columns; no\n-- dialect-specific types. Runs on Postgres and PGlite identically.\n-- Boolean stored as integer 0/1 (project-wide convention).\n--\n-- Idempotent: uses CREATE TABLE / CREATE INDEX IF NOT EXISTS so reruns\n-- are no-ops. Empty after migration — populated by a future importer.\n\nCREATE TABLE IF NOT EXISTS \"media_assets\" (\n  \"id\"             text PRIMARY KEY NOT NULL,\n  \"media_id\"       text NOT NULL,\n  \"chapter_number\" bigint NOT NULL,\n  \"segment_id\"     text,\n  \"ref_id\"         text,\n  \"figure_label\"   text,\n  \"kind\"           text NOT NULL,\n  \"filename\"       text,\n  \"storage_path\"   text,\n  \"source_page\"    bigint,\n  \"caption\"        text,\n  \"tags_json\"      text,\n  \"high_yield\"     bigint NOT NULL DEFAULT 0,\n  \"created_at\"     bigint NOT NULL DEFAULT ((extract(epoch from now()) * 1000)::bigint),\n  \"updated_at\"     bigint NOT NULL DEFAULT ((extract(epoch from now()) * 1000)::bigint)\n);",
+    "CREATE UNIQUE INDEX IF NOT EXISTS \"media_assets_media_id_unique\"\n  ON \"media_assets\" USING btree (\"media_id\");",
+    "CREATE INDEX IF NOT EXISTS \"media_assets_chapter_idx\"\n  ON \"media_assets\" USING btree (\"chapter_number\");",
+    "CREATE INDEX IF NOT EXISTS \"media_assets_ref_id_idx\"\n  ON \"media_assets\" USING btree (\"ref_id\");",
+    "CREATE INDEX IF NOT EXISTS \"media_assets_kind_idx\"\n  ON \"media_assets\" USING btree (\"kind\");",
+    "CREATE INDEX IF NOT EXISTS \"media_assets_chapter_kind_idx\"\n  ON \"media_assets\" USING btree (\"chapter_number\", \"kind\");",
+  ],
+};
+
 export const allMigrations: BundledMigration[] = [
   migration_0000,
   migration_0001,
   migration_0002,
+  migration_0003,
 ];
