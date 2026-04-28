@@ -25,6 +25,11 @@ tsc-out.txt
 # Local PGlite dev data
 .pglite/
 
+# Chapter media bundle importer output. Files written by
+# /api/import/media-bundle land here; they're per-environment data,
+# not source.
+/public/media/
+
 # Archives / logs / temp / backups
 *.zip
 *.tar

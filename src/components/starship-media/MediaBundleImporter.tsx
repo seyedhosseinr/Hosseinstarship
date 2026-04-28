@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
+  ArrowRight,
   CheckCircle2,
   FileArchive,
   Image as ImageIcon,
@@ -221,12 +222,52 @@ export function MediaBundleImporter() {
         </div>
       )}
 
-      {summary && <SummaryCard summary={summary} />}
+      {summary && (
+        <SummaryCard
+          summary={summary}
+          chapterNumber={Number.isInteger(chapterNumber) ? Number(chapterNumber) : null}
+        />
+      )}
     </section>
   );
 }
 
-function SummaryCard({ summary }: { summary: ImportSummary }) {
+/**
+ * Post-import UX polish: when at least one row was imported, show a
+ * single action button that navigates the browser to a Reader surface
+ * for the same chapter. Two reasons this is a hard navigation
+ * (`window.location.assign`) rather than a client-side `router.push`:
+ *
+ *   1. The Reader's `useMediaRegistry` hook keeps a module-level
+ *      `CACHE` keyed by chapter. A fresh module instance on hard nav
+ *      guarantees the importer's new rows are visible in the Reader
+ *      without bespoke cache-invalidation plumbing.
+ *
+ *   2. The button is best-effort UX — if there's no Reader page yet
+ *      for that chapter (the dev probe is the only generic surface),
+ *      the user still lands somewhere useful. Cross-tab invalidation
+ *      is intentionally out of scope.
+ */
+function navigateToReader(chapterNumber: number) {
+  if (typeof window === "undefined") return;
+  const debugPath = "/debug/media-reader";
+  // Navigate to the dev probe by default in dev (it always renders the
+  // matched lightbox demo). In production builds the probe is a 404, so
+  // fall through to the chapter route.
+  if (process.env.NODE_ENV !== "production") {
+    window.location.assign(debugPath);
+  } else {
+    window.location.assign(`/library/campbell/chapter/${chapterNumber}`);
+  }
+}
+
+function SummaryCard({
+  summary,
+  chapterNumber,
+}: {
+  summary: ImportSummary;
+  chapterNumber: number | null;
+}) {
   if (summary.manifestError) {
     const code = summary.manifestError.error;
     return (
@@ -289,6 +330,25 @@ function SummaryCard({ summary }: { summary: ImportSummary }) {
           accent={summary.failed > 0 ? "rose" : undefined}
         />
       </dl>
+
+      {summary.imported > 0 && chapterNumber !== null && (
+        <button
+          type="button"
+          data-testid="summary-open-reader"
+          onClick={() => navigateToReader(chapterNumber)}
+          className={cn(
+            "mt-4 inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-[12.5px] font-medium",
+            "border border-lib-border bg-lib-surface shadow-sm transition-colors",
+            "hover:bg-lib-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lib-accent/40",
+          )}
+        >
+          <ImageIcon className="h-3.5 w-3.5" aria-hidden="true" />
+          {process.env.NODE_ENV === "production"
+            ? `View chapter ${chapterNumber}`
+            : "Open debug reader"}
+          <ArrowRight className="h-3.5 w-3.5 opacity-70" aria-hidden="true" />
+        </button>
+      )}
 
       {summary.importedMediaIds.length > 0 && (
         <details className="mt-3">

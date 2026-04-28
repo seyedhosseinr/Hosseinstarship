@@ -14,40 +14,17 @@
  *   - empty manifest is the normal case (registry is unpopulated until
  *     the importer ships) and yields []
  *   - cheap on cold DB: a single indexed scan by chapter_number
+ *
+ * Row → client mapping (including tags_json parse) lives in
+ * `lib/starship-media/db.ts` so it's directly unit-testable.
  */
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 
 import { getDb } from "@/db";
-import { mediaAssets } from "@/db/schema";
-import type { MediaAsset, MediaAssetKind } from "@/lib/starship-media/types";
+import { listMediaAssetsForChapter } from "@/lib/starship-media/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-/**
- * Tolerant tags decoder. The column is TEXT carrying a JSON-encoded
- * string array, but rows written by code that pre-dates the importer
- * pipeline may have a raw JS array stuffed in directly. Accept either;
- * bail to null on garbage.
- */
-function parseTagsJson(raw: unknown): string[] | null {
-  if (raw == null) return null;
-  if (Array.isArray(raw)) {
-    return raw.filter((t): t is string => typeof t === "string");
-  }
-  if (typeof raw === "string") {
-    try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        return parsed.filter((t): t is string => typeof t === "string");
-      }
-    } catch {
-      /* fall through */
-    }
-  }
-  return null;
-}
 
 interface RouteContext {
   params: Promise<{ chapter: string }>;
@@ -65,29 +42,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
   try {
     const db = await getDb();
-    const rows = await db
-      .select()
-      .from(mediaAssets)
-      .where(eq(mediaAssets.chapterNumber, chapterNumber));
-
-    const assets: MediaAsset[] = rows.map((row) => ({
-      id: row.id,
-      mediaId: row.mediaId,
-      chapterNumber: row.chapterNumber,
-      segmentId: row.segmentId,
-      refId: row.refId,
-      figureLabel: row.figureLabel,
-      kind: row.kind as MediaAssetKind,
-      filename: row.filename,
-      storagePath: row.storagePath,
-      sourcePage: row.sourcePage,
-      caption: row.caption,
-      tags: parseTagsJson(row.tagsJson),
-      highYield: row.highYield === 1,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    }));
-
+    const assets = await listMediaAssetsForChapter(db, chapterNumber);
     return NextResponse.json(
       { ok: true, chapterNumber, assets },
       { headers: { "cache-control": "private, max-age=60" } },

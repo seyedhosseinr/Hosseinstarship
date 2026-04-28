@@ -23,14 +23,12 @@
 import path from "node:path";
 import { mkdir, writeFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
-import { inArray, sql } from "drizzle-orm";
 
 import { getDb } from "@/db";
-import { mediaAssets } from "@/db/schema";
+import { drizzleUpserter } from "@/lib/starship-media/db";
 import {
   runMediaBundleImport,
   unzipBundleBytes,
-  type AssetUpserter,
   type BundleStorage,
   type ImportManifestErrorCode,
   type ImportSummary,
@@ -58,77 +56,6 @@ function fsStorage(): BundleStorage {
       await writeFile(resolved, data);
       // Public URL — Next serves /public at the root.
       return `/media/${relPath.split(path.sep).join("/")}`;
-    },
-  };
-}
-
-/** Drizzle-backed upserter using ON CONFLICT (media_id) DO UPDATE. */
-function drizzleUpserter(): AssetUpserter {
-  return {
-    async upsert(rows) {
-      if (rows.length === 0) return { inserted: 0, updated: 0 };
-      const db = await getDb();
-      const ids = rows.map((r) => r.mediaId);
-
-      // Find which mediaIds already exist so we can return inserted vs
-      // updated counts. A single SELECT is cheap on the unique index.
-      // `inArray` compiles to `media_id IN ($1, $2, ...)` — portable
-      // across Postgres + PGlite. Avoids `= ANY((p1, p2))` which is the
-      // record-tuple form and rejected by both runtimes.
-      const existing = await db
-        .select({ mediaId: mediaAssets.mediaId })
-        .from(mediaAssets)
-        .where(inArray(mediaAssets.mediaId, ids));
-      const existingSet = new Set(existing.map((e) => e.mediaId));
-
-      const now = Date.now();
-      const values = rows.map((r) => ({
-        id: r.mediaId, // also use mediaId as the primary id for stable upserts
-        mediaId: r.mediaId,
-        chapterNumber: r.chapterNumber,
-        segmentId: r.segmentId,
-        refId: r.refId,
-        figureLabel: r.figureLabel,
-        kind: r.kind,
-        filename: r.filename,
-        storagePath: r.storagePath,
-        sourcePage: r.sourcePage,
-        caption: r.caption,
-        // The schema's `.$type<string[] | null>()` is a TS-only annotation;
-        // the underlying column is plain TEXT. Match the project-wide
-        // `jsonField()` convention: JSON.stringify on write, JSON.parse on read.
-        tagsJson: r.tags ? (JSON.stringify(r.tags) as unknown as string[]) : null,
-        highYield: r.highYield ? 1 : 0,
-        createdAt: now,
-        updatedAt: now,
-      }));
-
-      await db
-        .insert(mediaAssets)
-        .values(values)
-        .onConflictDoUpdate({
-          target: mediaAssets.mediaId,
-          set: {
-            // Per Phase 3 contract: refresh every importer-controlled
-            // column except `id` and `createdAt` on conflict.
-            chapterNumber: sql`excluded.chapter_number`,
-            segmentId: sql`excluded.segment_id`,
-            refId: sql`excluded.ref_id`,
-            figureLabel: sql`excluded.figure_label`,
-            kind: sql`excluded.kind`,
-            filename: sql`excluded.filename`,
-            storagePath: sql`excluded.storage_path`,
-            sourcePage: sql`excluded.source_page`,
-            caption: sql`excluded.caption`,
-            tagsJson: sql`excluded.tags_json`,
-            highYield: sql`excluded.high_yield`,
-            updatedAt: sql`excluded.updated_at`,
-          },
-        });
-
-      const inserted = rows.length - existingSet.size;
-      const updated = rows.length - inserted;
-      return { inserted, updated };
     },
   };
 }
@@ -182,11 +109,12 @@ export async function POST(request: Request): Promise<NextResponse<ApiResponse>>
     });
   }
 
+  const db = await getDb();
   const summary = await runMediaBundleImport({
     entries: unz.entries,
     selectedChapterNumber: chapterNumber,
     storage: fsStorage(),
-    upserter: drizzleUpserter(),
+    upserter: drizzleUpserter(db),
   });
   return NextResponse.json({ ok: summary.ok, summary });
 }
