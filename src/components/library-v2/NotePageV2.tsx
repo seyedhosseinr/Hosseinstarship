@@ -76,6 +76,7 @@ import { ReaderHighlightLayer } from "./ReaderHighlightLayer";
 import { NoteMarkerLayer } from "./NoteMarkerLayer";
 import { SegmentRenderer } from "./SegmentRenderer";
 import { StatusBadge } from "./StatusBadge";
+import { MediaRefProvider } from "@/components/starship-media/MediaRefProvider";
 
 const QuickCardEditor = dynamic(
   () => import("@/components/flashcard/QuickCardEditor").then((m) => m.QuickCardEditor),
@@ -825,22 +826,26 @@ export function NotePageV2({
                 } as React.CSSProperties}
                 onClick={handleReaderClick}
               >
-                <SegmentRenderer
-                  sections={note.sections}
-                  initialFrameId={initialFrameId}
-                  annotationsByFrameId={annotationsByFrameId}
-                  annotationCountByFrameId={annotationCountByFrameId}
-                  highlightsVisible={highlightsVisible}
-                  showHighYieldMarker={readerLayers.showHighYield}
-                  showKeyExam={readerLayers.showKeyExam}
-                  showMissedQuestions={readerLayers.showMissedQuestions}
-                  keyExamFrameIds={keyExamFrameIds}
-                  missedFrameIds={missedFrameIds}
-                  noteContext={{
-                    docId: note.meta.docId,
-                    chapterNo: note.meta.chapterNo,
-                  }}
-                />
+                <MediaRefProvider>
+                  <SegmentRenderer
+                    sections={note.sections}
+                    initialFrameId={initialFrameId}
+                    annotationsByFrameId={annotationsByFrameId}
+                    annotationCountByFrameId={annotationCountByFrameId}
+                    highlightsVisible={highlightsVisible}
+                    showHighYieldMarker={readerLayers.showHighYield}
+                    showKeyExam={readerLayers.showKeyExam}
+                    showMissedQuestions={readerLayers.showMissedQuestions}
+                    keyExamFrameIds={keyExamFrameIds}
+                    missedFrameIds={missedFrameIds}
+                    noteContext={{
+                      docId: note.meta.docId,
+                      chapterNo: note.meta.chapterNo,
+                    }}
+                    chapterNo={note.meta.chapterNo}
+                    segmentId={note.meta.logicalChunkId}
+                  />
+                </MediaRefProvider>
               </article>
 
               {relatedFlashcards.length > 0 && (

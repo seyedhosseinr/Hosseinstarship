@@ -48,6 +48,7 @@
  */
 
 import React, { type CSSProperties, type ReactNode } from "react";
+import { MediaLeaf } from "@/components/starship-media/MediaLeaf";
 
 /**
  * @deprecated Annotations are no longer painted inline. This shape is
@@ -79,6 +80,23 @@ const BIDI_ISOLATE: CSSProperties = {
   unicodeBidi: "isolate",
 } as CSSProperties;
 
+/**
+ * Wrap a raw text leaf in a <MediaLeaf>. The leaf is invisible in the
+ * common case (no <MediaRefProvider> upstream) — it returns the bare
+ * text. When the Reader's provider is mounted, it transparently splices
+ * <MediaRefAnchor>s in around detected figure / image / table refs.
+ *
+ * Orphan-marker stripping happens here so it covers leaves at every
+ * recursion depth, not just top-level. Inner emphasis text never has
+ * orphan markers (the regex paired them), so this is a no-op there.
+ */
+function pushTextLeaf(parts: ReactNode[], raw: string, key: string) {
+  if (raw === "") return;
+  const cleaned = stripOrphanMarkers(raw);
+  if (cleaned === "") return;
+  parts.push(<MediaLeaf key={key} text={cleaned} />);
+}
+
 function renderTokens(
   text: string,
   keyPrefix: string,
@@ -91,7 +109,7 @@ function renderTokens(
 
   while ((m = re.exec(text)) !== null) {
     if (m.index > cursor) {
-      parts.push(text.slice(cursor, m.index));
+      pushTextLeaf(parts, text.slice(cursor, m.index), `${keyPrefix}t${key++}`);
     }
     const tok = m[0];
     if (tok.startsWith("**") && tok.endsWith("**")) {
@@ -120,7 +138,7 @@ function renderTokens(
     if (m.index === re.lastIndex) re.lastIndex += 1;
   }
   if (cursor < text.length) {
-    parts.push(text.slice(cursor));
+    pushTextLeaf(parts, text.slice(cursor), `${keyPrefix}t${key++}`);
   }
   return parts;
 }
@@ -170,15 +188,12 @@ export function renderInlineRich(
   if (text === null || text === undefined) return null;
   if (text === "") return text;
   const cleaned = stripLeadingBullet(text);
-  const rawNodes = renderTokens(cleaned, "");
-  const nodes = rawNodes.map((n, i) =>
-    typeof n === "string" ? (
-      <React.Fragment key={`s${i}`}>{stripOrphanMarkers(n)}</React.Fragment>
-    ) : (
-      n
-    ),
-  );
-  if (nodes.length === 0) return cleaned;
+  /* Leaves are wrapped in <MediaLeaf> inside renderTokens (which also
+     applies stripOrphanMarkers per leaf). No additional post-pass is
+     needed — every node returned from renderTokens is already a JSX
+     element ready to render. */
+  const nodes = renderTokens(cleaned, "");
+  if (nodes.length === 0) return null;
   if (nodes.length === 1) return nodes[0];
   return <>{nodes}</>;
 }

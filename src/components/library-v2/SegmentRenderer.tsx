@@ -7,6 +7,7 @@ import type {
 } from "@/lib/contract/note-viewer.types";
 import type { ReaderAnnotation } from "@/hooks/useReaderAnnotations";
 import { renderInlineRich } from "@/components/note-viewer/inlineRich";
+import { MediaRefSegmentScope } from "@/components/starship-media/MediaRefProvider";
 import { FrameCardV2 } from "./FrameCardV2";
 import { SectionHeader } from "./SectionHeader";
 import { SectionNoteEditor } from "@/components/note-viewer/SectionNoteEditor";
@@ -28,12 +29,11 @@ interface SegmentRendererProps {
   missedFrameIds?: Set<string>;
   showKeyExam?: boolean;
   showMissedQuestions?: boolean;
-  /**
-   * When provided, renders an inline "یادداشت مطالعاتی…" affordance below
-   * each section. Notes are stored via the same user-notes CRUD layer and
-   * share the same docId as the overview side-panel — no duplication.
-   */
+  /** When provided, renders an inline "یادداشت مطالعاتی…" affordance below each section. */
   noteContext?: NoteContext;
+  /** Segment identity for the Starship media reader — enables click-through to lightbox. */
+  chapterNo?: number | null;
+  segmentId?: string | null;
 }
 
 type ReaderCSS = CSSProperties & {
@@ -108,9 +108,14 @@ export function SegmentRenderer({
   showKeyExam,
   showMissedQuestions,
   noteContext,
+  chapterNo,
+  segmentId,
 }: SegmentRendererProps) {
   return (
-    <>
+    <MediaRefSegmentScope
+      chapterNo={chapterNo ?? null}
+      segmentId={segmentId ?? null}
+    >
       {sections.map((section, si) => {
         const renderClosingKeypoint = shouldRenderClosingKeypoint(section);
 
@@ -201,6 +206,6 @@ export function SegmentRenderer({
           </section>
         );
       })}
-    </>
+    </MediaRefSegmentScope>
   );
 }

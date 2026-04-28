@@ -50,6 +50,7 @@ import { MeasureColumn } from "./MeasureColumn";
 import { SegmentRenderer } from "./SegmentRenderer";
 import { StatusBadge } from "./StatusBadge";
 import { ReaderReferenceRail } from "./ReaderReferenceRail";
+import { MediaRefProvider } from "@/components/starship-media/MediaRefProvider";
 
 const SelectionPopup = dynamic(
   () => import("@/components/flashcard/SelectionPopup").then((m) => m.SelectionPopup),
@@ -757,19 +758,23 @@ export function ChapterReaderV2({
                 "--reader-prose-w": `${readerSettings.maxWidth}px`,
               } as React.CSSProperties}
             >
-              {notes.map((note) => (
-                <SegmentRenderer
-                  key={note.meta.logicalChunkId}
-                  sections={note.sections}
-                  annotationsByFrameId={annotationsByFrameId}
-                  annotationCountByFrameId={annotationCountByFrameId}
-                  highlightsVisible={highlightsVisible}
-                  noteContext={{
-                    docId: `ch-${chapter.chapterNo}`,
-                    chapterNo: chapter.chapterNo,
-                  }}
-                />
-              ))}
+              <MediaRefProvider>
+                {notes.map((note) => (
+                  <SegmentRenderer
+                    key={note.meta.logicalChunkId}
+                    sections={note.sections}
+                    annotationsByFrameId={annotationsByFrameId}
+                    annotationCountByFrameId={annotationCountByFrameId}
+                    highlightsVisible={highlightsVisible}
+                    noteContext={{
+                      docId: `ch-${chapter.chapterNo}`,
+                      chapterNo: chapter.chapterNo,
+                    }}
+                    chapterNo={chapter.chapterNo}
+                    segmentId={note.meta.logicalChunkId}
+                  />
+                ))}
+              </MediaRefProvider>
             </article>
           )}
 
