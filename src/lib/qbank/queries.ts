@@ -1,6 +1,11 @@
 import { eq, asc } from "drizzle-orm";
 import { getDb } from "@/db/index";
 import { questions, questionOptions, chapters, questionBookmarks } from "@/db/schema";
+import {
+  getMcqAmbossReviewFromSourceJson,
+  parseJsonObject,
+  type McqAmbossReview,
+} from "@/types/mcq-review";
 
 /* ------------------------------------------------------------------ */
 /*  QBank question type expected by QBankScreen                        */
@@ -10,8 +15,12 @@ export type QBankQuestion = {
   id: string;
   text: string;
   options: string[];
+  optionKeys: string[];
   answer: number;
+  correctAnswer: string;
   explanation?: string;
+  review?: McqAmbossReview | null;
+  sourceJson?: Record<string, unknown> | null;
   subject?: string;
   tags?: string[];
   difficulty?: string;
@@ -35,6 +44,7 @@ export async function listQBankQuestions(): Promise<QBankQuestion[]> {
       difficulty: questions.difficulty,
       subject: questions.subject,
       tagsJson: questions.tagsJson,
+      sourceJson: questions.sourceJson,
       chapterId: questions.chapterId,
       chapterNo: chapters.chapterNo,
     })
@@ -54,6 +64,7 @@ export async function listQBankQuestions(): Promise<QBankQuestion[]> {
   const allOptions = await db
     .select({
       questionId: questionOptions.questionId,
+      optionKey: questionOptions.optionKey,
       contentText: questionOptions.contentText,
       isCorrect: questionOptions.isCorrect,
       sortOrder: questionOptions.sortOrder,
@@ -64,7 +75,7 @@ export async function listQBankQuestions(): Promise<QBankQuestion[]> {
   // Group options by questionId
   const optionsByQuestion = new Map<
     string,
-    { contentText: string | null; isCorrect: number; sortOrder: number }[]
+    { optionKey: string; contentText: string | null; isCorrect: number; sortOrder: number }[]
   >();
   for (const opt of allOptions) {
     const arr = optionsByQuestion.get(opt.questionId) ?? [];
@@ -76,7 +87,14 @@ export async function listQBankQuestions(): Promise<QBankQuestion[]> {
   return rows.map((row) => {
     const opts = optionsByQuestion.get(row.id) ?? [];
     const optionTexts = opts.map((o) => o.contentText ?? "");
+    const optionKeys = opts.map((o, index) => o.optionKey || String.fromCharCode(65 + index));
     const correctIndex = opts.findIndex((o) => o.isCorrect === 1);
+    const correctAnswer =
+      correctIndex >= 0
+        ? optionKeys[correctIndex] ?? String.fromCharCode(65 + correctIndex)
+        : optionKeys[0] ?? "A";
+    const sourceJson = parseJsonObject(row.sourceJson);
+    const review = getMcqAmbossReviewFromSourceJson(sourceJson);
 
     // Parse tags from JSON string
     let tags: string[] = [];
@@ -105,8 +123,12 @@ export async function listQBankQuestions(): Promise<QBankQuestion[]> {
       id: row.id,
       text: row.stemText ?? "",
       options: optionTexts,
+      optionKeys,
       answer: correctIndex >= 0 ? correctIndex : 0,
+      correctAnswer,
       explanation: row.explanationHtml ?? undefined,
+      review,
+      sourceJson,
       subject: row.subject ?? undefined,
       tags,
       difficulty: row.difficulty ?? undefined,

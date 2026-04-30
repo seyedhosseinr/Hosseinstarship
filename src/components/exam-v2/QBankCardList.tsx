@@ -12,6 +12,8 @@ import {
   ChevronDown, FileQuestion,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { AmbossReviewPanel } from "@/components/qbank/AmbossReviewPanel";
+import type { QBankQuestion } from "@/lib/qbank/queries";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
@@ -24,18 +26,7 @@ const DIFF_LABEL: Record<string, string> = {
   easy: "آسان", medium: "متوسط", hard: "سخت",
 };
 
-export interface QBankCardQuestion {
-  id: string;
-  text: string;
-  options: string[];
-  answer: number;
-  explanation?: string;
-  subject?: string;
-  tags?: string[];
-  difficulty?: string;
-  bookmarked: boolean;
-  chapterNo?: number;
-}
+export type QBankCardQuestion = QBankQuestion;
 
 export interface QBankCardListProps {
   questions: QBankCardQuestion[];
@@ -215,7 +206,16 @@ export function QBankCardList({
                       </button>
 
                       {/* Explanation */}
-                      {revealed && q.explanation && (
+                      {revealed && q.review && (
+                        <AmbossReviewPanel
+                          stem={q.text}
+                          options={q.options}
+                          optionKeys={q.optionKeys}
+                          correctAnswer={q.correctAnswer}
+                          review={q.review}
+                        />
+                      )}
+                      {revealed && !q.review && q.explanation && (
                         <div className="QB-explanation">
                           <div className="QB-explanation-label">توضیحات</div>
                           {q.explanation}

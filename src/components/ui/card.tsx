@@ -11,6 +11,8 @@ const cardVariants = cva(
         glass: "bg-card/50 backdrop-blur-sm border-border/50 shadow-sm",
         outline: "bg-transparent border-border/50",
         ghost: "bg-transparent border-transparent shadow-none",
+        clinical:
+          "border-border/70 bg-card/95 shadow-sm shadow-primary/5 ring-1 ring-white/40 dark:ring-white/5",
       },
     },
     defaultVariants: {

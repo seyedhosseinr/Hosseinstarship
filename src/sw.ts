@@ -26,7 +26,7 @@ declare const self: ServiceWorkerGlobalScope & {
  *    major shell updates.
  */
 
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v3";
 const OFFLINE_URL = "/offline.html";
 
 // Last-resort fallback for navigation requests. When the user has never
@@ -50,7 +50,10 @@ const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   // Do NOT auto-skipWaiting — the in-app prompt handles it.
   skipWaiting: false,
-  clientsClaim: false,
+  // Must be true so the SW claims existing tabs immediately on activation.
+  // Without this, page HTML is never intercepted on first install — the
+  // runtime pages cache stays empty and offline reloads always miss.
+  clientsClaim: true,
   runtimeCaching: [
     {
       // PGlite WASM + data files — cache aggressively for offline cold start

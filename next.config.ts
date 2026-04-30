@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
-  output: "standalone",  // ← برای Docker deploy (Liara / ArvanCloud)
+  output: process.env.VERCEL ? undefined : "standalone",  // standalone for Docker/Liara; Vercel manages its own output
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -33,4 +33,9 @@ export default withSerwist({
   swDest: "public/sw.js",
   maximumFileSizeToCacheInBytes: 12 * 1024 * 1024, // 12 MB — PGlite WASM (~9 MB)
   disable: process.env.NODE_ENV === "development",
+  // @serwist/next only precaches /_next/static/** assets from the build
+  // manifest. Files in public/ (like offline.html) are NOT auto-included.
+  // We must add them explicitly so the navigationFallbackPlugin and the
+  // fallbacks config have something to serve for never-visited routes.
+  additionalPrecacheEntries: [{ url: "/offline.html", revision: "3" }],
 })(nextConfig);

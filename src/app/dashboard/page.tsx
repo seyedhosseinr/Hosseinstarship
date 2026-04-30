@@ -1,1 +1,5 @@
-export { default } from "@/app/page";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
+
+export default function DashboardPage() {
+  return <DashboardShell />;
+}

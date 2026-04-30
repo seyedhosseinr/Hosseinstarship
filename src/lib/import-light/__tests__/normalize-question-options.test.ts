@@ -16,7 +16,11 @@
 
 import { describe, it, expect } from "vitest";
 
-import { normalizeQuestionOptions } from "../structured-import";
+import {
+  buildMcqReviewFallbackHtml,
+  collectQuestionSourceJson,
+  normalizeQuestionOptions,
+} from "../structured-import";
 
 describe("normalizeQuestionOptions — explicit isCorrect wins", () => {
   it("respects isCorrect flags on option records", () => {
@@ -37,6 +41,84 @@ describe("normalizeQuestionOptions — explicit isCorrect wins", () => {
     // (e.g. "answerValue must not contradict explicit isCorrect") is caught.
     expect(correct).toContain("B");
     expect(correct).toContain("A");
+  });
+});
+
+describe("normalizeQuestionOptions v6.1 correctness source", () => {
+  it("can ignore conflicting explicit option correctness for schema v6.1 imports", () => {
+    const opts = normalizeQuestionOptions(
+      {},
+      [
+        { key: "A", contentText: "alpha", isCorrect: true },
+        { key: "B", contentText: "bravo", isCorrect: false },
+      ],
+      "B",
+      { allowExplicitCorrect: false },
+    );
+
+    expect(opts.filter((o) => o.isCorrect).map((o) => o.key)).toEqual(["B"]);
+  });
+});
+
+describe("buildMcqReviewFallbackHtml", () => {
+  it("creates escaped legacy fallback HTML from a v6.1 review", () => {
+    const html = buildMcqReviewFallbackHtml({
+      keyTeachingPoint: "Use <source> clues.",
+      stemHighlights: [],
+      optionReviews: [
+        {
+          optionKey: "A",
+          title: "Trap",
+          why: "Wrong because <not this>.",
+          discriminator: "Look for timing.",
+        },
+      ],
+      takeHomeMessages: ["Anchor on the discriminator."],
+    });
+
+    expect(html).toContain("Key teaching point");
+    expect(html).toContain("&lt;source&gt;");
+    expect(html).toContain("&lt;not this&gt;");
+    expect(html).toContain("Anchor on the discriminator.");
+  });
+});
+
+describe("collectQuestionSourceJson", () => {
+  it("preserves v6.1 review and AMBOSS metadata without adding verdicts", () => {
+    const review = {
+      keyTeachingPoint: "Teaching point",
+      stemHighlights: [{ quote: "clue", kind: "highlight" as const, note: "why it matters" }],
+      optionReviews: [
+        {
+          optionKey: "B",
+          title: "Best answer",
+          why: "Correct in this case.",
+          discriminator: "Specific clue",
+        },
+      ],
+      takeHomeMessages: ["One takeaway"],
+    };
+
+    const sourceJson = collectQuestionSourceJson(
+      {
+        schemaVersion: "6.1",
+        segmentId: "opaque-segment-id",
+        conceptLabels: ["label"],
+        sourceSectionTitles: ["section"],
+        sourceAnchorHints: ["anchor"],
+        relatedFlashcardHints: ["flashcard"],
+        questionStyle: "single-best-answer",
+        questionRole: "application",
+        cognitiveLevel: "apply",
+        boardYieldTier: 2,
+        review,
+      },
+      ["opaque-block-id"],
+    );
+
+    expect(sourceJson?.review).toBe(review);
+    expect((sourceJson?.review as typeof review).optionReviews[0].why).toBe("Correct in this case.");
+    expect(sourceJson).not.toHaveProperty("verdict");
   });
 });
 

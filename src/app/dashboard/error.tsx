@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { AlertTriangle, Home, RefreshCw } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
 export default function DashboardError({
@@ -17,27 +18,29 @@ export default function DashboardError({
   }, [error]);
 
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center p-8">
-      <div className="mb-4 flex items-center gap-3 text-danger">
-        <AlertTriangle className="h-10 w-10" />
-      </div>
-      <h2 className="mb-2 text-xl font-semibold text-foreground">Dashboard failed to load</h2>
-      <p className="mb-6 max-w-md text-center text-muted-foreground">
-        There was a problem loading dashboard data. Please try again.
-      </p>
+    <main dir="rtl" className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground">
+      <Alert variant="warning" className="max-w-xl">
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-warning/10 text-warning">
+          <AlertTriangle className="h-6 w-6" />
+        </div>
+        <AlertTitle className="text-lg">داشبورد بارگذاری نشد</AlertTitle>
+        <AlertDescription>
+          این بازیابی به اینترنت وابسته نیست. اگر داده محلی یا OPFS لحظه‌ای آماده نشده، دوباره تلاش کنید یا به صفحه اصلی برگردید.
+        </AlertDescription>
 
-      <div className="flex gap-3">
-        <Button onClick={reset}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Retry
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Button onClick={reset} variant="clinical">
+            <RefreshCw className="h-4 w-4" />
+            تلاش دوباره
         </Button>
-        <Button variant="outline" asChild>
+          <Button variant="outline" asChild>
           <Link href="/">
-            <Home className="mr-2 h-4 w-4" />
-            Home
+              <Home className="h-4 w-4" />
+              خانه
           </Link>
         </Button>
       </div>
-    </div>
+      </Alert>
+    </main>
   );
 }

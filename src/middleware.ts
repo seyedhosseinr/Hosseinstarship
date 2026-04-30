@@ -61,7 +61,10 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   // Match everything except Next internals and public PWA/static assets.
+  // offline.html MUST be excluded: the SW precaches it during install, and
+  // middleware interception would cache a login-redirect instead of the real
+  // HTML, breaking the offline navigation fallback entirely.
   matcher: [
-    "/((?!_next/static|_next/image|_next/data|favicon.ico|manifest.webmanifest|sw.js|sw.js.map|icons/|fonts/|wasm/|pglite/|workbox-|sw-|robots.txt|sitemap.xml).*)",
+    "/((?!_next/static|_next/image|_next/data|favicon.ico|manifest.webmanifest|sw.js|sw.js.map|offline.html|icons/|fonts/|wasm/|pglite/|workbox-|sw-|robots.txt|sitemap.xml).*)",
   ],
 };

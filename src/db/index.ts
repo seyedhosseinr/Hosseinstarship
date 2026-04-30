@@ -18,13 +18,12 @@ export async function getDb(): Promise<AppDrizzleInstance> {
         const pgDb = createPostgresDb();
         if (pgDb) return pgDb;
 
-        if (databaseConfig.isVercel) {
-          throw new Error(
-            "DATABASE_URL is missing or invalid. " +
-              "Vercel deployments require a working Postgres connection.",
-          );
-        }
-        // Local dev: DATABASE_URL not configured — fall through to PGlite
+        // DB_RUNTIME=postgres was explicit — missing/invalid DATABASE_URL is always
+        // an error, not a reason to silently fall back to PGlite.
+        const hint = databaseConfig.isVercel
+          ? "Vercel deployments require DATABASE_URL to be set in the project environment variables."
+          : "Set DATABASE_URL=postgres://... in .env.production.local (or pass it inline).";
+        throw new Error(`DB_RUNTIME=postgres but DATABASE_URL is missing or not a valid postgres:// URL. ${hint}`);
       }
 
       if (databaseConfig.isVercel) {

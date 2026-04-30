@@ -8,6 +8,7 @@ import { getCampbellChapter } from "@/lib/library/campbell";
 import { isNoteV8Json, SegmentNoteV8Z } from "@/lib/contract/note-v8-schema";
 import type { BlockV8, SegmentNoteV8 } from "@/lib/contract/note-v8.types";
 import { upgradeSegmentV7ToV8 } from "@/lib/contract/note-v7-to-v8";
+import { isMcqAmbossReview } from "@/types/mcq-review";
 import {
   chapters,
   chunkKind,
@@ -56,6 +57,7 @@ type NormalizedQuestion = {
   externalKey: string;
   options: NormalizedOption[];
   sourceBlockIds: string[];
+  sourceJson: Record<string, unknown> | null;
 };
 
 type NormalizedFlashcard = {
@@ -471,6 +473,7 @@ export function normalizeQuestionOptions(
   raw: Record<string, unknown>,
   rawOptions: unknown,
   answerValue: unknown,
+  optionsConfig?: { allowExplicitCorrect?: boolean },
 ): NormalizedOption[] {
   let options: Array<string | Record<string, unknown>> = [];
 
@@ -532,7 +535,10 @@ export function normalizeQuestionOptions(
       const key = String(record.optionKey ?? record.key ?? optionKeyAt(index)).trim().toUpperCase();
       const content = String(record.contentHtml ?? record.contentText ?? record.text ?? record.content ?? "")
         .trim();
-      const explicitCorrect = record.isCorrect === true || record.correct === true;
+      const explicitCorrect =
+        optionsConfig?.allowExplicitCorrect === false
+          ? false
+          : record.isCorrect === true || record.correct === true;
 
       return {
         key,
@@ -547,6 +553,67 @@ export function normalizeQuestionOptions(
     .filter((option) => option.content);
 }
 
+export function buildMcqReviewFallbackHtml(review: unknown): string | null {
+  if (!isMcqAmbossReview(review)) return null;
+
+  const parts: string[] = [];
+  if (review.keyTeachingPoint.trim()) {
+    parts.push(`<p><strong>Key teaching point:</strong> ${escapeHtml(review.keyTeachingPoint.trim())}</p>`);
+  }
+
+  if (review.optionReviews.length > 0) {
+    const items = review.optionReviews
+      .map((optionReview) => {
+        const discriminator = optionReview.discriminator?.trim()
+          ? ` Discriminator: ${optionReview.discriminator.trim()}`
+          : "";
+        const title = optionReview.title.trim() ? ` ${optionReview.title.trim()}:` : "";
+        return `<li><strong>${escapeHtml(optionReview.optionKey.trim())}${escapeHtml(title)}</strong> ${escapeHtml(optionReview.why.trim())}${escapeHtml(discriminator)}</li>`;
+      })
+      .join("");
+    if (items) parts.push(`<ul>${items}</ul>`);
+  }
+
+  if (review.takeHomeMessages.length > 0) {
+    const items = review.takeHomeMessages
+      .filter((message) => message.trim())
+      .map((message) => `<li>${escapeHtml(message.trim())}</li>`)
+      .join("");
+    if (items) parts.push(`<p><strong>Take-home messages:</strong></p><ul>${items}</ul>`);
+  }
+
+  return parts.length > 0 ? parts.join("") : null;
+}
+
+export function collectQuestionSourceJson(raw: Record<string, unknown>, sourceBlockIds: string[]): Record<string, unknown> | null {
+  const sourceJson: Record<string, unknown> = {};
+  const entries: Array<[string, unknown]> = [
+    ["schemaVersion", typeof raw.schemaVersion === "string" ? raw.schemaVersion.trim() || null : null],
+    ["segmentId", typeof raw.segmentId === "string" ? raw.segmentId.trim() || null : null],
+    ["sourceBlockIds", sourceBlockIds.length > 0 ? sourceBlockIds : null],
+    ["conceptLabels", normalizeTextArray(raw.conceptLabels ?? raw.concept_labels)],
+    ["sourceSectionTitles", normalizeTextArray(raw.sourceSectionTitles ?? raw.source_section_titles)],
+    ["sourceAnchorHints", normalizeTextArray(raw.sourceAnchorHints ?? raw.source_anchor_hints)],
+    ["relatedFlashcardHints", normalizeTextArray(raw.relatedFlashcardHints ?? raw.related_flashcard_hints)],
+    ["questionStyle", typeof raw.questionStyle === "string" ? raw.questionStyle.trim() || null : null],
+    ["questionRole", typeof raw.questionRole === "string" ? raw.questionRole.trim() || null : null],
+    ["cognitiveLevel", typeof raw.cognitiveLevel === "string" ? raw.cognitiveLevel.trim() || null : null],
+    ["boardYieldTier", raw.boardYieldTier ?? null],
+  ];
+
+  for (const [key, value] of entries) {
+    if (Array.isArray(value) ? value.length > 0 : value != null) {
+      sourceJson[key] = value;
+    }
+  }
+
+  if (raw.review && typeof raw.review === "object" && !Array.isArray(raw.review)) {
+    sourceJson.review = raw.review;
+  }
+
+  return Object.keys(sourceJson).length > 0 ? sourceJson : null;
+}
+
 function normalizeQuestionRecord(
   raw: Record<string, unknown>,
   index: number,
@@ -559,7 +626,13 @@ function normalizeQuestionRecord(
     throw new Error(`Row ${index + 1} is missing question text.`);
   }
 
-  const options = normalizeQuestionOptions(raw, raw.options, raw.correctAnswer ?? raw.answer ?? raw.correct ?? raw.correctOption ?? raw.correct_answer);
+  const isV61 = raw.schemaVersion === "6.1";
+  const answerValue = isV61
+    ? raw.correctAnswer
+    : raw.correctAnswer ?? raw.answer ?? raw.correct ?? raw.correctOption ?? raw.correct_answer;
+  const options = normalizeQuestionOptions(raw, raw.options, answerValue, {
+    allowExplicitCorrect: !isV61,
+  });
   if (options.length < 2) {
     throw new Error(`Row ${index + 1} must contain at least two options.`);
   }
@@ -586,20 +659,26 @@ function normalizeQuestionRecord(
     (segmentId && rawId ? `${segmentId}:${rawId}` : rawId) ||
     makeId("question_key", `${fileName}|${chapterNo}|${stemText}|${options.map((option) => option.content).join("|")}`);
 
+  const sourceBlockIds = normalizeTextArray(raw.sourceBlockIds ?? raw.source_block_ids) ?? [];
+  const sourceJson = collectQuestionSourceJson(raw, sourceBlockIds);
+  const explanationHtml =
+    raw.explanation != null || raw.explanationHtml != null
+      ? String(raw.explanationHtml ?? raw.explanation)
+      : buildMcqReviewFallbackHtml(raw.review);
+
   return {
     chapterNo,
     stemHtml,
     stemText,
-    explanationHtml: raw.explanation != null || raw.explanationHtml != null
-      ? String(raw.explanationHtml ?? raw.explanation)
-      : null,
+    explanationHtml,
     subject: raw.subject != null ? String(raw.subject).trim() || null : null,
     difficulty: raw.difficulty != null ? String(raw.difficulty).trim() || null : null,
     tags: normalizeTextArray(raw.tags),
     chunkSlug,
     externalKey,
     options,
-    sourceBlockIds: normalizeTextArray(raw.sourceBlockIds ?? raw.source_block_ids) ?? [],
+    sourceBlockIds,
+    sourceJson,
   };
 }
 
@@ -1072,11 +1151,30 @@ function parseQuestionsPayload(
     items?: Record<string, unknown>[];
   },
 ): NormalizedQuestion[] {
-  const records =
-    params.items ??
-    (params.format === "csv"
-      ? parseCSV(params.rawText ?? "")
-      : readJsonCollection(params.rawText ?? ""));
+  let records: Record<string, unknown>[];
+  if (params.items) {
+    records = params.items;
+  } else if (params.format === "csv") {
+    records = parseCSV(params.rawText ?? "");
+  } else {
+    const parsed = JSON.parse(params.rawText ?? "null") as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const wrapper = parsed as Record<string, unknown>;
+      if (Array.isArray(wrapper.questions)) {
+        records = wrapper.questions
+          .filter((entry): entry is Record<string, unknown> => !!entry && typeof entry === "object")
+          .map((question) => ({
+            ...question,
+            schemaVersion: question.schemaVersion ?? wrapper.schemaVersion,
+            segmentId: question.segmentId ?? wrapper.segmentId,
+          }));
+      } else {
+        records = readJsonCollection(params.rawText ?? "");
+      }
+    } else {
+      records = readJsonCollection(params.rawText ?? "");
+    }
+  }
 
   return records.map((record, index) => normalizeQuestionRecord(record, index, params.fileName));
 }
@@ -1537,10 +1635,7 @@ async function upsertQuestion(
     tagsJson: jsonField(question.tags),
     notebookAnchorId: question.sourceBlockIds[0] ?? null,
     correctOptionId,
-    sourceJson:
-      question.sourceBlockIds.length > 0
-        ? jsonField({ sourceBlockIds: question.sourceBlockIds })
-        : null,
+    sourceJson: question.sourceJson ? jsonField(question.sourceJson) : null,
     isActive: 1,
     updatedAt: timestamp,
   };

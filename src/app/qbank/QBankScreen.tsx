@@ -10,6 +10,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { colorLight, colorDark } from '@/lib/theme/tokens';
 import { PageHeader } from '@/components/ui/page-header';
+import { AmbossReviewPanel } from '@/components/qbank/AmbossReviewPanel';
 import type { QBankQuestion } from '@/lib/qbank/queries';
 import {
   getAllSubjects,
@@ -603,7 +604,16 @@ export default function QBankScreen({ questions: initialQuestions, initialChapte
                               </div>
                             </div>
                             {/* Explanation */}
-                            {isShowAnswer && q.explanation && (
+                            {isShowAnswer && q.review && (
+                              <AmbossReviewPanel
+                                stem={q.text}
+                                options={q.options}
+                                optionKeys={q.optionKeys}
+                                correctAnswer={q.correctAnswer}
+                                review={q.review}
+                              />
+                            )}
+                            {isShowAnswer && !q.review && q.explanation && (
                               <div style={{ marginTop: 12, padding: 14, borderRadius: 12, background: C.accentSoft, border: `1px solid ${C.accentBorder}`, fontSize: 13, lineHeight: 1.8, color: C.text, whiteSpace: 'pre-wrap' }}>
                                 {q.explanation}
                               </div>

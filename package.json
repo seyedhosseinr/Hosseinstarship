@@ -14,6 +14,7 @@
     "local:check": "node scripts/verify-local-runtime.mjs",
     "dev:backend": "next dev --turbo",
     "db:import": "tsx --tsconfig tsconfig.json scripts/import-batch.ts",
+    "db:import:mcq": "tsx --tsconfig tsconfig.json scripts/import-mcq.ts",
     "db:bootstrap:pglite": "tsx --tsconfig tsconfig.json scripts/bootstrap-pglite.ts",
     "db:reset:pglite": "node scripts/reset-pglite.mjs",
     "db:push": "drizzle-kit push",
