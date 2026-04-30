@@ -20,7 +20,7 @@ interface ReviewResultShape {
   };
 }
 
-export function useOptimisticFlashcard(initialDueCount: number) {
+export function useOptimisticFlashcard(initialDueCount: number, chapter: string | null = null) {
   const [isPending, startTransition] = useTransition();
   const [state, setState] = useOptimistic<FlashcardOptimisticState, Partial<FlashcardOptimisticState>>(
     {
@@ -33,7 +33,10 @@ export function useOptimisticFlashcard(initialDueCount: number) {
   );
 
   async function syncDueCountFromServer() {
-    const response = await fetch("/api/flashcards/review?limit=1", { cache: "no-store" });
+    const url = chapter
+      ? `/api/flashcards/review?limit=1&chapter=${encodeURIComponent(chapter)}`
+      : "/api/flashcards/review?limit=1";
+    const response = await fetch(url, { cache: "no-store" });
     const data = (await response.json()) as { totalDue?: number; cards?: unknown[] };
     if (typeof data.totalDue === "number" && Number.isFinite(data.totalDue)) {
       return Math.max(0, Math.trunc(data.totalDue));
@@ -69,16 +72,24 @@ export function useOptimisticFlashcard(initialDueCount: number) {
         throw new Error("review failed");
       }
 
-      let remainingDue =
-        typeof payload.remainingDue === "number" && Number.isFinite(payload.remainingDue)
-          ? Math.max(0, Math.trunc(payload.remainingDue))
-          : Math.max(0, previousDueCount - 1);
-
-      if (typeof payload.remainingDue !== "number") {
+      // The POST /api/flashcards/review endpoint returns a GLOBAL
+      // remainingDue count. In chapter-scoped review we must ignore that
+      // and re-fetch the chapter-scoped count instead, otherwise the
+      // "موعد" badge would briefly jump to the global figure.
+      let remainingDue: number;
+      if (chapter) {
         try {
           remainingDue = await syncDueCountFromServer();
         } catch {
-          // Keep optimistic fallback when sync endpoint is temporarily unavailable.
+          remainingDue = Math.max(0, previousDueCount - 1);
+        }
+      } else if (typeof payload.remainingDue === "number" && Number.isFinite(payload.remainingDue)) {
+        remainingDue = Math.max(0, Math.trunc(payload.remainingDue));
+      } else {
+        try {
+          remainingDue = await syncDueCountFromServer();
+        } catch {
+          remainingDue = Math.max(0, previousDueCount - 1);
         }
       }
       startTransition(() => {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { countDueFlashcards } from "@/lib/flashcards/queries";
+import { normalizeChapterKey } from "@/lib/flashcards/chapter-filter";
 import { listManagedDueFlashcards, reviewManagedFlashcard, undoLastManagedReview } from "@/lib/services/flashcard-service";
 
 function parseLimit(request: Request) {
@@ -8,16 +9,25 @@ function parseLimit(request: Request) {
   return Math.min(Math.max(Math.trunc(limit), 1), 100);
 }
 
+function parseChapter(request: Request): number | undefined {
+  const raw = new URL(request.url).searchParams.get("chapter");
+  const key = normalizeChapterKey(raw);
+  if (key == null) return undefined;
+  return Number.parseInt(key, 10);
+}
+
 export async function GET(request: Request) {
   try {
+    const chapterNo = parseChapter(request);
     const [cards, totalDue] = await Promise.all([
-      listManagedDueFlashcards(parseLimit(request)),
-      countDueFlashcards(),
+      listManagedDueFlashcards(parseLimit(request), chapterNo),
+      countDueFlashcards(chapterNo ?? null),
     ]);
     return NextResponse.json({
       ok: true,
       totalDue,
       cards,
+      chapter: chapterNo ?? null,
     });
   } catch (error) {
     return NextResponse.json(

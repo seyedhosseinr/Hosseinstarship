@@ -199,20 +199,22 @@ export async function listFlashcards(input: {
   return rows.map(toListItem);
 }
 
-export async function countDueFlashcards() {
+export async function countDueFlashcards(chapterNo?: number | null) {
   const db = await getDb();
+  const filters = [
+    eq(flashcards.isArchived, 0),
+    eq(flashcards.status, "active"),
+    eq(flashcards.isSuspended, 0),
+    eq(flashcards.isBuried, 0),
+    lte(flashcards.fsrsDue, Date.now()),
+  ];
+  if (chapterNo != null) {
+    filters.push(eq(flashcards.chapterNo, chapterNo));
+  }
   const rows = await db
     .select({ value: count(flashcards.id) })
     .from(flashcards)
-    .where(
-      and(
-        eq(flashcards.isArchived, 0),
-        eq(flashcards.status, "active"),
-        eq(flashcards.isSuspended, 0),
-        eq(flashcards.isBuried, 0),
-        lte(flashcards.fsrsDue, Date.now()),
-      ),
-    );
+    .where(and(...filters));
 
   return Number(rows[0]?.value ?? 0);
 }

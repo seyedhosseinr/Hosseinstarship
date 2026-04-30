@@ -16,6 +16,10 @@ import { useOptimisticFlashcard } from "@/hooks/useOptimisticFlashcard";
 import { getFlashcardsForReview } from "@/hooks/useDb";
 import { isLocalFirstEnabled } from "@/lib/local-first/flag";
 import { submitReviewLocal } from "@/lib/local-first/flashcard-review-local";
+import {
+  filterFlashcardsByChapter,
+  normalizeChapterKey,
+} from "@/lib/flashcards/chapter-filter";
 
 /* ════════════════════════════════════════
    CSS — FR-* tokens
@@ -531,14 +535,36 @@ function strip(html: string) {
   return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-export function FlashcardReviewScreen({ initialCards }: { initialCards: ReviewCard[] }) {
-  const [cards,    setCards]    = useState(initialCards);
+export function FlashcardReviewScreen({
+  initialCards,
+  chapter = null,
+}: {
+  initialCards: ReviewCard[];
+  /**
+   * Canonical chapter selector ("149") or null for global review.
+   * MUST match the URL ?chapter=… param after normalization.
+   */
+  chapter?: string | null;
+}) {
+  // Defense in depth: apply chapter scope on the client too. The server
+  // already filters by chapterNo, but if a future loader regresses, we
+  // never want a stray cross-chapter card to reach the visible queue.
+  const scopedInitial = useMemo(
+    () => filterFlashcardsByChapter(initialCards, chapter),
+    [initialCards, chapter],
+  );
+  const chapterKey = useMemo(() => normalizeChapterKey(chapter), [chapter]);
+
+  const [cards,    setCards]    = useState(scopedInitial);
   const [index,    setIndex]    = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [startedAt, setStartedAt] = useState(Date.now());
   const [showSC,   setShowSC]   = useState(false);
 
-  const { dueCount, isReviewing, rateCard, setDueCountOptimistic } = useOptimisticFlashcard(initialCards.length);
+  const { dueCount, isReviewing, rateCard, setDueCountOptimistic } = useOptimisticFlashcard(
+    scopedInitial.length,
+    chapterKey,
+  );
 
   const current  = cards[index] ?? null;
   const progress = cards.length > 0 ? ((index + 1) / cards.length) * 100 : 0;
@@ -567,7 +593,7 @@ export function FlashcardReviewScreen({ initialCards }: { initialCards: ReviewCa
   async function refreshQueue() {
     try {
       const rows = await getFlashcardsForReview(100);
-      const next: ReviewCard[] = rows.map(r => ({
+      const mapped: ReviewCard[] = rows.map(r => ({
         id: r.id, frontHtml: r.front_html, backHtml: r.back_html,
         cardType: r.card_type, chapterNo: r.chapter_no, chapterTitle: null,
         sourceQuestionId: null, sourceDocId: null, sourceFrameId: null,
@@ -581,15 +607,23 @@ export function FlashcardReviewScreen({ initialCards }: { initialCards: ReviewCa
           easy:  { interval: "۷ روز",    days: 7 },
         },
       }));
+      // The local PGlite getFlashcardsForReview() returns the global due
+      // queue; scope it to the active chapter before display so a
+      // chapter-scoped session never shows cross-chapter cards.
+      const next = filterFlashcardsByChapter(mapped, chapterKey);
       setCards(next); setDueCountOptimistic(next.length); setIndex(0); setRevealed(false);
     } catch {
       // Offline: gracefully end the session — reviewed cards are already
       // persisted in Dexie via submitReviewLocal and will sync on reconnect.
       if (!navigator.onLine) { setCards([]); setDueCountOptimistic(0); return; }
       try {
-        const res  = await fetch("/api/flashcards/review?limit=100", { cache: "no-store" });
+        const url = chapterKey
+          ? `/api/flashcards/review?limit=100&chapter=${encodeURIComponent(chapterKey)}`
+          : "/api/flashcards/review?limit=100";
+        const res  = await fetch(url, { cache: "no-store" });
         const data = await res.json();
-        const next = Array.isArray(data.cards) ? data.cards : [];
+        const raw = Array.isArray(data.cards) ? (data.cards as ReviewCard[]) : [];
+        const next = filterFlashcardsByChapter(raw, chapterKey);
         const total = typeof data.totalDue === "number" ? Math.max(0, Math.trunc(data.totalDue)) : next.length;
         setCards(next); setDueCountOptimistic(total); setIndex(0); setRevealed(false);
       } catch {
@@ -642,6 +676,13 @@ export function FlashcardReviewScreen({ initialCards }: { initialCards: ReviewCa
 
   /* ── Done state ── */
   if (!current) {
+    const doneTitle = chapterKey
+      ? `کارت موعدی برای فصل ${chapterKey} وجود ندارد`
+      : "آفرین! همه کارت‌ها مرور شدند";
+    const doneSub = chapterKey
+      ? `در فصل ${chapterKey} کارتی برای مرور پیدا نشد. می‌توانید فصل دیگری را انتخاب کنید یا به مرور کلی برگردید.`
+      : "صف مرور امروز خالی شد. فردا کارت‌های جدید در انتظار شما هستند.";
+    const backHref = chapterKey ? "/flashcards/library" : "/flashcards";
     return (
       <div className="FR" dir="rtl">
         <style dangerouslySetInnerHTML={{ __html: CSS }} />
@@ -653,9 +694,9 @@ export function FlashcardReviewScreen({ initialCards }: { initialCards: ReviewCa
         <div className="FR-done">
           <div className="FR-done-inner">
             <div className="FR-done-icon"><CheckCircle2 size={38} /></div>
-            <h1 className="FR-done-title">آفرین! همه کارت‌ها مرور شدند</h1>
-            <p className="FR-done-sub">صف مرور امروز خالی شد. فردا کارت‌های جدید در انتظار شما هستند.</p>
-            <Link href="/flashcards" className="FR-done-btn">
+            <h1 className="FR-done-title">{doneTitle}</h1>
+            <p className="FR-done-sub">{doneSub}</p>
+            <Link href={backHref} className="FR-done-btn">
               <ArrowRight size={18} />
               بازگشت به فلش‌کارت‌ها
             </Link>
