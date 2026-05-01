@@ -54,3 +54,5 @@ opus_4.6_git_backup/
 .env
 .env.*
 !/.env.example
+
+.vercel

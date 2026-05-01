@@ -27,7 +27,9 @@ const mcqQuestionSchema = z.object({
     { message: "options must have 4-5 letter keys (A, B, C, D, E)" },
   ),
   correctAnswer: z.string().regex(/^[A-H]$/, "correctAnswer must be a letter A-E"),
-  explanation: z.string().min(10, "explanation must be at least 10 characters"),
+  // v6.1 files omit explanation — they use the review object instead.
+  // structured-import builds explanationHtml from review.keyTeachingPoint.
+  explanation: z.string().min(10, "explanation must be at least 10 characters").optional(),
   // v5.1 may omit difficulty; downstream DB accepts null.
   difficulty: z.string().min(1).optional(),
   tags: z.array(z.string()).optional().default([]),
