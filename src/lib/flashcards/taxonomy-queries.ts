@@ -21,6 +21,7 @@ import {
   type CampbellVolume,
 } from "@/lib/exam/campbell-hierarchy";
 import { getCampbellChapter as getCampbellChapterRaw } from "@/lib/library/campbell";
+import { buildReaderSourceHref } from "@/lib/reader/anchor-bubble";
 import { parseStringArray } from "./queries";
 
 // ---------------------------------------------------------------------------
@@ -498,14 +499,14 @@ export async function getFlashcardSourceContext(
     relatedQuestionCount = Number(qCountRows[0]?.value ?? 0);
   }
 
-  // Note doc href
-  let noteDocHref: string | null = null;
-
-  if (card.sourceDocId) {
-    noteDocHref = card.sourceFrameId
-      ? `/notes/${card.sourceDocId}?frame=${card.sourceFrameId}`
-      : `/notes/${card.sourceDocId}`;
-  }
+  // Reader href: prefer Library Chapter Reader when chapterNo is available,
+  // otherwise fall back to the note-segment reader at /notes/<docId>.
+  const noteDocHref = buildReaderSourceHref({
+    chapterNo: card.chapterNo,
+    docId: card.sourceDocId,
+    frameId: card.sourceFrameId,
+    kind: "flashcard",
+  });
 
   return {
     card,

@@ -16,6 +16,7 @@ import {
   AlertTriangle, CreditCard, ChevronLeft,
   Sparkles, TrendingUp,
 } from "lucide-react";
+import { buildReaderSourceHref } from "@/lib/reader/anchor-bubble";
 
 /* ── Type shims matching flashcard-service return shapes ── */
 export interface FCStats {
@@ -685,14 +686,19 @@ export function FlashcardHub({ stats, cards, query = "" }: FlashcardHubProps) {
                         <span className="FC-due-label">موعد</span>
                         <span className="FC-due-val">{fmtDue(card.fsrsDue)}</span>
                       </div>
-                      {card.sourceDocId && (
-                        <Link
-                          href={`/notes/${card.sourceDocId}${card.sourceFrameId ? `?frame=${card.sourceFrameId}` : ""}`}
-                          className="FC-src-btn"
-                        >
-                          <BookOpen size={11} /> منبع
-                        </Link>
-                      )}
+                      {(() => {
+                        const href = buildReaderSourceHref({
+                          chapterNo: card.chapterNo,
+                          docId: card.sourceDocId,
+                          frameId: card.sourceFrameId,
+                          kind: "flashcard",
+                        });
+                        return href ? (
+                          <Link href={href} className="FC-src-btn">
+                            <BookOpen size={11} /> منبع
+                          </Link>
+                        ) : null;
+                      })()}
                     </div>
                   </div>
                 ))

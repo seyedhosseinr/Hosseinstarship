@@ -187,3 +187,33 @@ function isReferenceKind(value: string | null): value is ReaderReferenceKind {
     value === "note-link"
   );
 }
+
+/**
+ * Build the canonical reader href for a source-link from a flashcard or MCQ.
+ *
+ * Priority:
+ *  1. If `chapterNo` is present → Library Chapter Reader:
+ *       `/library/campbell/chapter/<chapterNo>?frame=<frameId>&ref=<kind>`
+ *  2. Else if `docId` is present → Note page (legacy / segment reader):
+ *       `/notes/<docId>?frame=<frameId>&ref=<kind>`
+ *  3. Else → null (caller should hide the link).
+ *
+ * `frameId` and `kind` are optional — omitted from the URL when absent.
+ */
+export function buildReaderSourceHref(opts: {
+  chapterNo: number | null | undefined;
+  docId: string | null | undefined;
+  frameId: string | null | undefined;
+  kind: ReaderReferenceKind;
+}): string | null {
+  const { chapterNo, docId, frameId, kind } = opts;
+  const framePart = frameId ? `?frame=${encodeURIComponent(frameId)}&ref=${kind}` : "";
+
+  if (chapterNo != null) {
+    return `/library/campbell/chapter/${chapterNo}${framePart}`;
+  }
+  if (docId) {
+    return `/notes/${docId}${framePart}`;
+  }
+  return null;
+}

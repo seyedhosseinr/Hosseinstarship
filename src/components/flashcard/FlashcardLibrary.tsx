@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { colorLight, colorDark } from '@/lib/theme/tokens';
+import { buildReaderSourceHref } from '@/lib/reader/anchor-bubble';
 
 /* ── CSS-variable bridge (light / dark) ───────────────────────────── */
 const FL_STYLES = `
@@ -1601,23 +1602,31 @@ export default function FlashcardLibrary({
                       </div>
                     )}
 
-                    {cardDetail.sourceDocId && (
-                      <Link
-                        href={`/notes/${cardDetail.sourceDocId}${cardDetail.sourceFrameId ? `?frame=${cardDetail.sourceFrameId}` : ''}`}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          fontSize: 12,
-                          color: c.accent,
-                          textDecoration: 'none',
-                        }}
-                      >
-                        <FileText style={{ width: 13, height: 13, flexShrink: 0 }} />
-                        {'مشاهده جزوه'}
-                        <ExternalLink style={{ width: 10, height: 10, opacity: 0.6 }} />
-                      </Link>
-                    )}
+                    {(() => {
+                      const href = buildReaderSourceHref({
+                        chapterNo: cardDetail.chapterNo,
+                        docId: cardDetail.sourceDocId,
+                        frameId: cardDetail.sourceFrameId,
+                        kind: 'flashcard',
+                      });
+                      return href ? (
+                        <Link
+                          href={href}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            fontSize: 12,
+                            color: c.accent,
+                            textDecoration: 'none',
+                          }}
+                        >
+                          <FileText style={{ width: 13, height: 13, flexShrink: 0 }} />
+                          {'مشاهده جزوه'}
+                          <ExternalLink style={{ width: 10, height: 10, opacity: 0.6 }} />
+                        </Link>
+                      ) : null;
+                    })()}
 
                     {cardDetail.relatedQuestionCount > 0 && (
                       <Link

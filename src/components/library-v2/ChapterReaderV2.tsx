@@ -47,7 +47,8 @@ import { ReaderStage } from "./ReaderStage";
 import { MeasureColumn } from "./MeasureColumn";
 import { SegmentRenderer } from "./SegmentRenderer";
 import { StatusBadge } from "./StatusBadge";
-import { ReaderAnchorProvider, useReaderDeepLink } from "./ReaderAnchorProvider";
+import type { ReaderReferenceKind } from "@/lib/reader/anchor-bubble";
+import { ReaderAnchorProvider, useReaderAnchor, useReaderDeepLink } from "./ReaderAnchorProvider";
 import { InlineSourceBubble } from "./InlineSourceBubble";
 
 const SelectionPopup = dynamic(
@@ -66,6 +67,10 @@ interface ChapterReaderV2Props {
   notes: NoteViewerModel[];
   initialStatus: ChapterStatus;
   navigation: CampbellVolumeGroup[];
+  /** Frame id from `?frame=<id>` — scrolls + flashes + shows inline bubble. */
+  initialFrameId?: string;
+  /** Source kind from `?ref=<kind>` — controls bubble label. */
+  initialFrameRef?: ReaderReferenceKind;
 }
 
 /* ── Drawing palette constants ── */
@@ -107,11 +112,23 @@ function ChapterReaderV2Inner({
   notes,
   initialStatus,
   navigation,
+  initialFrameId,
+  initialFrameRef,
 }: ChapterReaderV2Props) {
-  // Hash deep-link: opening `/library/.../chapter/N#<frameId>` scrolls and
-  // shows a "linked" bubble. ChapterReaderV2 has no `?frame=` route param
-  // today, so we only feed the hash. NotePageV2 also pipes `?frame=`.
+  const { jumpToAnchor } = useReaderAnchor();
+
+  // Hash deep-link: `#<frameId>` in the URL → scroll + "note-link" bubble.
   useReaderDeepLink(null);
+
+  // Query-param deep-link: `?frame=<id>&ref=<kind>` → scroll + typed bubble.
+  // rAF delay matches NotePageV2 — gives React time to finish hydration.
+  useEffect(() => {
+    if (!initialFrameId) return;
+    const handle = requestAnimationFrame(() => {
+      void jumpToAnchor(initialFrameId, { kind: initialFrameRef ?? "note-link" });
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [initialFrameId, initialFrameRef, jumpToAnchor]);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);

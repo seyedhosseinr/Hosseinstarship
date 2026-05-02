@@ -16,6 +16,7 @@ import { useOptimisticFlashcard } from "@/hooks/useOptimisticFlashcard";
 import { getFlashcardsForReview } from "@/hooks/useDb";
 import { isLocalFirstEnabled } from "@/lib/local-first/flag";
 import { submitReviewLocal } from "@/lib/local-first/flashcard-review-local";
+import { buildReaderSourceHref } from "@/lib/reader/anchor-bubble";
 
 /* ════════════════════════════════════════
    CSS — FR-* tokens
@@ -746,16 +747,21 @@ export function FlashcardReviewScreen({ initialCards }: { initialCards: ReviewCa
                 <div className="FR-adivider" />
                 <div className="FR-alabel"><CheckCircle2 size={13} /> پاسخ</div>
                 <div className="FR-atext">{strip(current.backHtml)}</div>
-                {(current.sourceDocId || current.sourceQuestionId) && (
+                {(current.sourceDocId || current.sourceQuestionId || current.chapterNo != null) && (
                   <div className="FR-src-row">
-                    {current.sourceDocId && (
-                      <Link
-                        href={`/notes/${current.sourceDocId}${current.sourceFrameId ? `?frame=${current.sourceFrameId}&ref=flashcard` : ""}`}
-                        className="FR-src-btn"
-                      >
-                        <BookOpen size={12} /> باز کردن منبع
-                      </Link>
-                    )}
+                    {(() => {
+                      const href = buildReaderSourceHref({
+                        chapterNo: current.chapterNo,
+                        docId: current.sourceDocId,
+                        frameId: current.sourceFrameId,
+                        kind: "flashcard",
+                      });
+                      return href ? (
+                        <Link href={href} className="FR-src-btn">
+                          <BookOpen size={12} /> باز کردن منبع
+                        </Link>
+                      ) : null;
+                    })()}
                   </div>
                 )}
               </>
