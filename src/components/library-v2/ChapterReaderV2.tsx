@@ -50,6 +50,7 @@ import { StatusBadge } from "./StatusBadge";
 import type { ReaderReferenceKind } from "@/lib/reader/anchor-bubble";
 import { ReaderAnchorProvider, useReaderAnchor, useReaderDeepLink } from "./ReaderAnchorProvider";
 import { InlineSourceBubble } from "./InlineSourceBubble";
+import { ReaderReferenceRail } from "./ReaderReferenceRail";
 
 const SelectionPopup = dynamic(
   () => import("@/components/flashcard/SelectionPopup").then((m) => m.SelectionPopup),
@@ -816,6 +817,14 @@ function ChapterReaderV2Inner({
         contentSelector="[data-reader-content]"
         scrollRef={scrollRef}
         visible={highlightsVisible}
+      />
+
+      {/* ══ Reference navigation rail — slim right-gutter minimap ══
+          Visible on lg+ screens only; hides when annotations panel is open. */}
+      <ReaderReferenceRail
+        notes={notes}
+        scrollRef={scrollRef}
+        annotationsPanelOpen={panels.annotations}
       />
 
       {/* Inline source bubble — portaled into the active target frame. */}

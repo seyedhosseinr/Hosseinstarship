@@ -11,7 +11,6 @@ import { FrameBody } from "@/components/note-viewer/FrameBody";
 import { FrameMermaid } from "@/components/note-viewer/FrameMermaid";
 import { FrameAlgorithmGraph } from "@/components/note-viewer/FrameAlgorithmGraph";
 import { renderInlineRich } from "@/components/note-viewer/inlineRich";
-import { FrameContextChip } from "./FrameContextChip";
 
 type ReaderCSS = React.CSSProperties & {
   textWrap?: "balance" | "pretty" | "wrap" | "nowrap";
@@ -315,7 +314,6 @@ function FrameCardV2Impl({
       />
       <FrameFlagBadges frame={frame} />
       <LinkedQuestionsFooter frame={frame} compact={!!callout} />
-      <FrameContextChip frame={frame} />
     </div>
   );
 
