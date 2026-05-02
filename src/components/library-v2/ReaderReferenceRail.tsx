@@ -203,6 +203,7 @@ function PreviewCard({
     <div
       dir="rtl"
       role="tooltip"
+      data-reader-rail-preview
       /* Position: to the left of the outer rail container, vertically centred
          on the marker's scroll-percent position.  The outer container is
          `relative` so `absolute right-full` escapes to its left edge. */
@@ -373,6 +374,7 @@ export function ReaderReferenceRail({
   return (
     <div
       aria-hidden="true"
+      data-reader-reference-rail
       className={cn(
         // Fixed right gutter: hidden on narrow screens, fade out when
         // annotations panel is open.
@@ -404,6 +406,8 @@ export function ReaderReferenceRail({
             <button
               key={m.id}
               type="button"
+              data-reader-rail-marker
+              data-rail-kind={m.kind}
               aria-label={`${cfg.label}: ${m.title}`}
               onClick={() => jumpTo(m)}
               onMouseEnter={() => setHoveredId(m.id)}
