@@ -1,6 +1,8 @@
 // src/types/exam.ts
 // Clean exam types — NO Dexie dependency
 
+import type { McqAmbossReview } from "@/types/mcq-review";
+
 export type ExamMode = 'study' | 'tutor' | 'timed' | 'untimed';
 export type ExamPoolMode = 'all' | 'unused' | 'incorrect' | 'marked' | 'bookmarked';
 export type ExamStatus = 'active' | 'suspended' | 'completed' | 'abandoned';
@@ -45,10 +47,12 @@ export interface ExamScore {
 
 export interface QuestionOption {
   id: string;
-  key: string; // 'A', 'B', 'C', etc.
+  key: string; // 'A', 'B', 'C', etc. (shuffled display letter)
   contentHtml: string;
   contentText?: string;
   isCorrect?: boolean;
+  /** Original stored optionKey before shuffle — used to match review data. */
+  originalKey?: string;
 }
 
 export interface ActiveQuestion {
@@ -65,6 +69,8 @@ export interface ActiveQuestion {
   // Only present in tutor mode or review
   explanationHtml?: string;
   correctOptionId?: string;
+  /** v6.1 AMBOSS-style structured review — present when isSubmitted or tutor mode. */
+  review?: McqAmbossReview | null;
 }
 
 export interface QuestionResult {
@@ -150,7 +156,7 @@ export interface ActiveExamQuestion {
   sessionQuestionId: string;
   questionId: string;
   stemHtml: string;
-  options: Array<{ id: string; key: string; contentHtml: string; contentText: string }>;
+  options: Array<{ id: string; key: string; contentHtml: string; contentText: string; originalKey?: string }>;
   isMarked: boolean;
   isSubmitted: boolean;
   selectedOptionId: string | null;
@@ -159,6 +165,7 @@ export interface ActiveExamQuestion {
   // Only included in tutor mode or review:
   explanationHtml?: string;
   correctOptionId?: string;
+  review?: McqAmbossReview | null;
 }
 
 export interface ActiveExamState {

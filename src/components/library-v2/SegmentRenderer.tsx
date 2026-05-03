@@ -9,6 +9,13 @@ import type { ReaderAnnotation } from "@/hooks/useReaderAnnotations";
 import { renderInlineRich } from "@/components/note-viewer/inlineRich";
 import { FrameCardV2 } from "./FrameCardV2";
 import { SectionHeader } from "./SectionHeader";
+import { SectionNoteEditor } from "@/components/note-viewer/SectionNoteEditor";
+
+/** Optional context that enables the inline section-level note affordance. */
+interface NoteContext {
+  docId: string;
+  chapterNo: number | null;
+}
 
 interface SegmentRendererProps {
   sections: SectionViewModel[];
@@ -21,6 +28,12 @@ interface SegmentRendererProps {
   missedFrameIds?: Set<string>;
   showKeyExam?: boolean;
   showMissedQuestions?: boolean;
+  /**
+   * When provided, renders an inline "یادداشت مطالعاتی…" affordance below
+   * each section. Notes are stored via the same user-notes CRUD layer and
+   * share the same docId as the overview side-panel — no duplication.
+   */
+  noteContext?: NoteContext;
 }
 
 type ReaderCSS = CSSProperties & {
@@ -94,6 +107,7 @@ export function SegmentRenderer({
   missedFrameIds,
   showKeyExam,
   showMissedQuestions,
+  noteContext,
 }: SegmentRendererProps) {
   return (
     <>
@@ -134,6 +148,14 @@ export function SegmentRenderer({
                 />
               ))}
             </div>
+
+            {noteContext && (
+              <SectionNoteEditor
+                docId={noteContext.docId}
+                sectionId={section.id}
+                chapterNo={noteContext.chapterNo}
+              />
+            )}
 
             {renderClosingKeypoint && section.closingKeypoint && (
               <section

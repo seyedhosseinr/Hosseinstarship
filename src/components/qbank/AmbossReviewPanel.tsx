@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { McqAmbossReview } from "@/types/mcq-review";
 import { cn } from "@/lib/utils";
+import { BidiText } from "./BidiText";
 import { OptionReviewCard } from "./OptionReviewCard";
 import { StemHighlightText } from "./StemHighlightText";
 
@@ -34,7 +35,7 @@ export function AmbossReviewPanel({
   );
 
   return (
-    <section className={cn("mt-3 space-y-4", className)} dir="rtl" aria-label="Question review">
+    <section className={cn("mt-3 space-y-4", className)} dir="rtl" lang="fa" aria-label="Question review">
       <Card variant="clinical" className="rounded-md border-emerald-200 bg-emerald-50/80 dark:border-emerald-900 dark:bg-emerald-950/20">
         <CardHeader className="p-4 pb-0">
           <CardTitle className="flex items-center gap-2 text-sm">
@@ -43,8 +44,8 @@ export function AmbossReviewPanel({
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4 pt-3">
-          <p className="text-sm leading-7 text-foreground" dir="auto">
-            {review.keyTeachingPoint}
+          <p className="text-sm leading-7 text-foreground" dir="rtl" lang="fa">
+            <BidiText text={review.keyTeachingPoint} />
           </p>
         </CardContent>
       </Card>
@@ -56,7 +57,7 @@ export function AmbossReviewPanel({
               <Target className="h-4 w-4 text-amber-600" aria-hidden="true" />
               Annotated Stem Clues
             </CardTitle>
-            <Badge variant="outline" className="rounded-md">
+            <Badge variant="outline" className="rounded-md" dir="ltr">
               {review.stemHighlights.length}
             </Badge>
           </div>
@@ -102,8 +103,8 @@ export function AmbossReviewPanel({
           <CardContent className="p-4 pt-3">
             <ul className="space-y-2">
               {review.takeHomeMessages.map((message, index) => (
-                <li key={`${message}-${index}`} className="text-sm leading-7 text-muted-foreground" dir="auto">
-                  {message}
+                <li key={`${message}-${index}`} className="text-sm leading-7 text-muted-foreground" dir="rtl" lang="fa">
+                  <BidiText text={message} />
                 </li>
               ))}
             </ul>

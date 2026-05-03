@@ -25,6 +25,7 @@ import type {
   ExamSessionSummary,
   VolumeBreakdown,
 } from '@/types/exam';
+import type { McqAmbossReview } from '@/types/mcq-review';
 import { getDb } from '@/db/index';
 import { examSessions } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -145,7 +146,7 @@ export async function submitAnswer(
   orderIndex: number,
   selectedOptionId: string,
   timeSpentSeconds: number,
-): Promise<{ outcome: string; correctOptionId: string; isCorrect: boolean; explanation: string | null }> {
+): Promise<{ outcome: string; correctOptionId: string; isCorrect: boolean; explanation: string | null; review: McqAmbossReview | null }> {
   // Look up session question by order index
   const sq = await getSessionQuestionByIndex(sessionId, orderIndex);
   if (!sq) {
@@ -171,6 +172,7 @@ export async function submitAnswer(
     correctOptionId: result.correctOptionId,
     isCorrect: result.outcome === 'correct',
     explanation: result.explanation,
+    review: result.review,
   };
 }
 

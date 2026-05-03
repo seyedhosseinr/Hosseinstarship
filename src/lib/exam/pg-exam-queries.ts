@@ -32,6 +32,7 @@ import {
   getVolumeForChapter,
 } from './campbell-hierarchy';
 import { shuffleOptionsForSessionQuestion } from './option-shuffle';
+import { getMcqAmbossReviewFromSourceJson } from '@/types/mcq-review';
 
 // Per-session-question shuffle key. Stable so refresh keeps the same layout,
 // but independent of the stored correctness key so any positional bias in
@@ -762,6 +763,7 @@ export async function pgGetSessionState(sessionId: string): Promise<{
         contentHtml: o.contentHtml,
         contentText: o.contentText ?? o.contentHtml,
         isCorrect: isSubmitted || isTutor ? o.isCorrect === 1 : undefined,
+        originalKey: o.optionKey,
       })),
       isMarked: sq.isMarked === 1,
       isSubmitted,
@@ -773,6 +775,7 @@ export async function pgGetSessionState(sessionId: string): Promise<{
         ? {
             explanationHtml: sq.explanationHtmlSnapshot ?? undefined,
             correctOptionId: sq.correctOptionId ?? undefined,
+            review: getMcqAmbossReviewFromSourceJson(qById.get(sq.questionId)?.sourceJson),
           }
         : {}),
     };
@@ -946,6 +949,7 @@ export async function pgCreateExamSession(params: {
         key: String.fromCharCode(65 + idx),
         contentHtml: o.contentHtml,
         contentText: o.contentText ?? o.contentHtml,
+        originalKey: o.optionKey,
       })),
       isMarked: false,
       isSubmitted: false,
@@ -970,6 +974,7 @@ export async function pgSubmitAnswer(params: {
   correctOptionId: string;
   correctKey: string;
   explanation: string | null;
+  review: import('@/types/mcq-review').McqAmbossReview | null;
 }> {
   const db = await getDb();
   const now = Date.now();
@@ -1028,11 +1033,20 @@ export async function pgSubmitAnswer(params: {
     createdAt: now,
   });
 
+  // Fetch structured review from question sourceJson.
+  const qSourceRows = await db
+    .select({ sourceJson: questions.sourceJson })
+    .from(questions)
+    .where(eq(questions.id, sq.questionId))
+    .limit(1);
+  const review = getMcqAmbossReviewFromSourceJson(qSourceRows[0]?.sourceJson);
+
   return {
     outcome,
     correctOptionId,
     correctKey,
     explanation: sq.explanationHtmlSnapshot ?? null,
+    review,
   };
 }
 

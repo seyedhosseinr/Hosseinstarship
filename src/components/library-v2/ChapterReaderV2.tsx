@@ -14,6 +14,7 @@ import {
   Minimize2,
   Minus,
   MoreHorizontal,
+  NotebookPen,
   PanelLeft,
   Pen,
   Plus,
@@ -26,7 +27,8 @@ import type { CampbellChapterDetail, CampbellVolumeGroup } from "@/lib/library/q
 import type { ChapterStatus } from "@/lib/library/progress";
 import type { ReaderAnnotation, ReaderSelectionPayload } from "@/hooks/useReaderAnnotations";
 import { useReaderAnnotations } from "@/hooks/useReaderAnnotations";
-import { useReaderFontSize } from "@/hooks/useReaderFontSize";
+import { useAutoHighlight } from "@/hooks/useAutoHighlight";
+import { useReaderSettings } from "@/hooks/useReaderSettings";
 import { useReaderPenSelection } from "@/hooks/useReaderPenSelection";
 import { usePalmBeforePenGuard } from "@/hooks/usePalmBeforePenGuard";
 import { useReaderSelectionWatcher } from "@/hooks/useReaderSelectionWatcher";
@@ -47,6 +49,7 @@ import { ReaderStage } from "./ReaderStage";
 import { MeasureColumn } from "./MeasureColumn";
 import { SegmentRenderer } from "./SegmentRenderer";
 import { StatusBadge } from "./StatusBadge";
+import { ReaderReferenceRail } from "./ReaderReferenceRail";
 
 const SelectionPopup = dynamic(
   () => import("@/components/flashcard/SelectionPopup").then((m) => m.SelectionPopup),
@@ -54,6 +57,10 @@ const SelectionPopup = dynamic(
 );
 const ReaderAnnotationsPanel = dynamic(
   () => import("@/components/note-viewer/ReaderAnnotationsPanel").then((m) => m.ReaderAnnotationsPanel),
+  { ssr: false, loading: () => null },
+);
+const ReaderUserNotesPanel = dynamic(
+  () => import("@/components/note-viewer/ReaderUserNotesPanel").then((m) => m.ReaderUserNotesPanel),
   { ssr: false, loading: () => null },
 );
 
@@ -106,6 +113,9 @@ export function ChapterReaderV2({
   // ── Pen / drawing mode ──
   const [penMode, setPenMode] = useState(false);
 
+  // ── User notes panel (study notes, local-first) ──
+  const [userNotesOpen, setUserNotesOpen] = useState(false);
+
   // Pencil drag-selects text in Select mode (penMode=false).
   // iPadOS Safari otherwise treats Pencil drag as a scroll gesture.
   useReaderPenSelection({
@@ -130,8 +140,8 @@ export function ChapterReaderV2({
   const [penTool, setPenTool] = useState<DrawTool>("pen");
   const drawingLayerRef = useRef<DrawingLayerHandle>(null);
 
-  // ── Font size (AA) control ──
-  const { fontScale, step, stepsTotal, increase: fontIncrease, decrease: fontDecrease, isMin: fontIsMin, isMax: fontIsMax } = useReaderFontSize();
+  // ── Reader AA controls ──
+  const { settings: readerSettings, update: updateReaderSettings } = useReaderSettings();
   const [fontSizeOpen, setFontSizeOpen] = useState(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
 
@@ -204,6 +214,11 @@ export function ChapterReaderV2({
 
   const { annotations, addAnnotation, removeAnnotation, annotationCountByFrameId } =
     useReaderAnnotations(`ch-${chapter.chapterNo}`, chapter.chapterNo);
+
+  const { autoHighlight, toggleAutoHighlight } = useAutoHighlight({
+    annotations,
+    onHighlight: (sel, color) => addAnnotation({ selection: sel, type: "highlight", color }),
+  });
 
   const annotationsByFrameId = useMemo(() => {
     const map = new Map<string, ReaderAnnotation[]>();
@@ -372,6 +387,22 @@ export function ChapterReaderV2({
                 )}
               </button>
 
+              {/* User study notes */}
+              <button
+                type="button"
+                onClick={() => setUserNotesOpen((v) => !v)}
+                title="یادداشت‌های من"
+                aria-label={userNotesOpen ? "بستن یادداشت‌ها" : "باز کردن یادداشت‌ها"}
+                className={cn(
+                  "inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors",
+                  userNotesOpen
+                    ? "bg-lib-accent-soft text-lib-accent"
+                    : "text-lib-text-secondary hover:bg-lib-hover",
+                )}
+              >
+                <NotebookPen className="h-4 w-4" />
+              </button>
+
               <button
                 type="button"
                 onClick={() => setHighlightsVisible((v) => !v)}
@@ -450,42 +481,80 @@ export function ChapterReaderV2({
                 {/* Decrease */}
                 <button
                   type="button"
-                  onClick={fontDecrease}
-                  disabled={fontIsMin}
+                  onClick={() => updateReaderSettings({ fontSize: Math.max(13, readerSettings.fontSize - 1) })}
+                  disabled={readerSettings.fontSize <= 13}
                   aria-label="Smaller text"
                   className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover disabled:cursor-not-allowed disabled:opacity-30"
                 >
                   <Minus className="h-3.5 w-3.5" />
                 </button>
 
-                {/* AA label + step dots */}
-                <div className="flex min-w-[68px] select-none flex-col items-center gap-[3px] px-1.5">
+                {/* AA label */}
+                <div className="flex min-w-[56px] select-none flex-col items-center gap-[3px] px-1.5">
                   <div className="flex items-end gap-0.5 leading-none">
                     <span className="text-[9px] font-bold text-lib-text-secondary">A</span>
                     <span className="text-[13px] font-bold text-lib-text">A</span>
                   </div>
-                  <div className="flex items-center gap-[3px]">
-                    {Array.from({ length: stepsTotal }).map((_, i) => (
-                      <div
-                        key={i}
-                        className={cn(
-                          "rounded-full transition-all duration-100",
-                          i === step
-                            ? "h-1.5 w-1.5 bg-lib-accent"
-                            : "h-1 w-1 bg-lib-border",
-                        )}
-                      />
-                    ))}
+                  <div className="font-mono text-[10px] tabular-nums text-lib-text-muted">
+                    {readerSettings.fontSize}px
                   </div>
                 </div>
 
                 {/* Increase */}
                 <button
                   type="button"
-                  onClick={fontIncrease}
-                  disabled={fontIsMax}
+                  onClick={() => updateReaderSettings({ fontSize: Math.min(24, readerSettings.fontSize + 1) })}
+                  disabled={readerSettings.fontSize >= 24}
                   aria-label="Larger text"
                   className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+
+                <div className="mx-1 h-4 w-px bg-lib-border/55" />
+
+                <button
+                  type="button"
+                  onClick={() => updateReaderSettings({ lineHeight: Math.max(1.4, Number((readerSettings.lineHeight - 0.1).toFixed(1))) })}
+                  aria-label="Tighter line spacing"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover disabled:cursor-not-allowed disabled:opacity-30"
+                  disabled={readerSettings.lineHeight <= 1.4}
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </button>
+                <span className="min-w-[48px] text-center text-[10px] font-medium text-lib-text-muted">
+                  Line {readerSettings.lineHeight.toFixed(1)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => updateReaderSettings({ lineHeight: Math.min(2.2, Number((readerSettings.lineHeight + 0.1).toFixed(1))) })}
+                  aria-label="Looser line spacing"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover disabled:cursor-not-allowed disabled:opacity-30"
+                  disabled={readerSettings.lineHeight >= 2.2}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+
+                <div className="mx-1 h-4 w-px bg-lib-border/55" />
+
+                <button
+                  type="button"
+                  onClick={() => updateReaderSettings({ maxWidth: Math.max(540, readerSettings.maxWidth - 60) })}
+                  aria-label="Narrower line width"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover disabled:cursor-not-allowed disabled:opacity-30"
+                  disabled={readerSettings.maxWidth <= 540}
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </button>
+                <span className="min-w-[52px] text-center text-[10px] font-medium text-lib-text-muted">
+                  Width {readerSettings.maxWidth}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => updateReaderSettings({ maxWidth: Math.min(900, readerSettings.maxWidth + 60) })}
+                  aria-label="Wider line width"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover disabled:cursor-not-allowed disabled:opacity-30"
+                  disabled={readerSettings.maxWidth >= 900}
                 >
                   <Plus className="h-3.5 w-3.5" />
                 </button>
@@ -576,6 +645,15 @@ export function ChapterReaderV2({
           </>
         )}
       </div>
+
+      {userNotesOpen && (
+        <ReaderUserNotesPanel
+          docId={`ch-${chapter.chapterNo}`}
+          segmentId=""
+          chapterNo={chapter.chapterNo}
+          onClose={() => setUserNotesOpen(false)}
+        />
+      )}
 
       <ReaderStage ref={scrollRef}>
         <MeasureColumn>
@@ -672,7 +750,12 @@ export function ChapterReaderV2({
             <article
               data-reader-content="true"
               className="reader-content space-y-8"
-              style={{ "--reader-font-scale": String(fontScale) } as React.CSSProperties}
+              style={{
+                "--reader-font-size": `${readerSettings.fontSize}px`,
+                "--reader-font-scale": String(readerSettings.fontSize / 17),
+                "--reader-line-height": String(readerSettings.lineHeight),
+                "--reader-prose-w": `${readerSettings.maxWidth}px`,
+              } as React.CSSProperties}
             >
               {notes.map((note) => (
                 <SegmentRenderer
@@ -681,6 +764,10 @@ export function ChapterReaderV2({
                   annotationsByFrameId={annotationsByFrameId}
                   annotationCountByFrameId={annotationCountByFrameId}
                   highlightsVisible={highlightsVisible}
+                  noteContext={{
+                    docId: `ch-${chapter.chapterNo}`,
+                    chapterNo: chapter.chapterNo,
+                  }}
                 />
               ))}
             </article>
@@ -738,6 +825,8 @@ export function ChapterReaderV2({
           panels.open("annotations");
         }}
         onComment={handleComment}
+        autoHighlight={autoHighlight}
+        onToggleAutoHighlight={toggleAutoHighlight}
       />
 
       {/* ══ Annotations rail ══ */}
@@ -780,6 +869,13 @@ export function ChapterReaderV2({
         scrollRef={scrollRef}
         visible={highlightsVisible}
       />
+        {/* Reference navigation rail - slim right-gutter minimap */}
+        <ReaderReferenceRail
+          notes={notes}
+          scrollRef={scrollRef}
+          annotationsPanelOpen={panels.annotations}
+        />
+
     </LibraryShell>
   );
 }

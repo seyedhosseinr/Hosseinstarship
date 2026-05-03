@@ -79,6 +79,7 @@ type FrameBodyProps = {
    * reads better out of the box.
    */
   justify?: boolean;
+  onMediaRefClick?: (label: string) => void;
 };
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -131,6 +132,57 @@ const INLINE_TONE_PRIMARY = cn(
   "[&_code]:font-mono [&_code]:text-[0.9em] [&_code]:text-lib-text",
 );
 
+const MEDIA_REF_PATTERN =
+  /\b(?:Figure|Fig\.?|Image)\s+\d+(?:[.-]\d+)?|(?:تصویر|شکل)\s+[۰-۹0-9]+(?:[.-][۰-۹0-9]+)?/giu;
+
+function renderInlineWithMediaRefs(
+  text: string,
+  onMediaRefClick?: (label: string) => void,
+) {
+  if (!onMediaRefClick) return renderInlineRich(text);
+
+  const parts: React.ReactNode[] = [];
+  const appendRich = (value: string) => {
+    const rendered = renderInlineRich(value);
+    parts.push(<React.Fragment key={`media-rich-${key++}`}>{rendered}</React.Fragment>);
+  };
+  let cursor = 0;
+  let key = 0;
+  for (const match of text.matchAll(MEDIA_REF_PATTERN)) {
+    const index = match.index ?? 0;
+    const label = match[0];
+    if (index > cursor) {
+      appendRich(text.slice(cursor, index));
+    }
+    parts.push(
+      <button
+        key={`media-ref-${key++}`}
+        type="button"
+        data-reader-media-anchor="true"
+        data-reader-media-label={label}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onMediaRefClick(label);
+        }}
+        className={cn(
+          "inline-flex translate-y-[1px] items-center rounded-[4px] border border-lib-accent/25",
+          "bg-lib-accent-soft px-1.5 py-[1px] text-[0.9em] font-[700] text-lib-accent",
+          "transition hover:border-lib-accent/45 hover:bg-lib-accent-hover focus:outline-none",
+          "focus-visible:ring-2 focus-visible:ring-lib-accent/30",
+        )}
+      >
+        {label}
+      </button>,
+    );
+    cursor = index + label.length;
+  }
+  if (cursor < text.length) {
+    appendRich(text.slice(cursor));
+  }
+  return parts;
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    Table renderer (pipe syntax, markdown-like)
    ───────────────────────────────────────────────────────────────────
@@ -171,7 +223,7 @@ function renderTable(lines: string[], compact: boolean) {
 
   // Pull alignment out of the second row (if it's a separator row).
   let alignments: ColAlign[] = [];
-  let headerRow: string[] = rows[0] ?? [];
+  const headerRow: string[] = rows[0] ?? [];
   let bodyRows: string[][] = [];
   if (rows.length >= 2) {
     const maybeAlign = parseAlignmentRow(rows[1]);
@@ -284,6 +336,7 @@ export function FrameBody({
   compact = false,
   anchorPrimary = true,
   justify = false,
+  onMediaRefClick,
 }: FrameBodyProps) {
   if (!body?.trim()) return null;
 
@@ -361,7 +414,7 @@ export function FrameBody({
         <div className="space-y-2">
           {blocks.map((block, index) => (
             <p key={index} className="whitespace-pre-wrap" style={dimStyle}>
-              {renderInlineRich(block)}
+              {renderInlineWithMediaRefs(block, onMediaRefClick)}
             </p>
           ))}
         </div>
@@ -448,7 +501,7 @@ export function FrameBody({
                       item.depth > 0 ? `${item.depth * 14}px` : undefined,
                   }}
                 >
-                  {renderInlineRich(item.text)}
+                  {renderInlineWithMediaRefs(item.text, onMediaRefClick)}
                 </li>
               ))}
             </ul>
@@ -477,7 +530,10 @@ export function FrameBody({
             >
               {lines.map((line, lineIndex) => (
                 <li key={lineIndex} style={liStyle}>
-                  {renderInlineRich(line.replace(/^\s*\d+\.\s+/, ""))}
+                  {renderInlineWithMediaRefs(
+                    line.replace(/^\s*\d+\.\s+/, ""),
+                    onMediaRefClick,
+                  )}
                 </li>
               ))}
             </ol>
@@ -487,7 +543,7 @@ export function FrameBody({
         // ─── Paragraph (default) ──
         return (
           <p key={index} className={paragraphClassName} style={proseStyle}>
-            {renderInlineRich(lines.join(" "))}
+            {renderInlineWithMediaRefs(lines.join(" "), onMediaRefClick)}
           </p>
         );
       })}

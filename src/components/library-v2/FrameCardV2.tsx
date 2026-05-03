@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ArrowRight, MessageSquare, Sparkles } from "lucide-react";
+import { ArrowRight, Image as ImageIcon, MessageSquare, Sparkles, X } from "lucide-react";
 import type { FrameViewModel } from "@/lib/contract/note-viewer.types";
 import type { CalloutV8 } from "@/lib/contract/note-v8.types";
 import type { FrameKind } from "@/lib/contract/types";
@@ -253,6 +253,7 @@ function FrameCardV2Impl({
 }: FrameCardV2Props) {
   const resolvedKind: FrameKind =
     KIND_LABELS[frame.kind as FrameKind] ? (frame.kind as FrameKind) : "core";
+  const [selectedMediaRef, setSelectedMediaRef] = React.useState<string | null>(null);
   const callout = CALLOUT_FOR_KIND[resolvedKind];
   const eyebrow = !callout ? PLAIN_EYEBROW[resolvedKind] : undefined;
 
@@ -262,7 +263,8 @@ function FrameCardV2Impl({
       ? "key-exam-marker"
       : showHighYieldMarker && frame.highYield
         ? "high-yield-marker"
-        : undefined;
+      : undefined;
+  const mediaReaderEnabled = process.env.NEXT_PUBLIC_STARSHIP_MEDIA_READER !== "false";
 
   const dataAttrs = {
     id: frame.id,
@@ -270,6 +272,7 @@ function FrameCardV2Impl({
     "data-frame-kind": resolvedKind,
     "data-frame-tier": callout ? "callout" : "plain",
     "data-content-hash": frame.contentHash ?? undefined,
+    "data-reader-reference-id": frame.linkedQuestions.length > 0 ? frame.id : undefined,
   };
 
   const bodyText = frame.content || frame.body;
@@ -299,18 +302,21 @@ function FrameCardV2Impl({
         frame={frame}
         annotations={annotations}
         highlightsVisible={highlightsVisible}
+        onMediaRefClick={mediaReaderEnabled ? setSelectedMediaRef : undefined}
       />
       <PearlTail
         pearl={frame.clinicalPearl}
         body={bodyText}
         annotations={annotations}
         highlightsVisible={highlightsVisible}
+        onMediaRefClick={mediaReaderEnabled ? setSelectedMediaRef : undefined}
       />
       <MarginTail
         note={frame.marginNote}
         body={bodyText}
         annotations={annotations}
         highlightsVisible={highlightsVisible}
+        onMediaRefClick={mediaReaderEnabled ? setSelectedMediaRef : undefined}
       />
       <FrameFlagBadges frame={frame} />
       <LinkedQuestionsFooter frame={frame} compact={!!callout} />
@@ -341,6 +347,7 @@ function FrameCardV2Impl({
           isHighlighted && "ring-1 ring-lib-accent/40",
         )}
       >
+        <ReferenceRailMarker frame={frame} />
         <div className="flex gap-3">
           <div
             aria-hidden="true"
@@ -390,6 +397,12 @@ function FrameCardV2Impl({
             {innerBody}
           </div>
         </div>
+        {selectedMediaRef && (
+          <MediaFallbackDialog
+            label={selectedMediaRef}
+            onClose={() => setSelectedMediaRef(null)}
+          />
+        )}
       </section>
     );
   }
@@ -410,6 +423,7 @@ function FrameCardV2Impl({
         isHighlighted && "rounded-[6px] bg-sky-50/40 px-3 py-2 dark:bg-sky-950/15",
       )}
     >
+      <ReferenceRailMarker frame={frame} />
       {annotationCount > 0 && (
         <span
           className={cn(
@@ -470,6 +484,12 @@ function FrameCardV2Impl({
         </div>
       )}
       {innerBody}
+      {selectedMediaRef && (
+        <MediaFallbackDialog
+          label={selectedMediaRef}
+          onClose={() => setSelectedMediaRef(null)}
+        />
+      )}
     </section>
   );
 }
@@ -494,11 +514,13 @@ function PearlTail({
   body,
   annotations,
   highlightsVisible,
+  onMediaRefClick,
 }: {
   pearl: string | null | undefined;
   body: string | null | undefined;
   annotations?: ReaderAnnotation[];
   highlightsVisible?: boolean;
+  onMediaRefClick?: (label: string) => void;
 }) {
   if (!pearl?.trim()) return null;
   if (isDuplicateOfBody(pearl, body)) return null;
@@ -534,7 +556,7 @@ function PearlTail({
           </span>
         </div>
         <div className="text-[13.5px] leading-[1.62] text-lib-text/92">
-          <FrameBody body={pearl} compact />
+          <FrameBody body={pearl} compact onMediaRefClick={onMediaRefClick} />
         </div>
       </div>
     </div>
@@ -550,11 +572,13 @@ function MarginTail({
   body,
   annotations,
   highlightsVisible,
+  onMediaRefClick,
 }: {
   note: string | null | undefined;
   body: string | null | undefined;
   annotations?: ReaderAnnotation[];
   highlightsVisible?: boolean;
+  onMediaRefClick?: (label: string) => void;
 }) {
   if (!note?.trim()) return null;
   if (isDuplicateOfBody(note, body)) return null;
@@ -569,7 +593,7 @@ function MarginTail({
         "[&_strong]:font-[800] [&_em]:[font-style:oblique_12deg]",
       )}
     >
-      <FrameBody body={note} compact />
+      <FrameBody body={note} compact onMediaRefClick={onMediaRefClick} />
     </div>
   );
 }
@@ -582,8 +606,10 @@ function FrameRichContent({
   frame,
   annotations,
   highlightsVisible,
+  onMediaRefClick,
 }: Pick<FrameCardV2Props, "annotations" | "highlightsVisible"> & {
   frame: FrameViewModel;
+  onMediaRefClick?: (label: string) => void;
 }) {
   const hasInteractive = !!frame.interactiveData;
   return (
@@ -627,11 +653,13 @@ function FrameRichContent({
         frame={frame}
         annotations={annotations}
         highlightsVisible={highlightsVisible}
+        onMediaRefClick={onMediaRefClick}
       />
       <CanonicalContentSurface
         frame={frame}
         annotations={annotations}
         highlightsVisible={highlightsVisible}
+        onMediaRefClick={onMediaRefClick}
       />
       <FrameCallouts
         callouts={frame.v8Display?.callouts}
@@ -647,8 +675,10 @@ function CanonicalContentSurface({
   frame,
   annotations,
   highlightsVisible,
+  onMediaRefClick,
 }: Pick<FrameCardV2Props, "annotations" | "highlightsVisible"> & {
   frame: FrameViewModel;
+  onMediaRefClick?: (label: string) => void;
 }) {
   const body = frame.content || frame.body;
   if (!body?.trim()) return null;
@@ -661,6 +691,7 @@ function CanonicalContentSurface({
       <FrameBody
         body={body}
         anchorPrimary={!frame.hasStructuralReformat}
+        onMediaRefClick={onMediaRefClick}
       />
     </div>
   );
@@ -697,8 +728,10 @@ function PlainListItems({
   frame,
   annotations,
   highlightsVisible,
+  onMediaRefClick,
 }: Pick<FrameCardV2Props, "annotations" | "highlightsVisible"> & {
   frame: FrameViewModel;
+  onMediaRefClick?: (label: string) => void;
 }) {
   if (!frame.listItems?.length) return null;
   return (
@@ -717,7 +750,7 @@ function PlainListItems({
     >
       {frame.listItems.map((item, i) => (
         <li key={i}>
-          <FrameBody body={item} compact />
+          <FrameBody body={item} compact onMediaRefClick={onMediaRefClick} />
         </li>
       ))}
     </ul>
@@ -749,7 +782,12 @@ function LinkedQuestionsFooter({
 }) {
   if (!frame.linkedQuestions.length) return null;
   return (
-    <details className="group/related mt-2.5">
+    <details
+      className="group/related mt-2.5"
+      data-reader-reference-rail="true"
+      data-reader-reference-frame-id={frame.id}
+      data-reader-reference-count={frame.linkedQuestions.length}
+    >
       <summary
         className={cn(
           "flex cursor-pointer list-none items-center gap-2 py-1",
@@ -976,6 +1014,86 @@ function FrameTable({
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function ReferenceRailMarker({ frame }: { frame: FrameViewModel }) {
+  if (!frame.linkedQuestions.length) return null;
+  return (
+    <button
+      type="button"
+      data-reader-rail-marker="true"
+      aria-label={`${frame.linkedQuestions.length} source reference${frame.linkedQuestions.length !== 1 ? "s" : ""}`}
+      title={`${frame.linkedQuestions.length} source reference${frame.linkedQuestions.length !== 1 ? "s" : ""}`}
+      onClick={(event) => {
+        const frameEl = event.currentTarget.closest<HTMLElement>("[data-frame-id]");
+        const rail = frameEl?.querySelector<HTMLDetailsElement>("[data-reader-reference-rail]");
+        if (rail) {
+          rail.open = true;
+          rail.scrollIntoView?.({ behavior: "smooth", block: "nearest" });
+          rail.querySelector<HTMLElement>("summary")?.focus();
+        }
+      }}
+      className={cn(
+        "absolute -end-9 top-2 z-10 hidden h-7 w-7 items-center justify-center rounded-full",
+        "border border-lib-accent/25 bg-lib-surface text-[11px] font-[700] tabular-nums text-lib-accent",
+        "shadow-sm transition hover:border-lib-accent/45 hover:bg-lib-accent-soft focus:outline-none",
+        "focus-visible:ring-2 focus-visible:ring-lib-accent/30 md:inline-flex",
+      )}
+    >
+      {frame.linkedQuestions.length}
+    </button>
+  );
+}
+
+function MediaFallbackDialog({
+  label,
+  onClose,
+}: {
+  label: string;
+  onClose: () => void;
+}) {
+  React.useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      data-reader-media-fallback="true"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`${label} media reference`}
+      className="fixed inset-0 z-[210] flex items-center justify-center bg-black/35 px-4 backdrop-blur-sm"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div className="w-full max-w-sm rounded-lib-lg border border-lib-border bg-lib-surface p-5 text-lib-text shadow-xl">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-lib-accent-soft text-lib-accent">
+            <ImageIcon className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold">{label}</div>
+            <p className="mt-1 text-sm leading-6 text-lib-text-secondary">
+              This image/media reference is not imported yet.
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label="Close media reference"
+            onClick={onClose}
+            className="rounded-lib-sm p-1.5 text-lib-text-muted transition hover:bg-lib-hover hover:text-lib-text"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

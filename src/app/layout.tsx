@@ -54,6 +54,50 @@ export const metadata: Metadata = {
   },
 };
 
+const DEV_SERVICE_WORKER_CLEANUP = `
+(() => {
+  if (!("serviceWorker" in navigator)) return;
+  const reloadKey = "__starship_dev_sw_cleanup_reloaded";
+  const cachePrefixes = [
+    "serwist-",
+    "api-cache-",
+    "lib-cache-",
+    "pages-",
+    "pglite-wasm-",
+    "rsc-cache-",
+  ];
+  const unregisterWorkers = navigator.serviceWorker
+    .getRegistrations()
+    .then((registrations) =>
+      Promise.all(
+        registrations
+          .filter((registration) => registration.scope.startsWith(window.location.origin))
+          .map((registration) => registration.unregister()),
+      ),
+    );
+  const clearCaches =
+    "caches" in window
+      ? caches
+          .keys()
+          .then((names) =>
+            Promise.all(
+              names
+                .filter((name) => cachePrefixes.some((prefix) => name.startsWith(prefix)))
+                .map((name) => caches.delete(name)),
+            ),
+          )
+      : Promise.resolve();
+  Promise.all([unregisterWorkers, clearCaches])
+    .then(() => {
+      if (navigator.serviceWorker.controller && sessionStorage.getItem(reloadKey) !== "1") {
+        sessionStorage.setItem(reloadKey, "1");
+        window.location.reload();
+      }
+    })
+    .catch(() => {});
+})();
+`;
+
 export default function RootLayout({
   children,
 }: {
@@ -62,6 +106,9 @@ export default function RootLayout({
   return (
     <html lang="fa" dir="rtl" suppressHydrationWarning className={vazirmatn.variable}>
       <head>
+        {process.env.NODE_ENV === "development" ? (
+          <script dangerouslySetInnerHTML={{ __html: DEV_SERVICE_WORKER_CLEANUP }} />
+        ) : null}
         <ReaderHighlightStyles />
         {/* PWA: Apple touch icon */}
         <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />

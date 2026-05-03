@@ -314,28 +314,33 @@
 /* ── Primary paragraphs (compact=false → has mx-auto) ── */
 [data-reader-content] [data-anchor-mode="primary"] > p.mx-auto {
   font-size: calc(15.5px * var(--reader-font-scale, 1));
+  line-height: var(--reader-line-height, 1.68);
 }
 
 /* ── Compact paragraphs (compact=true in primary → no mx-auto) ── */
 [data-reader-content] [data-anchor-mode="primary"] > p:not(.mx-auto) {
   font-size: calc(13.5px * var(--reader-font-scale, 1));
+  line-height: var(--reader-line-height, 1.62);
 }
 
 /* ── Primary bullet / ordered lists (has mx-auto) ── */
 [data-reader-content] [data-anchor-mode="primary"] > ul.mx-auto,
 [data-reader-content] [data-anchor-mode="primary"] > ol.mx-auto {
   font-size: calc(15.5px * var(--reader-font-scale, 1));
+  line-height: var(--reader-line-height, 1.65);
 }
 
 /* ── Compact lists (no mx-auto) ── */
 [data-reader-content] [data-anchor-mode="primary"] > ul:not(.mx-auto),
 [data-reader-content] [data-anchor-mode="primary"] > ol:not(.mx-auto) {
   font-size: calc(13.5px * var(--reader-font-scale, 1));
+  line-height: var(--reader-line-height, 1.6);
 }
 
 /* ── Blockquotes (primary base; compact variant is rare) ── */
 [data-reader-content] [data-anchor-mode="primary"] blockquote {
   font-size: calc(15px * var(--reader-font-scale, 1));
+  line-height: var(--reader-line-height, 1.68);
 }
 
 /* ── Tables (primary base; compact variant is rare) ── */

@@ -14,11 +14,55 @@
 
 import { useEffect, useState } from "react";
 
+const ENABLE_SERVICE_WORKER =
+  process.env.NODE_ENV === "production" &&
+  process.env.NEXT_PUBLIC_ENABLE_SERVICE_WORKER === "1";
+
+const DEV_SW_CACHE_PREFIXES = [
+  "serwist-",
+  "api-cache-",
+  "lib-cache-",
+  "pages-",
+  "pglite-wasm-",
+  "rsc-cache-",
+];
+
 export function SwUpdatePrompt() {
   const [waiting, setWaiting] = useState<ServiceWorker | null>(null);
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+    if (!ENABLE_SERVICE_WORKER) {
+      if (process.env.NODE_ENV === "development") {
+        void navigator.serviceWorker
+          .getRegistrations()
+          .then((registrations) =>
+            Promise.all(
+              registrations
+                .filter((registration) => registration.scope.startsWith(window.location.origin))
+                .map((registration) => registration.unregister()),
+            ),
+          )
+          .catch(() => {});
+
+        if ("caches" in window) {
+          void caches
+            .keys()
+            .then((names) =>
+              Promise.all(
+                names
+                  .filter((name) =>
+                    DEV_SW_CACHE_PREFIXES.some((prefix) => name.startsWith(prefix)),
+                  )
+                  .map((name) => caches.delete(name)),
+              ),
+            )
+            .catch(() => {});
+        }
+      }
+      return;
+    }
+
     let mounted = true;
 
     const attach = (reg: ServiceWorkerRegistration) => {
@@ -55,7 +99,7 @@ export function SwUpdatePrompt() {
     };
   }, []);
 
-  if (!waiting) return null;
+  if (!ENABLE_SERVICE_WORKER || !waiting) return null;
 
   const handleReload = () => {
     waiting.postMessage({ type: "SKIP_WAITING" });

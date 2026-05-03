@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, BarChart3, Brain, Clock3 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { getManagedFlashcardStats } from "@/lib/services/flashcard-service";
+import { BidiText } from "@/components/shared/BidiText";
 
 export const dynamic = "force-dynamic";
 
@@ -123,8 +124,8 @@ export default async function FlashcardStatsPage() {
                   <div key={review.id} className="rounded-2xl border border-border/40 bg-muted/30 px-4 py-3">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="truncate text-sm font-medium text-foreground">
-                          {stripHtml(review.flashcardFrontHtml)}
+                        <div className="truncate text-sm font-medium text-foreground" dir="rtl" lang="fa" data-bidi-text="flashcard">
+                          <BidiText text={stripHtml(review.flashcardFrontHtml)} />
                         </div>
                         <div className="mt-1 text-xs text-muted-foreground">
                           {new Date(review.reviewedAt).toLocaleString("en-US", {

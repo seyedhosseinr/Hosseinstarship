@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Eraser, FileQuestion, Layers, MessageSquarePlus, Send, Underline as UnderlineIcon, X } from "lucide-react";
+import { Eraser, FileQuestion, Layers, MessageSquarePlus, Send, Underline as UnderlineIcon, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ReaderAnnotation, ReaderSelectionPayload } from "@/hooks/useReaderAnnotations";
 import { cn } from "@/lib/utils";
@@ -161,6 +161,9 @@ interface SelectionPopupProps {
   onUnderline: (payload: ReaderSelectionPayload) => void;
   /** commentText is provided by the popup's inline textarea — no window.prompt needed */
   onComment: (payload: ReaderSelectionPayload, commentText: string) => void;
+  /** When true, text drag-selections auto-create a highlight without popup interaction. */
+  autoHighlight?: boolean;
+  onToggleAutoHighlight?: () => void;
 }
 
 export function SelectionPopup({
@@ -172,6 +175,8 @@ export function SelectionPopup({
   onRemoveHighlight,
   onUnderline,
   onComment,
+  autoHighlight = false,
+  onToggleAutoHighlight,
 }: SelectionPopupProps) {
   const popupRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -549,6 +554,26 @@ export function SelectionPopup({
           >
             <MessageSquarePlus className="h-4 w-4" />
           </Button>
+          {onToggleAutoHighlight && (
+            <>
+              <div className="mx-0.5 h-5 w-px bg-lib-border" />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onToggleAutoHighlight}
+                title={autoHighlight ? "Auto highlight ON — click to turn off" : "Auto highlight OFF — click to turn on"}
+                aria-pressed={autoHighlight}
+                className={cn(
+                  "h-8 w-8 p-0",
+                  autoHighlight
+                    ? "text-lib-accent bg-lib-accent-soft"
+                    : "text-lib-text-muted hover:text-lib-text",
+                )}
+              >
+                <Zap className="h-4 w-4" />
+              </Button>
+            </>
+          )}
           <Button
             variant="ghost"
             size="sm"

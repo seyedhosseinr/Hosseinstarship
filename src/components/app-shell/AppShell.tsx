@@ -20,7 +20,9 @@ const READER_ROUTES      = [
 /** Dashboard routes: sidebar is kept, but no wrapper padding/max-width —
  *  HosseinStarshipDashboard is a full-bleed component that manages its own layout. */
 const DASHBOARD_ROUTES   = ["/"];
-const ENABLE_SERVICE_WORKER = process.env.NEXT_PUBLIC_ENABLE_SERVICE_WORKER === "1";
+const ENABLE_SERVICE_WORKER =
+  process.env.NODE_ENV === "production" &&
+  process.env.NEXT_PUBLIC_ENABLE_SERVICE_WORKER === "1";
 
 const CommandPalette = dynamic(
   () => import("@/components/command/CommandPalette").then((m) => m.CommandPalette),

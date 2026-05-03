@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { McqOptionReview } from "@/types/mcq-review";
 import { cn } from "@/lib/utils";
+import { BidiText } from "./BidiText";
 
 type OptionReviewCardProps = {
   optionKey: string;
@@ -32,6 +33,7 @@ export function OptionReviewCard({
           : "border-rose-200/70 bg-card dark:border-rose-950/60",
       )}
       dir="rtl"
+      lang="fa"
     >
       <CardContent className="p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
@@ -56,35 +58,30 @@ export function OptionReviewCard({
           </div>
 
           <div className="min-w-0 flex-1 space-y-3">
-            <div className="text-sm font-semibold leading-6 text-foreground" dir="auto">
-              {optionText}
+            <div className="text-sm font-semibold leading-6 text-foreground" dir="rtl" lang="fa">
+              <BidiText text={optionText} />
             </div>
 
             {review ? (
               <div className="space-y-2">
-                {review.title ? (
-                  <div className="text-sm font-semibold text-foreground" dir="auto">
-                    {review.title}
-                  </div>
-                ) : null}
-                <p className="text-sm leading-7 text-muted-foreground" dir="auto">
-                  {review.why}
+                <p className="text-sm leading-7 text-muted-foreground" dir="rtl" lang="fa">
+                  <BidiText text={review.why} />
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {review.discriminator ? (
-                    <Badge variant="review" className="rounded-md" dir="auto">
-                      {review.discriminator}
+                    <Badge variant="review" className="rounded-md" dir="rtl" lang="fa">
+                      <BidiText text={review.discriminator} />
                     </Badge>
                   ) : null}
                   {review.trapType ? (
-                    <Badge variant="outline" className="rounded-md text-muted-foreground" dir="auto">
+                    <Badge variant="outline" className="rounded-md text-muted-foreground" dir="ltr">
                       {review.trapType}
                     </Badge>
                   ) : null}
                 </div>
               </div>
             ) : (
-              <p className="text-sm leading-7 text-muted-foreground" dir="auto">
+              <p className="text-sm leading-7 text-muted-foreground" dir="rtl" lang="fa">
                 No option-specific explanation was provided for this choice.
               </p>
             )}

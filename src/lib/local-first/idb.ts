@@ -11,6 +11,7 @@
  */
 
 import Dexie, { type Table } from "dexie";
+import type { HandwrittenNote } from "@/lib/handwriting/types";
 
 /* â”€â”€ Enums / literal types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
@@ -204,6 +205,24 @@ export interface AttachmentMapRow {
   lastAccessedAt: string;
 }
 
+/**
+ * Local user note row — mirrors the server-side `lf_user_notes` table.
+ * isDeleted uses 0/1 so it can be indexed in Dexie (booleans are not
+ * indexable in IndexedDB).
+ */
+export interface UserNoteRow {
+  id: string;
+  docId: string;
+  segmentId: string;
+  chapterNo: number | null;
+  title: string | null;
+  body: string;
+  tagsJson: string | null;
+  isDeleted: 0 | 1;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /* â”€â”€ Dexie class â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 export class StarshipLocalFirstDb extends Dexie {
@@ -221,6 +240,8 @@ export class StarshipLocalFirstDb extends Dexie {
   meta!: Table<MetaRow, string>;
   undoStack!: Table<UndoEntry, string>;
   attachmentMap!: Table<AttachmentMapRow, string>;
+  handwrittenNotes!: Table<HandwrittenNote, string>;
+  userNotes!: Table<UserNoteRow, string>;
 
   constructor() {
     super("starship-local-first");
@@ -247,6 +268,14 @@ export class StarshipLocalFirstDb extends Dexie {
     this.version(2).stores({
       undoStack: "id, entityType, entityLocalId, createdAt",
       attachmentMap: "url, sha256, lastAccessedAt",
+    });
+    this.version(3).stores({
+      handwrittenNotes:
+        "id, anchorKey, chapterId, segmentId, blockId, updatedAt, deletedAt, [chapterId+segmentId+blockId]",
+    });
+    this.version(4).stores({
+      userNotes:
+        "id, docId, segmentId, chapterNo, isDeleted, updatedAt, [docId+isDeleted]",
     });
   }
 }

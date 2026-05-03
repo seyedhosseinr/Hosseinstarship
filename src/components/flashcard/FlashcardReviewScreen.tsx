@@ -16,6 +16,7 @@ import { useOptimisticFlashcard } from "@/hooks/useOptimisticFlashcard";
 import { getFlashcardsForReview } from "@/hooks/useDb";
 import { isLocalFirstEnabled } from "@/lib/local-first/flag";
 import { submitReviewLocal } from "@/lib/local-first/flashcard-review-local";
+import { BidiText } from "@/components/shared/BidiText";
 import {
   filterFlashcardsByChapter,
   normalizeChapterKey,
@@ -776,7 +777,7 @@ export function FlashcardReviewScreen({
                 )}
               </div>
               <div className="FR-qlabel">سوال</div>
-              <div className="FR-qtext">{strip(current.frontHtml)}</div>
+              <div className="FR-qtext" dir="rtl" lang="fa" data-bidi-text="flashcard"><BidiText text={strip(current.frontHtml)} /></div>
             </div>
           </div>
 
@@ -786,7 +787,7 @@ export function FlashcardReviewScreen({
               <>
                 <div className="FR-adivider" />
                 <div className="FR-alabel"><CheckCircle2 size={13} /> پاسخ</div>
-                <div className="FR-atext">{strip(current.backHtml)}</div>
+                <div className="FR-atext" dir="rtl" lang="fa" data-bidi-text="flashcard"><BidiText text={strip(current.backHtml)} /></div>
                 {(current.sourceDocId || current.sourceQuestionId) && (
                   <div className="FR-src-row">
                     {current.sourceDocId && (

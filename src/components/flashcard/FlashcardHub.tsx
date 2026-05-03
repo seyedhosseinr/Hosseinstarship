@@ -16,6 +16,7 @@ import {
   AlertTriangle, CreditCard, ChevronLeft,
   Sparkles, TrendingUp,
 } from "lucide-react";
+import { BidiText } from "@/components/shared/BidiText";
 
 /* ── Type shims matching flashcard-service return shapes ── */
 export interface FCStats {
@@ -677,8 +678,8 @@ export function FlashcardHub({ stats, cards, query = "" }: FlashcardHubProps) {
                           {card.fsrsState === "new" ? "جدید" : card.fsrsState === "review" ? "مرور" : "یادگیری"}
                         </span>
                       </div>
-                      <div className="FC-card-front">{strip(card.frontHtml)}</div>
-                      <div className="FC-card-back">{strip(card.backHtml)}</div>
+                      <div className="FC-card-front" dir="rtl" lang="fa" data-bidi-text="flashcard"><BidiText text={strip(card.frontHtml)} /></div>
+                      <div className="FC-card-back" dir="rtl" lang="fa" data-bidi-text="flashcard"><BidiText text={strip(card.backHtml)} /></div>
                     </div>
                     <div className="FC-card-right">
                       <div className="FC-due-badge">
@@ -760,7 +761,7 @@ export function FlashcardHub({ stats, cards, query = "" }: FlashcardHubProps) {
                 <div className="FC-reviews-title">آخرین مرورها</div>
                 {stats.recentActivity.map((r) => (
                   <div key={r.id} className="FC-review-row">
-                    <span className="FC-review-front">{strip(r.flashcardFrontHtml)}</span>
+                    <span className="FC-review-front" dir="rtl" lang="fa" data-bidi-text="flashcard"><BidiText text={strip(r.flashcardFrontHtml)} /></span>
                     <span className="FC-review-time">{fmtTime(r.reviewedAt)}</span>
                     <span className={`FC-rtag FC-rtag-${r.rating}`}>{RATING_FA[r.rating]}</span>
                   </div>

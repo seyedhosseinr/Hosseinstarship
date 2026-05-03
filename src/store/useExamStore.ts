@@ -182,12 +182,12 @@ export const useExamStore = create<ExamState & ExamActions>((set, get) => ({
       if (!json.ok) return;
 
       // API returns `explanation` (plain key); map to `explanationHtml` for the UI
-      const { outcome, correctOptionId, explanation, explanationHtml: _expHtml } = json.data;
+      const { outcome, correctOptionId, explanation, explanationHtml: _expHtml, review } = json.data;
       const resolvedExplanation: string | undefined = _expHtml ?? explanation ?? undefined;
       set({
         questions: questions.map((item, i) =>
           i === orderIndex
-            ? { ...item, isSubmitted: true, outcome, correctOptionId, explanationHtml: resolvedExplanation }
+            ? { ...item, isSubmitted: true, outcome, correctOptionId, explanationHtml: resolvedExplanation, review: review ?? null }
             : item
         ),
       });

@@ -8,6 +8,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { BidiText } from "./BidiText";
 
 type StemHighlightTextProps = {
   stem: string;
@@ -71,23 +72,25 @@ export function StemHighlightText({ stem, highlights, className }: StemHighlight
 
   return (
     <div className={cn("space-y-3", className)}>
-      <p className="text-sm leading-7 text-foreground" dir="auto">
+      <p className="text-sm leading-7 text-foreground" dir="rtl" lang="fa">
         <TooltipProvider>
           {parts.map((part, index) => {
-            if (typeof part === "string") return <span key={index}>{part}</span>;
+            if (typeof part === "string") {
+              return <BidiText key={index} text={part} />;
+            }
 
             const text = stem.slice(part.start, part.end);
             const isUnderline = part.highlight.kind === "underline";
             const mark = (
               <mark
                 className={cn(
-                  "rounded px-1 text-foreground",
+                  "rounded px-0.5 text-foreground",
                   isUnderline
-                    ? "bg-transparent underline decoration-amber-500 decoration-2 underline-offset-4"
+                    ? "bg-transparent underline decoration-teal-500 decoration-2 underline-offset-4"
                     : "bg-amber-100 text-amber-950 dark:bg-amber-400/20 dark:text-amber-100",
                 )}
               >
-                {text}
+                <BidiText text={text} />
               </mark>
             );
 
@@ -98,8 +101,8 @@ export function StemHighlightText({ stem, highlights, className }: StemHighlight
             return (
               <Tooltip key={`${part.start}-${part.end}-${index}`}>
                 <TooltipTrigger asChild>{mark}</TooltipTrigger>
-                <TooltipContent className="max-w-80 whitespace-normal text-right leading-6" dir="auto">
-                  {part.highlight.note}
+                <TooltipContent className="max-w-80 whitespace-normal text-right leading-6" dir="rtl" lang="fa">
+                  <BidiText text={part.highlight.note} />
                 </TooltipContent>
               </Tooltip>
             );
@@ -110,11 +113,16 @@ export function StemHighlightText({ stem, highlights, className }: StemHighlight
       {missing.length > 0 && (
         <div className="rounded-md border border-dashed border-border bg-muted/30 p-3 text-xs text-muted-foreground">
           <div className="mb-2 font-semibold text-foreground">Clues not found in stem</div>
-          <ul className="space-y-1">
+          <ul className="space-y-1" dir="rtl" lang="fa">
             {missing.map((highlight, index) => (
-              <li key={`${highlight.quote}-${index}`} dir="auto">
-                {highlight.quote}
-                {highlight.note ? <span className="text-muted-foreground"> - {highlight.note}</span> : null}
+              <li key={`${highlight.quote}-${index}`}>
+                <BidiText text={highlight.quote} />
+                {highlight.note ? (
+                  <span className="text-muted-foreground">
+                    {" - "}
+                    <BidiText text={highlight.note} />
+                  </span>
+                ) : null}
               </li>
             ))}
           </ul>

@@ -17,7 +17,9 @@ import {
   Minimize2,
   Minus,
   MoreHorizontal,
+  NotebookPen,
   PanelLeft,
+  PencilLine,
   Plus,
   StickyNote,
   Target,
@@ -31,6 +33,7 @@ import type { ChapterStatus } from "@/lib/library/progress";
 import type { YieldViewModel } from "@/lib/yield/types";
 import type { ReaderAnnotation, ReaderSelectionPayload } from "@/hooks/useReaderAnnotations";
 import { useReaderAnnotations } from "@/hooks/useReaderAnnotations";
+import { useAutoHighlight } from "@/hooks/useAutoHighlight";
 import { useReaderPenSelection } from "@/hooks/useReaderPenSelection";
 import { usePalmBeforePenGuard } from "@/hooks/usePalmBeforePenGuard";
 import { useReaderSelectionWatcher } from "@/hooks/useReaderSelectionWatcher";
@@ -46,6 +49,24 @@ import { FigureViewer, useFigureViewer } from "@/components/ui/FigureViewer";
 import { SUPPORTED_RUNTIME_CAPABILITIES } from "@/lib/runtime/capabilities";
 import { YieldTab } from "@/components/yield/YieldTab";
 import { YieldToc } from "@/components/yield/YieldToc";
+import { isHandwrittenNotesEnabled } from "@/lib/handwriting/flag";
+import { useActiveBlockAnchor } from "@/hooks/useActiveBlockAnchor";
+
+const ReaderUserNotesPanel = dynamic(
+  () =>
+    import("@/components/note-viewer/ReaderUserNotesPanel").then(
+      (m) => m.ReaderUserNotesPanel,
+    ),
+  { ssr: false, loading: () => null },
+);
+
+const HandwrittenNotesPanel = dynamic(
+  () =>
+    import("@/components/handwriting/HandwrittenNotesPanel").then(
+      (m) => m.HandwrittenNotesPanel,
+    ),
+  { ssr: false, loading: () => null },
+);
 
 import { LibraryShell } from "./LibraryShell";
 import { LibrarySpine, type MicroNavContext } from "./LibrarySpine";
@@ -136,11 +157,17 @@ export function NotePageV2({
 
   const [activeTab, setActiveTab] = useState<StudyTab>("note");
   const [highlightsVisible, setHighlightsVisible] = useState(true);
-  const [readerFontSize, setReaderFontSize] = useState(17);
   const [filterTrayOpen, setFilterTrayOpen] = useState(false);
   const [topBarCollapsed, setTopBarCollapsed] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editorInitial, setEditorInitial] = useState({ front: "", back: "" });
+
+  const handwritingEnabled = isHandwrittenNotesEnabled();
+  const [handwritingOpen, setHandwritingOpen] = useState(false);
+  const activeBlockId = useActiveBlockAnchor(scrollRef);
+
+  // Reader user notes panel — always available (no feature flag).
+  const [userNotesOpen, setUserNotesOpen] = useState(false);
   const [activeYieldSection, setActiveYieldSection] = useState<string | null>(
     yieldData?.sections[0]?.sectionTitle ?? null,
   );
@@ -187,6 +214,11 @@ export function NotePageV2({
 
   const { annotations, addAnnotation, removeAnnotation, annotationCountByFrameId } =
     useReaderAnnotations(note.meta.docId, note.meta.chapterNo);
+
+  const { autoHighlight, toggleAutoHighlight } = useAutoHighlight({
+    annotations,
+    onHighlight: (sel, color) => addAnnotation({ selection: sel, type: "highlight", color }),
+  });
 
   const annotationsByFrameId = useMemo(() => {
     const map = new Map<string, ReaderAnnotation[]>();
@@ -494,6 +526,40 @@ export function NotePageV2({
               {isFocusMode ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </button>
 
+            {handwritingEnabled && activeTab === "note" && (
+              <button
+                type="button"
+                onClick={() => setHandwritingOpen((v) => !v)}
+                title="حاشیه‌نویسی"
+                aria-label="حاشیه‌نویسی"
+                className={cn(
+                  "inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors",
+                  handwritingOpen
+                    ? "bg-lib-accent-soft text-lib-accent"
+                    : "text-lib-text-secondary hover:bg-lib-hover",
+                )}
+              >
+                <PencilLine className="h-4 w-4" />
+              </button>
+            )}
+
+            {activeTab === "note" && (
+              <button
+                type="button"
+                onClick={() => setUserNotesOpen((v) => !v)}
+                title="یادداشت‌های من"
+                aria-label={userNotesOpen ? "بستن یادداشت‌ها" : "باز کردن یادداشت‌ها"}
+                className={cn(
+                  "inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors",
+                  userNotesOpen
+                    ? "bg-lib-accent-soft text-lib-accent"
+                    : "text-lib-text-secondary hover:bg-lib-hover",
+                )}
+              >
+                <NotebookPen className="h-4 w-4" />
+              </button>
+            )}
+
             <div className="mx-1 h-5 w-px bg-lib-border/55" />
 
             <button
@@ -577,24 +643,88 @@ export function NotePageV2({
             <div className="ml-auto flex items-center gap-1 rounded-lib-sm border border-lib-border bg-lib-surface px-1">
               <button
                 type="button"
-                onClick={() => setReaderFontSize((s) => Math.max(13, s - 1))}
+                onClick={() => updateLayer({ fontSize: Math.max(13, readerLayers.fontSize - 1) })}
                 className="flex h-8 w-8 items-center justify-center rounded text-lib-text-secondary hover:bg-lib-hover"
+                aria-label="Smaller text"
               >
                 <Minus className="h-3 w-3" />
               </button>
               <span className="min-w-[24px] text-center text-xs tabular-nums text-lib-text-muted">
-                {readerFontSize}
+                {readerLayers.fontSize}
               </span>
               <button
                 type="button"
-                onClick={() => setReaderFontSize((s) => Math.min(24, s + 1))}
+                onClick={() => updateLayer({ fontSize: Math.min(24, readerLayers.fontSize + 1) })}
                 className="flex h-8 w-8 items-center justify-center rounded text-lib-text-secondary hover:bg-lib-hover"
+                aria-label="Larger text"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1 rounded-lib-sm border border-lib-border bg-lib-surface px-1">
+              <button
+                type="button"
+                onClick={() => updateLayer({ lineHeight: Math.max(1.4, Number((readerLayers.lineHeight - 0.1).toFixed(1))) })}
+                className="flex h-8 w-8 items-center justify-center rounded text-lib-text-secondary hover:bg-lib-hover"
+                aria-label="Tighter line spacing"
+              >
+                <Minus className="h-3 w-3" />
+              </button>
+              <span className="min-w-[52px] text-center text-xs tabular-nums text-lib-text-muted">
+                Line {readerLayers.lineHeight.toFixed(1)}
+              </span>
+              <button
+                type="button"
+                onClick={() => updateLayer({ lineHeight: Math.min(2.2, Number((readerLayers.lineHeight + 0.1).toFixed(1))) })}
+                className="flex h-8 w-8 items-center justify-center rounded text-lib-text-secondary hover:bg-lib-hover"
+                aria-label="Looser line spacing"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1 rounded-lib-sm border border-lib-border bg-lib-surface px-1">
+              <button
+                type="button"
+                onClick={() => updateLayer({ maxWidth: Math.max(540, readerLayers.maxWidth - 60) })}
+                className="flex h-8 w-8 items-center justify-center rounded text-lib-text-secondary hover:bg-lib-hover"
+                aria-label="Narrower line width"
+              >
+                <Minus className="h-3 w-3" />
+              </button>
+              <span className="min-w-[60px] text-center text-xs tabular-nums text-lib-text-muted">
+                Width {readerLayers.maxWidth}
+              </span>
+              <button
+                type="button"
+                onClick={() => updateLayer({ maxWidth: Math.min(900, readerLayers.maxWidth + 60) })}
+                className="flex h-8 w-8 items-center justify-center rounded text-lib-text-secondary hover:bg-lib-hover"
+                aria-label="Wider line width"
               >
                 <Plus className="h-3 w-3" />
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {handwritingEnabled && handwritingOpen && (
+        <HandwrittenNotesPanel
+          chapterId={note.meta.docId}
+          segmentId={note.meta.logicalChunkId}
+          blockId={activeBlockId}
+          onClose={() => setHandwritingOpen(false)}
+        />
+      )}
+
+      {userNotesOpen && (
+        <ReaderUserNotesPanel
+          docId={note.meta.docId}
+          segmentId={note.meta.logicalChunkId}
+          chapterNo={note.meta.chapterNo}
+          onClose={() => setUserNotesOpen(false)}
+        />
       )}
 
       <ReaderStage ref={scrollRef}>
@@ -687,7 +817,12 @@ export function NotePageV2({
               <article
                 data-reader-content="true"
                 className="reader-content space-y-8"
-                style={{ "--reader-font-size": `${readerFontSize}px` } as React.CSSProperties}
+                style={{
+                  "--reader-font-size": `${readerLayers.fontSize}px`,
+                  "--reader-font-scale": String(readerLayers.fontSize / 17),
+                  "--reader-line-height": String(readerLayers.lineHeight),
+                  "--reader-prose-w": `${readerLayers.maxWidth}px`,
+                } as React.CSSProperties}
                 onClick={handleReaderClick}
               >
                 <SegmentRenderer
@@ -701,6 +836,10 @@ export function NotePageV2({
                   showMissedQuestions={readerLayers.showMissedQuestions}
                   keyExamFrameIds={keyExamFrameIds}
                   missedFrameIds={missedFrameIds}
+                  noteContext={{
+                    docId: note.meta.docId,
+                    chapterNo: note.meta.chapterNo,
+                  }}
                 />
               </article>
 
@@ -774,6 +913,8 @@ export function NotePageV2({
         onRemoveHighlight={(ids) => ids.forEach(removeAnnotation)}
         onUnderline={(sel) => { addAnnotation({ selection: sel, type: "underline" }); panels.open("annotations"); }}
         onComment={handleComment}
+        autoHighlight={autoHighlight}
+        onToggleAutoHighlight={toggleAutoHighlight}
       />
 
       <ReaderAnnotationsPanel

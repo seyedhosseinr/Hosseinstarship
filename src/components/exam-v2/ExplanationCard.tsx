@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ActiveQuestion, QuestionOption } from "@/types/exam";
+import type { McqAmbossReview } from "@/types/mcq-review";
+import { AmbossReviewPanel } from "@/components/qbank/AmbossReviewPanel";
 
 export interface ExplanationCardProps {
   question: ActiveQuestion;
@@ -15,6 +17,30 @@ export function ExplanationCard({ question, fontSize = 14, className }: Explanat
   const [fcState, setFcState] = useState<"idle" | "creating" | "done">("idle");
   const isCorrect = question.outcome === "correct";
   const correctOpt = question.options.find((o) => o.id === question.correctOptionId);
+
+  if (process.env.NODE_ENV === "development") {
+    console.debug("[exam:review]", question.questionId, {
+      hasReview: !!question.review,
+      highlights: question.review?.stemHighlights.length ?? 0,
+      optionReviews: question.review?.optionReviews.length ?? 0,
+      correctOptKey: correctOpt?.key,
+    });
+  }
+
+  const stemPlainText = question.stemHtml.replace(/<[^>]*>/g, "");
+
+  const originalToDisplay = new Map(
+    question.options.map((o) => [(o.originalKey ?? o.key).toUpperCase(), o.key]),
+  );
+  const remappedReview: McqAmbossReview | null = question.review
+    ? {
+        ...question.review,
+        optionReviews: question.review.optionReviews.map((or) => ({
+          ...or,
+          optionKey: originalToDisplay.get(or.optionKey.toUpperCase()) ?? or.optionKey,
+        })),
+      }
+    : null;
 
   const handleCreateFlashcard = async () => {
     if (fcState !== "idle") return;
@@ -77,9 +103,17 @@ export function ExplanationCard({ question, fontSize = 14, className }: Explanat
         </div>
       )}
 
-      {/* Explanation body */}
+      {/* Explanation body: structured review when present, legacy HTML fallback otherwise. */}
       <div className="px-5 pb-6 pt-4">
-        {question.explanationHtml ? (
+        {remappedReview ? (
+          <AmbossReviewPanel
+            stem={stemPlainText}
+            options={question.options.map((o) => o.contentHtml)}
+            optionKeys={question.options.map((o) => o.key)}
+            correctAnswer={correctOpt?.key ?? ""}
+            review={remappedReview}
+          />
+        ) : question.explanationHtml ? (
           <>
             <div className="mb-2.5 text-[10px] font-bold uppercase tracking-widest text-lib-text-muted">
               Explanation

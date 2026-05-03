@@ -33,6 +33,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { colorLight, colorDark } from '@/lib/theme/tokens';
+import { BidiText } from '@/components/shared/BidiText';
+import { processHtmlBidi } from '@/lib/text/bidi';
 
 /* ── CSS-variable bridge (light / dark) ───────────────────────────── */
 const FL_STYLES = `
@@ -360,6 +362,15 @@ function TreeNode({
   const isVolume = node.type === 'volume';
   const isSelected = isChapter && selectedChapterId === node.id;
   const hasChildren = (node.children?.length ?? 0) > 0;
+  const sortedChildren = useMemo(() => {
+    if (!node.children) return [];
+    return [...node.children].sort((a, b) => {
+      if (a.type === 'chapter' && b.type === 'chapter') {
+        return (a.chapterNo ?? 0) - (b.chapterNo ?? 0);
+      }
+      return 0;
+    });
+  }, [node.children]);
 
   // Filter-aware visibility
   const visibleCount = activeFilter === 'due' ? node.due
@@ -404,16 +415,6 @@ function TreeNode({
       onToggleExpand(node.id);
     }
   };
-
-  const sortedChildren = useMemo(() => {
-    if (!node.children) return [];
-    return [...node.children].sort((a, b) => {
-      if (a.type === 'chapter' && b.type === 'chapter') {
-        return (a.chapterNo ?? 0) - (b.chapterNo ?? 0);
-      }
-      return 0;
-    });
-  }, [node.children]);
 
   return (
     <>
@@ -1401,8 +1402,11 @@ export default function FlashcardLibrary({
                                       lineHeight: 1.6,
                                       direction: 'rtl',
                                     }}
+                                    dir="rtl"
+                                    lang="fa"
+                                    data-bidi-text="flashcard"
                                   >
-                                    {stripHtml(card.frontHtml)}
+                                    <BidiText text={stripHtml(card.frontHtml)} />
                                   </span>
 
                                   {card.isLeech && (
@@ -1551,7 +1555,10 @@ export default function FlashcardLibrary({
                     </div>
                     <div
                       style={{ fontSize: 13.5, color: c.text, lineHeight: 1.8, direction: 'rtl' }}
-                      dangerouslySetInnerHTML={{ __html: cardDetail.frontHtml }}
+                      dir="rtl"
+                      lang="fa"
+                      data-bidi-text="flashcard"
+                      dangerouslySetInnerHTML={{ __html: processHtmlBidi(cardDetail.frontHtml) }}
                     />
                   </div>
 
@@ -1569,7 +1576,10 @@ export default function FlashcardLibrary({
                     </div>
                     <div
                       style={{ fontSize: 13.5, color: c.text, lineHeight: 1.8, direction: 'rtl' }}
-                      dangerouslySetInnerHTML={{ __html: cardDetail.backHtml }}
+                      dir="rtl"
+                      lang="fa"
+                      data-bidi-text="flashcard"
+                      dangerouslySetInnerHTML={{ __html: processHtmlBidi(cardDetail.backHtml) }}
                     />
                   </div>
 
@@ -1680,9 +1690,13 @@ export default function FlashcardLibrary({
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
                                   whiteSpace: 'nowrap',
+                                  direction: 'rtl',
                                 }}
+                                dir="rtl"
+                                lang="fa"
+                                data-bidi-text="flashcard"
                               >
-                                {stripHtml(rc.frontHtml)}
+                                <BidiText text={stripHtml(rc.frontHtml)} />
                               </span>
                               <span
                                 style={{
