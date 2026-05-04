@@ -68,6 +68,18 @@ export function SwUpdatePrompt() {
     const attach = (reg: ServiceWorkerRegistration) => {
       if (reg.waiting) {
         if (mounted) setWaiting(reg.waiting);
+        return;
+      }
+      // updatefound fires before the component mounts in most cases — attach
+      // a statechange listener directly to the already-installing worker so we
+      // don't miss the installing → installed (waiting) transition.
+      const pending = reg.installing;
+      if (pending) {
+        pending.addEventListener("statechange", () => {
+          if (pending.state === "installed" && navigator.serviceWorker.controller) {
+            if (mounted) setWaiting(pending);
+          }
+        });
       }
       reg.addEventListener("updatefound", () => {
         const installing = reg.installing;
