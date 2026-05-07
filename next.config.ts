@@ -28,7 +28,8 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSerwist({
+// Build the Serwist-wrapped config first (client PWA fully enabled in prod).
+const serwistConfig = withSerwist({
   swSrc: "src/sw.ts",
   swDest: "public/sw.js",
   maximumFileSizeToCacheInBytes: 12 * 1024 * 1024, // 12 MB — PGlite WASM (~9 MB)
@@ -39,3 +40,56 @@ export default withSerwist({
   // fallbacks config have something to serve for never-visited routes.
   additionalPrecacheEntries: [{ url: "/offline.html", revision: "3" }],
 })(nextConfig);
+
+// ── Serwist server-entry fix ─────────────────────────────────────────────────
+// @serwist/next wraps config.entry and injects sw-entry.js into "main.js" and
+// "main-app" for EVERY webpack compilation (both client and server).  When the
+// server build includes sw-entry.js in its own "main.js" entry it ends up
+// bundling code that touches pages/_document in an unexpected context, which
+// causes Next.js to throw:
+//   "<Html> should not be imported outside of pages/_document"
+// on the /500 pre-render.
+//
+// Fix: intercept the webpack function produced by withSerwist and, on the
+// server build only, strip sw-entry.js from any entry array.  The client build
+// is left completely untouched so the service-worker registration still fires.
+const serwistWebpack = serwistConfig.webpack;
+
+serwistConfig.webpack = function patchedWebpack(
+  config: Parameters<NonNullable<NextConfig["webpack"]>>[0],
+  options: Parameters<NonNullable<NextConfig["webpack"]>>[1]
+) {
+  // Run the full Serwist webpack pipeline first.
+  const result = serwistWebpack
+    ? serwistWebpack(config, options)
+    : config;
+
+  // Nothing to do for client builds — keep sw-entry intact.
+  if (!options.isServer) return result;
+
+  // For server builds: unwrap the entry function and strip sw-entry.js.
+  const originalEntry = result.entry;
+
+  result.entry = async () => {
+    const entries: Record<string, string | string[]> =
+      typeof originalEntry === "function"
+        ? await (originalEntry as () => Promise<Record<string, string | string[]>>)()
+        : (originalEntry as Record<string, string | string[]>);
+
+    // Remove sw-entry from every server entry bucket.
+    for (const key of Object.keys(entries)) {
+      const bucket = entries[key];
+      if (Array.isArray(bucket)) {
+        entries[key] = bucket.filter((e) => !e.includes("sw-entry"));
+      } else if (typeof bucket === "string" && bucket.includes("sw-entry")) {
+        delete entries[key];
+      }
+    }
+
+    return entries;
+  };
+
+  return result;
+};
+
+export default serwistConfig;

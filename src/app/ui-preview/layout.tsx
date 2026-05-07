@@ -1,18 +1,3 @@
-import { Source_Serif_4, Inter } from "next/font/google";
-
-const serif = Source_Serif_4({
-  subsets: ["latin"],
-  variable: "--font-preview-serif",
-  display: "swap",
-  weight: ["400", "600", "700"],
-});
-
-const sans = Inter({
-  subsets: ["latin"],
-  variable: "--font-preview-sans",
-  display: "swap",
-});
-
 export default function PreviewLayout({
   children,
 }: {
@@ -22,8 +7,11 @@ export default function PreviewLayout({
     <div
       dir="ltr"
       lang="en"
-      className={`${serif.variable} ${sans.variable}`}
-      style={{ fontFamily: "var(--font-preview-sans), Inter, system-ui, sans-serif" }}
+      style={{
+        fontFamily: "Inter, system-ui, -apple-system, sans-serif",
+        "--font-preview-sans": "Inter, system-ui, sans-serif",
+        "--font-preview-serif": "'Source Serif 4', Georgia, 'Times New Roman', serif",
+      } as React.CSSProperties}
     >
       {children}
     </div>

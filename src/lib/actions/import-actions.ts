@@ -1,13 +1,22 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 
 import {
+  bulkHardDeleteImportBatches,
   bulkSafeDeleteImportBatches,
   getExamLinkedQuestionCount,
   getImportBatchDetails,
+  getQBankOrphanStats,
+  hardDeleteImportBatch,
   listImportSummaries,
+  purgeAllQuestions,
+  purgeOrphanQuestions,
   safeDeleteImportBatch,
+  type HardDeleteResult,
+  type PurgeResult,
+  type QBankOrphanStats,
+  type SafeDeleteResult,
 } from "@/lib/import-light/admin";
 import {
   importStructuredPayload,
@@ -49,9 +58,7 @@ export type ImportBatchDetails = {
   reviewedFlashcardCount: number;
 };
 
-export type SafeDeleteResult = Awaited<ReturnType<typeof safeDeleteImportBatch>>;
-
-export interface ImportStructuredResult extends StructuredImportResult {}
+export type ImportStructuredResult = StructuredImportResult;
 
 function safeRevalidateImportViews() {
   for (const path of ["/import", "/library", "/notes", "/flashcards", "/qbank", "/"]) {
@@ -91,29 +98,19 @@ function toImportSummary(
   };
 }
 
-export async function getImportHistoryAction(limit = 24): Promise<ActionResult<ImportSummary[]>> {
+export async function getImportHistoryAction(limit = 1000): Promise<ActionResult<ImportSummary[]>> {
   try {
     const history = await listImportSummaries(limit);
-    return {
-      success: true,
-      data: history.map(toImportSummary),
-    };
+    return { success: true, data: history.map(toImportSummary) };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unable to load import history.",
-    };
+    return { success: false, error: error instanceof Error ? error.message : "Unable to load import history." };
   }
 }
 
 export async function getImportBatchDetailsAction(importId: string): Promise<ActionResult<ImportBatchDetails>> {
   try {
     const details = await getImportBatchDetails(importId);
-
-    if (!details) {
-      return { success: false, error: "Import batch not found." };
-    }
-
+    if (!details) return { success: false, error: "Import batch not found." };
     return {
       success: true,
       data: {
@@ -123,10 +120,7 @@ export async function getImportBatchDetailsAction(importId: string): Promise<Act
       },
     };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unable to load import batch details.",
-    };
+    return { success: false, error: error instanceof Error ? error.message : "Unable to load import batch details." };
   }
 }
 
@@ -134,49 +128,109 @@ export async function checkImportDependenciesAction(
   importId: string,
 ): Promise<ActionResult<{ examLinkedQuestions: number }>> {
   try {
-    return {
-      success: true,
-      data: {
-        examLinkedQuestions: await getExamLinkedQuestionCount(importId),
-      },
-    };
+    return { success: true, data: { examLinkedQuestions: await getExamLinkedQuestionCount(importId) } };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unable to inspect import dependencies.",
-    };
+    return { success: false, error: error instanceof Error ? error.message : "Unable to inspect import dependencies." };
   }
 }
 
-export async function deleteImportBatchAction(importId: string): Promise<ActionResult<SafeDeleteResult>> {
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Delete: hard (default) â€” removes exam session links first
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+/**
+ * DEFAULT destructive delete.
+ * Deletes exam_session_questions first (removes RESTRICT constraint),
+ * then hard-deletes ALL questions belonging to the import.
+ */
+export async function deleteImportBatchAction(importId: string): Promise<ActionResult<HardDeleteResult>> {
   try {
-    return {
-      success: true,
-      data: await safeDeleteImportBatch(importId),
-    };
+    const data = await hardDeleteImportBatch(importId);
+    safeRevalidateImportViews();
+    return { success: true, data };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Import cleanup failed.",
-    };
+    return { success: false, error: error instanceof Error ? error.message : "Import cleanup failed." };
   }
 }
 
 export async function bulkDeleteImportBatchesAction(
   importIds: string[],
-): Promise<ActionResult<SafeDeleteResult[]>> {
+): Promise<ActionResult<HardDeleteResult[]>> {
   try {
-    return {
-      success: true,
-      data: await bulkSafeDeleteImportBatches(importIds),
-    };
+    const data = await bulkHardDeleteImportBatches(importIds);
+    safeRevalidateImportViews();
+    return { success: true, data };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Bulk import cleanup failed.",
-    };
+    return { success: false, error: error instanceof Error ? error.message : "Bulk import cleanup failed." };
   }
 }
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Delete: detach / preserve exam history
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+/**
+ * Explicit "preserve exam history" delete.
+ * Exam-linked questions stay in QBank (import_id set NULL).
+ * Only non-exam-linked questions are removed.
+ */
+export async function detachDeleteImportBatchAction(importId: string): Promise<ActionResult<SafeDeleteResult>> {
+  try {
+    const data = await safeDeleteImportBatch(importId);
+    safeRevalidateImportViews();
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Import detach cleanup failed." };
+  }
+}
+
+export async function bulkDetachDeleteImportBatchesAction(
+  importIds: string[],
+): Promise<ActionResult<SafeDeleteResult[]>> {
+  try {
+    const data = await bulkSafeDeleteImportBatches(importIds);
+    safeRevalidateImportViews();
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Bulk import detach cleanup failed." };
+  }
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Purge operations
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+export async function getQBankOrphanStatsAction(): Promise<ActionResult<QBankOrphanStats>> {
+  try {
+    return { success: true, data: await getQBankOrphanStats() };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Unable to load QBank stats." };
+  }
+}
+
+export async function purgeOrphanQuestionsAction(): Promise<ActionResult<PurgeResult>> {
+  try {
+    const data = await purgeOrphanQuestions();
+    safeRevalidateImportViews();
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Orphan purge failed." };
+  }
+}
+
+export async function purgeAllQuestionsAction(): Promise<ActionResult<PurgeResult>> {
+  try {
+    const data = await purgeAllQuestions();
+    safeRevalidateImportViews();
+    return { success: true, data };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Full QBank purge failed." };
+  }
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Structured import
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export async function importStructuredContentAction(params: {
   type: StructuredImportContentType | "notebooks";
@@ -197,15 +251,8 @@ export async function importStructuredContentAction(params: {
     });
 
     safeRevalidateImportViews();
-
-    return {
-      success: true,
-      data,
-    };
+    return { success: true, data };
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Structured import failed.",
-    };
+    return { success: false, error: error instanceof Error ? error.message : "Structured import failed." };
   }
 }

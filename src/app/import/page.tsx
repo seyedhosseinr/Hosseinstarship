@@ -17,7 +17,7 @@ export default async function ImportPage() {
   // typed error string rather than throwing, so the page always renders.
   const [statsResult, historyResult] = await Promise.all([
     safeGetContentStats(),
-    safeListRecentImports(24, "ImportPage"),
+    safeListRecentImports(1000, "ImportPage"),
   ]);
 
   if (!statsResult.ok) {

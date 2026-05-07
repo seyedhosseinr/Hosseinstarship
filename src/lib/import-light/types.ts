@@ -20,6 +20,10 @@ export type ImportHistoryEntry = {
   completedAt: number | null;
   createdAt: number;
   updatedAt: number;
+  /** Derived server-side from fileName / inputPath */
+  chapterNo: number | null;
+  /** Derived server-side from fileName / inputPath */
+  segmentNo: number | null;
 };
 
 export type ImportRunSummary = {
