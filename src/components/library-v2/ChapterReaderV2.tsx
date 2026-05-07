@@ -141,35 +141,6 @@ export function ChapterReaderV2({
   const [penTool, setPenTool] = useState<DrawTool>("pen");
   const drawingLayerRef = useRef<DrawingLayerHandle>(null);
 
-  // iPad draw-mode scroll lock: while the drawing canvas is active, vertical
-  // Apple Pencil strokes must not be interpreted as ReaderStage scroll.
-  // Users can toggle Draw off to scroll again.
-  useEffect(() => {
-    const stage = scrollRef.current;
-    if (!stage) return;
-
-    const previous = {
-      overflowY: stage.style.overflowY,
-      touchAction: stage.style.touchAction,
-      overscrollBehavior: stage.style.overscrollBehavior,
-    };
-
-    if (penMode) {
-      stage.style.overflowY = "hidden";
-      stage.style.touchAction = "none";
-      stage.style.overscrollBehavior = "contain";
-    } else {
-      stage.style.overflowY = previous.overflowY;
-      stage.style.touchAction = previous.touchAction;
-      stage.style.overscrollBehavior = previous.overscrollBehavior;
-    }
-
-    return () => {
-      stage.style.overflowY = previous.overflowY;
-      stage.style.touchAction = previous.touchAction;
-      stage.style.overscrollBehavior = previous.overscrollBehavior;
-    };
-  }, [penMode]);
 
   // ── Reader AA controls ──
   const { settings: readerSettings, update: updateReaderSettings } = useReaderSettings();

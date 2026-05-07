@@ -137,20 +137,18 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
       } catch {}
     }, [storageKey, redraw]);
 
-    // Palm rejection: while a pen is drawing, only that pen's pointerId is
-    // honored. Finger / palm pointers are ignored on the canvas.
-    // IMPORTANT for iPad: draw mode must NOT allow `pan-y`. On Safari/iPadOS,
-    // a vertical Apple Pencil stroke can be promoted to a scroll gesture before
-    // our preventDefault() runs, causing pointercancel and broken strokes.
-    // We therefore use `touch-action: none` while the drawing layer is active
-    // and lock ReaderStage scrolling from ChapterReaderV2.
-    const activePenId = useRef<number | null>(null);
+    // Capture the first drawing pointer and ignore every other pointer until
+    // the stroke ends. In Draw mode we intentionally support Apple Pencil,
+    // finger/touch, and mouse so vertical strokes/circles do not degrade into
+    // ReaderStage scroll on iPadOS. Palm rejection is handled by pointer capture
+    // + single active pointer, not by allowing browser pan gestures.
+    const activePointerId = useRef<number | null>(null);
 
     // Stable handlers — read props via refs so listeners never need re-attaching
     const onDown = useCallback((e: PointerEvent) => {
       if (!activeRef.current) return;
-      if (e.pointerType !== "pen") return; // palm / finger rejected
-      if (activePenId.current !== null && e.pointerId !== activePenId.current) return;
+      if (!["pen", "touch", "mouse"].includes(e.pointerType)) return;
+      if (activePointerId.current !== null && e.pointerId !== activePointerId.current) return;
       // Scribble pass-through: if pen lands on any writable field that
       // sits above the canvas in z-order (popup textarea, panel search,
       // future contenteditable), let iPadOS handle handwriting → text.
@@ -160,7 +158,7 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
       const c = canvasRef.current;
       if (!c) return;
       c.setPointerCapture(e.pointerId);
-      activePenId.current = e.pointerId;
+      activePointerId.current = e.pointerId;
       drawing.current = true;
       const r = c.getBoundingClientRect();
       cur.current = {
@@ -173,8 +171,8 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
 
     const onMove = useCallback((e: PointerEvent) => {
       if (!activeRef.current || !drawing.current || !cur.current) return;
-      if (e.pointerType !== "pen") return;
-      if (activePenId.current !== null && e.pointerId !== activePenId.current) return;
+      if (!["pen", "touch", "mouse"].includes(e.pointerType)) return;
+      if (activePointerId.current !== null && e.pointerId !== activePointerId.current) return;
       e.preventDefault();
       const c = canvasRef.current;
       if (!c) return;
@@ -205,10 +203,10 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
 
     const onUp = useCallback((e: PointerEvent) => {
       if (!drawing.current) return;
-      if (activePenId.current !== null && e.pointerId !== activePenId.current) return;
+      if (activePointerId.current !== null && e.pointerId !== activePointerId.current) return;
       e.preventDefault();
       drawing.current = false;
-      activePenId.current = null;
+      activePointerId.current = null;
       if (cur.current && cur.current.pts.length > 0) {
         strokes.current.push(cur.current);
         persist();
