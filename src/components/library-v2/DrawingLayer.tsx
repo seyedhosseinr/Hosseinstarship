@@ -138,9 +138,12 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
     }, [storageKey, redraw]);
 
     // Palm rejection: while a pen is drawing, only that pen's pointerId is
-    // honored. Finger / palm pointers are ignored on the canvas. Finger
-    // vertical scroll still works because the canvas sets touch-action:
-    // pan-y when active, letting the browser pan ReaderStage below.
+    // honored. Finger / palm pointers are ignored on the canvas.
+    // IMPORTANT for iPad: draw mode must NOT allow `pan-y`. On Safari/iPadOS,
+    // a vertical Apple Pencil stroke can be promoted to a scroll gesture before
+    // our preventDefault() runs, causing pointercancel and broken strokes.
+    // We therefore use `touch-action: none` while the drawing layer is active
+    // and lock ReaderStage scrolling from ChapterReaderV2.
     const activePenId = useRef<number | null>(null);
 
     // Stable handlers — read props via refs so listeners never need re-attaching
@@ -217,15 +220,16 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
     useEffect(() => {
       const c = canvasRef.current;
       if (!c) return;
-      c.addEventListener("pointerdown", onDown);
-      c.addEventListener("pointermove", onMove);
-      c.addEventListener("pointerup", onUp);
-      c.addEventListener("pointercancel", onUp);
+      const opts: AddEventListenerOptions = { passive: false };
+      c.addEventListener("pointerdown", onDown, opts);
+      c.addEventListener("pointermove", onMove, opts);
+      c.addEventListener("pointerup", onUp, opts);
+      c.addEventListener("pointercancel", onUp, opts);
       return () => {
-        c.removeEventListener("pointerdown", onDown);
-        c.removeEventListener("pointermove", onMove);
-        c.removeEventListener("pointerup", onUp);
-        c.removeEventListener("pointercancel", onUp);
+        c.removeEventListener("pointerdown", onDown, opts);
+        c.removeEventListener("pointermove", onMove, opts);
+        c.removeEventListener("pointerup", onUp, opts);
+        c.removeEventListener("pointercancel", onUp, opts);
         // Drop any pending redraw so an unmount during an active stroke
         // doesn't fire against a disposed canvas on the next frame.
         if (raf.current) {
@@ -248,16 +252,13 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
               ? "cell"
               : "crosshair"
             : "default",
-          // Active canvas sits above the reader. `touch-action: pan-y` lets
-          // the browser reserve finger vertical pan gestures and bubble the
-          // scroll to ReaderStage; pen (pointerType === "pen") is not
-          // consumed by pan-y and still fires as pointer events we can
-          // preventDefault. Horizontal finger drag is not a pan-y gesture,
-          // so it reaches pointerdown — and is rejected by the pen-only
-          // gate above. When inactive, `touch-action: none` is harmless
-          // because the canvas is pointer-events:none and skipped from hit
-          // testing entirely.
-          touchAction: isActive ? "pan-y" : "none",
+          // In draw mode, do not allow browser panning. iPadOS Safari can
+          // otherwise convert vertical Pencil movement into scroll and fire
+          // pointercancel, which cuts the stroke.
+          touchAction: isActive ? "none" : "auto",
+          overscrollBehavior: isActive ? "contain" : "auto",
+          WebkitUserSelect: isActive ? "none" : "auto",
+          userSelect: isActive ? "none" : "auto",
         }}
       />
     );
