@@ -1,12 +1,12 @@
 {
   "name": "Hossein Starship",
   "short_name": "Starship",
-  "description": "Medical study platform — read, practice, review",
+  "description": "Premium Persian medical board-prep study platform.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "any",
-  "theme_color": "#0AA6B8",
-  "background_color": "#F5F7F9",
+  "theme_color": "#16614d",
+  "background_color": "#09211c",
   "categories": ["education", "medical"],
   "lang": "fa",
   "dir": "rtl",
@@ -14,25 +14,28 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "/icons/icon-192.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/icons/maskable-512.png",
+      "src": "/maskable-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/icons/apple-touch-icon.png",
+      "src": "/apple-touch-icon.png",
       "sizes": "180x180",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     }
   ],
   "screenshots": [],

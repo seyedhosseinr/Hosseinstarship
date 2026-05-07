@@ -65,6 +65,6 @@ export const config = {
   // middleware interception would cache a login-redirect instead of the real
   // HTML, breaking the offline navigation fallback entirely.
   matcher: [
-    "/((?!_next/static|_next/image|_next/data|favicon.ico|manifest.webmanifest|sw.js|sw.js.map|offline.html|icons/|fonts/|wasm/|pglite/|workbox-|sw-|robots.txt|sitemap.xml).*)",
+    "/((?!_next/static|_next/image|_next/data|favicon.ico|favicon-16x16.png|favicon-32x32.png|apple-touch-icon.png|icon-192.png|icon-512.png|maskable-icon-512.png|pwa-icon.svg|manifest.webmanifest|sw.js|sw.js.map|offline.html|icons/|fonts/|wasm/|pglite/|workbox-|sw-|robots.txt|sitemap.xml).*)",
   ],
 };
