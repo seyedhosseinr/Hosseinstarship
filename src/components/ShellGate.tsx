@@ -6,7 +6,7 @@ import { runBrowserMigrations } from "@/db/pglite-browser";
 import { allMigrations } from "@/db/migrations/generated-migrations";
 import OfflineAuthGate from "@/components/auth/OfflineAuthGate";
 
-const PLAIN_LAYOUT_ROUTES = ["/space", "/ui-preview", "/login"];
+const PLAIN_LAYOUT_ROUTES = ["/", "/dashboard", "/space", "/ui-preview", "/login"];
 const UNGATED_ROUTES = ["/login"];
 
 export default function ShellGate({
@@ -26,7 +26,9 @@ export default function ShellGate({
     });
   }, []);
 
-  const usePlainLayout = PLAIN_LAYOUT_ROUTES.some(
+  const isDashboardRoute = pathname === "/" || pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+
+  const usePlainLayout = isDashboardRoute || PLAIN_LAYOUT_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
   const isUngated = UNGATED_ROUTES.some(

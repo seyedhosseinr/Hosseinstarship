@@ -89,6 +89,7 @@ export type CanonicalSelectionResolution = {
   contentHash?: string;
   resolution:
     | "canonical-range"
+    | "quote-only-rich-pane"
     | "rich-pane-unique-quote"
     | "ambiguous-rich-pane"
     | "missing-canonical-surface";
@@ -133,21 +134,15 @@ export function resolveSelectionAgainstCanonicalSurface(
     }
   }
 
-  const full = canonicalRoot.textContent ?? "";
-  const uniqueHit = findUniqueQuoteOffsets(full, text);
-  if (uniqueHit) {
-    return {
-      blockText: full,
-      start: uniqueHit.start,
-      end: uniqueHit.end,
-      contentHash,
-      resolution: "rich-pane-unique-quote",
-    };
-  }
-
+  // Selection happened outside the canonical prose surface (for example inside
+  // a rendered table cell, clinical pearl, trap/keypoint callout, or margin
+  // note). Do NOT translate it to offsets in the hidden/compact canonical
+  // prose: that makes the saved annotation paint on the wrong surface. Store a
+  // quote-only anchor and let ReaderHighlightLayer re-resolve it against the
+  // visible rich surfaces first.
   return {
     contentHash,
-    resolution: "ambiguous-rich-pane",
+    resolution: "quote-only-rich-pane",
   };
 }
 

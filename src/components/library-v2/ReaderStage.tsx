@@ -32,8 +32,8 @@ export const ReaderStage = forwardRef<HTMLDivElement, ReaderStageProps>(
         ref={ref}
         data-reader-stage
         className={cn(
-          "relative h-dvh overflow-y-auto",
-          "pb-24 pt-2 transition-[padding] duration-300 ease-out",
+          "relative h-dvh overflow-y-auto bg-[hsl(var(--reader-bg))]",
+          "pb-24 pt-2 transition-[background-color,padding] duration-300 ease-out",
           className,
         )}
         style={style}

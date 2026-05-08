@@ -1,0 +1,132 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Hossein Starship app icon">
+  <defs>
+    <clipPath id="iconClip">
+      <rect width="1024" height="1024" rx="230" ry="230"/>
+    </clipPath>
+    <clipPath id="backOrbitClip">
+      <rect x="0" y="0" width="1024" height="500"/>
+    </clipPath>
+    <clipPath id="frontOrbitClip">
+      <rect x="0" y="500" width="1024" height="524"/>
+    </clipPath>
+
+    <radialGradient id="field" cx="34%" cy="22%" r="92%">
+      <stop offset="0%" stop-color="#1f7b55"/>
+      <stop offset="30%" stop-color="#0f4633"/>
+      <stop offset="66%" stop-color="#061911"/>
+      <stop offset="100%" stop-color="#010604"/>
+    </radialGradient>
+    <radialGradient id="apexGlow" cx="36%" cy="28%" r="54%">
+      <stop offset="0%" stop-color="#86ffc1" stop-opacity="0.62"/>
+      <stop offset="48%" stop-color="#24e887" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#24e887" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="coreGlow" cx="50%" cy="54%" r="44%">
+      <stop offset="0%" stop-color="#00ff8a" stop-opacity="0.34"/>
+      <stop offset="64%" stop-color="#00d16b" stop-opacity="0.09"/>
+      <stop offset="100%" stop-color="#00d16b" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="glassPlate" x1="210" y1="108" x2="812" y2="914" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#dfffee" stop-opacity="0.16"/>
+      <stop offset="45%" stop-color="#4dffab" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#00140c" stop-opacity="0.28"/>
+    </linearGradient>
+    <linearGradient id="plateStroke" x1="174" y1="142" x2="850" y2="884" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#d8ffec" stop-opacity="0.34"/>
+      <stop offset="50%" stop-color="#4cff9d" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#06190f" stop-opacity="0.78"/>
+    </linearGradient>
+
+    <linearGradient id="hMain" x1="244" y1="168" x2="780" y2="854" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#f3fff8"/>
+      <stop offset="16%" stop-color="#baffda"/>
+      <stop offset="46%" stop-color="#38f596"/>
+      <stop offset="74%" stop-color="#00bd68"/>
+      <stop offset="100%" stop-color="#006c45"/>
+    </linearGradient>
+    <linearGradient id="hSide" x1="286" y1="180" x2="736" y2="860" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.88"/>
+      <stop offset="38%" stop-color="#9affc9" stop-opacity="0.3"/>
+      <stop offset="78%" stop-color="#001d11" stop-opacity="0.52"/>
+      <stop offset="100%" stop-color="#000805" stop-opacity="0.72"/>
+    </linearGradient>
+    <linearGradient id="hCut" x1="286" y1="288" x2="744" y2="744" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#effff6" stop-opacity="0.42"/>
+      <stop offset="100%" stop-color="#effff6" stop-opacity="0.08"/>
+    </linearGradient>
+
+    <linearGradient id="orbitStroke" x1="74" y1="378" x2="946" y2="636" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#57ffab" stop-opacity="0.04"/>
+      <stop offset="18%" stop-color="#5affad" stop-opacity="0.48"/>
+      <stop offset="47%" stop-color="#f0fff7" stop-opacity="0.76"/>
+      <stop offset="70%" stop-color="#18f082" stop-opacity="0.64"/>
+      <stop offset="100%" stop-color="#57ffab" stop-opacity="0.02"/>
+    </linearGradient>
+    <linearGradient id="ship" x1="686" y1="292" x2="890" y2="350" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#bffff0" stop-opacity="0"/>
+      <stop offset="52%" stop-color="#93ffd1" stop-opacity="0.48"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.96"/>
+    </linearGradient>
+
+    <filter id="largeBlur" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="34"/>
+    </filter>
+    <filter id="glyphDepth" x="-28%" y="-28%" width="156%" height="156%">
+      <feDropShadow dx="0" dy="30" stdDeviation="26" flood-color="#000000" flood-opacity="0.62"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="18" flood-color="#2dff92" flood-opacity="0.34"/>
+    </filter>
+    <filter id="greenAura" x="-35%" y="-35%" width="170%" height="170%">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.04 0 0 0 0 1 0 0 0 0 0.48 0 0 0 0.7 0"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <g clip-path="url(#iconClip)">
+    <rect width="1024" height="1024" fill="url(#field)"/>
+    <rect width="1024" height="1024" fill="url(#apexGlow)"/>
+    <circle cx="514" cy="540" r="326" fill="url(#coreGlow)"/>
+    <circle cx="262" cy="218" r="190" fill="#6dffb1" opacity="0.14" filter="url(#largeBlur)"/>
+    <circle cx="806" cy="802" r="240" fill="#00d56f" opacity="0.12" filter="url(#largeBlur)"/>
+
+    <path d="M218 142h588c42 0 76 34 76 76v588c0 42-34 76-76 76H218c-42 0-76-34-76-76V218c0-42 34-76 76-76z" fill="url(#glassPlate)" stroke="url(#plateStroke)" stroke-width="3" opacity="0.82"/>
+    <path d="M204 178c0-18 15-33 33-33h168" fill="none" stroke="#dfffee" stroke-linecap="round" stroke-width="6" opacity="0.2"/>
+    <path d="M820 844c0 18-15 33-33 33H619" fill="none" stroke="#7dffc0" stroke-linecap="round" stroke-width="6" opacity="0.18"/>
+
+    <g transform="rotate(-16 512 512)">
+      <ellipse cx="512" cy="512" rx="438" ry="116" fill="none" stroke="#00130b" stroke-width="42" opacity="0.34"/>
+      <g clip-path="url(#backOrbitClip)">
+        <ellipse cx="512" cy="512" rx="438" ry="116" fill="none" stroke="url(#orbitStroke)" stroke-width="24" stroke-linecap="round" opacity="0.74"/>
+      </g>
+    </g>
+
+    <g opacity="0.5" filter="url(#largeBlur)">
+      <path d="M276 222h146v586H276zM602 222h146v586H602zM386 450h252v128H386z" fill="#000d08"/>
+    </g>
+
+    <g filter="url(#glyphDepth)">
+      <path d="M266 224c0-29 24-53 53-53h73c29 0 53 24 53 53v216h134V224c0-29 24-53 53-53h73c29 0 53 24 53 53v576c0 29-24 53-53 53h-73c-29 0-53-24-53-53V586H445v214c0 29-24 53-53 53h-73c-29 0-53-24-53-53V224z" fill="url(#hMain)"/>
+      <path d="M319 187h73c21 0 37 16 37 37v232h166V224c0-21 16-37 37-37h73c21 0 37 16 37 37v576c0 21-16 37-37 37h-73c-21 0-37-16-37-37V570H429v230c0 21-16 37-37 37h-73c-21 0-37-16-37-37V224c0-21 16-37 37-37z" fill="none" stroke="url(#hSide)" stroke-width="24"/>
+      <path d="M330 218h43c17 0 31 14 31 31v164c0 17-14 31-31 31h-43c-17 0-31-14-31-31V249c0-17 14-31 31-31zM651 218h43c17 0 31 14 31 31v164c0 17-14 31-31 31h-43c-17 0-31-14-31-31V249c0-17 14-31 31-31zM445 470h134v86H445z" fill="url(#hCut)"/>
+      <path d="M445 440h134l-134 54zM445 586h134l-134 56z" fill="#012316" opacity="0.22"/>
+    </g>
+
+    <g transform="rotate(-16 512 512)" clip-path="url(#frontOrbitClip)" filter="url(#greenAura)">
+      <ellipse cx="512" cy="512" rx="438" ry="116" fill="none" stroke="url(#orbitStroke)" stroke-width="24" stroke-linecap="round" opacity="0.86"/>
+      <ellipse cx="512" cy="512" rx="346" ry="82" fill="none" stroke="#b6ffd8" stroke-width="7" stroke-linecap="round" opacity="0.22"/>
+    </g>
+
+    <g transform="rotate(15 794 320)" filter="url(#greenAura)">
+      <path d="M660 319c56-33 129-52 219-56-73 34-127 72-164 115-15-17-33-37-55-59z" fill="url(#ship)" opacity="0.92"/>
+      <path d="M845 264l45 13-37 31z" fill="#f2fff8"/>
+    </g>
+
+    <path d="M154 222c0-37 30-67 67-67h92" fill="none" stroke="#effff6" stroke-width="6" stroke-linecap="round" opacity="0.2"/>
+    <path d="M870 802c0 37-30 67-67 67h-92" fill="none" stroke="#64ffad" stroke-width="6" stroke-linecap="round" opacity="0.2"/>
+    <rect width="1024" height="1024" fill="none" stroke="#ffffff" stroke-opacity="0.08" stroke-width="2"/>
+  </g>
+</svg>

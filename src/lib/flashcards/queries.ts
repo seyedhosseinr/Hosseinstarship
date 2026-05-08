@@ -66,6 +66,12 @@ export type FlashcardStatsSnapshot = {
   newCount: number;
   learning: number;
   leech: number;
+  /** Number of times the user pressed FSRS Hard (rating=2). This is NOT the same as leech. */
+  hardReviews: number;
+  hardReviews7d: number;
+  /** Cards whose current FSRS difficulty is high enough to be treated as difficult. */
+  difficultCards: number;
+  avgDifficulty: number;
   recentReviewCount: number;
   deckCount: number;
 };
@@ -232,6 +238,10 @@ export async function getFlashcardStatsSnapshot(): Promise<FlashcardStatsSnapsho
     newRow,
     learningRow,
     leechRow,
+    hardReviewsRow,
+    hardReviews7dRow,
+    difficultCardsRow,
+    avgDifficultyRow,
     recentReviewsRow,
     deckCountRow,
   ] = await Promise.all([
@@ -256,6 +266,10 @@ export async function getFlashcardStatsSnapshot(): Promise<FlashcardStatsSnapsho
       .from(flashcards)
       .where(and(eq(flashcards.isArchived, 0), or(eq(flashcards.fsrsState, "learning"), eq(flashcards.fsrsState, "relearning")))),
     db.select({ value: count(flashcards.id) }).from(flashcards).where(and(eq(flashcards.isArchived, 0), eq(flashcards.isLeech, 1))),
+    db.select({ value: count(flashcardReviews.id) }).from(flashcardReviews).where(eq(flashcardReviews.rating, 2)),
+    db.select({ value: count(flashcardReviews.id) }).from(flashcardReviews).where(and(eq(flashcardReviews.rating, 2), gte(flashcardReviews.reviewedAt, weekAgo))),
+    db.select({ value: count(flashcards.id) }).from(flashcards).where(and(eq(flashcards.isArchived, 0), gte(flashcards.fsrsDifficulty, 7))),
+    db.select({ value: sql<number>`COALESCE(AVG(NULLIF(${flashcards.fsrsDifficulty}, 0)), 0)` }).from(flashcards).where(eq(flashcards.isArchived, 0)),
     db.select({ value: count(flashcardReviews.id) }).from(flashcardReviews).where(gte(flashcardReviews.reviewedAt, weekAgo)),
     db.select({ value: count(flashcardDecks.id) }).from(flashcardDecks),
   ]);
@@ -268,6 +282,10 @@ export async function getFlashcardStatsSnapshot(): Promise<FlashcardStatsSnapsho
     newCount: Number(newRow[0]?.value ?? 0),
     learning: Number(learningRow[0]?.value ?? 0),
     leech: Number(leechRow[0]?.value ?? 0),
+    hardReviews: Number(hardReviewsRow[0]?.value ?? 0),
+    hardReviews7d: Number(hardReviews7dRow[0]?.value ?? 0),
+    difficultCards: Number(difficultCardsRow[0]?.value ?? 0),
+    avgDifficulty: Number(avgDifficultyRow[0]?.value ?? 0),
     recentReviewCount: Number(recentReviewsRow[0]?.value ?? 0),
     deckCount: Number(deckCountRow[0]?.value ?? 0),
   };

@@ -124,11 +124,11 @@ export function SegmentRenderer({
             key={section.id}
             id={section.id}
             data-section-id={section.id}
-            className="scroll-mt-24"
+            className="scroll-mt-28 pt-10 first:pt-0"
           >
             <SectionHeader title={section.title} hook={section.hook} index={si + 1} />
 
-            <div className="space-y-1.5">
+            <div data-reader-frame-stack="true" className="space-y-5 md:space-y-6">
               {section.frames.map((frame) => (
                 <FrameCardV2
                   key={frame.id}

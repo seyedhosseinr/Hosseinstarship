@@ -15,8 +15,9 @@ import { cn } from "@/lib/utils";
  * via two CSS custom properties that cascade down through the DOM:
  *   --lib-measure-max     → consumed by MeasureColumn for the prose width
  *   --lib-stage-padding-x → consumed by ReaderStage for outer gutter
- * This keeps fullscreen from being a cosmetic shell-only change — the
- * actual reading column widens and the side gutters tighten.
+ * This keeps fullscreen from being a cosmetic shell-only change: the
+ * actual reading column can claim the available width and the side
+ * gutters stay intentionally small.
  *
  * The root forwards a ref so callers can hand it to the browser
  * Fullscreen API for true native fullscreen on focus mode.
@@ -25,29 +26,27 @@ interface LibraryShellProps {
   children: ReactNode;
   isFocusMode?: boolean;
   className?: string;
+  /**
+   * Optional override for the normal-mode reading column max-width.
+   * Driven by user reader settings. Focus mode stays unrestricted.
+   * Pass any CSS length (e.g. "min(1200px, 100%)" or "100%").
+   */
+  measureMax?: string;
 }
 
-// Reading-measure tokens.
-//
-// Normal mode keeps the editorial ~78ch column.
-//
-// Focus mode widens the column to a comfortable reading measure
-// (1100px max) with generous inline padding. This is wider than
-// normal but not "fill-all-the-space" — a 1100px column reads
-// comfortably at any typical screen size without line lengths
-// becoming fatiguing. On iPad (1024px) it fills the screen; on
-// 1440p it leaves visible margins that frame the content.
-const MEASURE_NORMAL = "min(78ch, 100%)";
-const MEASURE_FOCUS = "min(1100px, 100%)";
+const MEASURE_NORMAL = "100%";
+const MEASURE_FOCUS = "100%";
 
-const STAGE_PAD_NORMAL = "clamp(1rem, 4vw, 3rem)";
-const STAGE_PAD_FOCUS = "clamp(2rem, 5vw, 5rem)";
+const STAGE_PAD_NORMAL = "clamp(0.75rem, 2vw, 1.5rem)";
+const STAGE_PAD_FOCUS = "clamp(0.75rem, 2vw, 1.25rem)";
 
 export const LibraryShell = forwardRef<HTMLDivElement, LibraryShellProps>(
-  function LibraryShell({ children, isFocusMode = false, className }, ref) {
+  function LibraryShell({ children, isFocusMode = false, className, measureMax }, ref) {
     const style: CSSProperties = {
       fontFamily: "var(--lib-font-sans)",
-      ["--lib-measure-max" as string]: isFocusMode ? MEASURE_FOCUS : MEASURE_NORMAL,
+      ["--lib-measure-max" as string]: isFocusMode
+        ? MEASURE_FOCUS
+        : (measureMax ?? MEASURE_NORMAL),
       ["--lib-stage-padding-x" as string]: isFocusMode ? STAGE_PAD_FOCUS : STAGE_PAD_NORMAL,
     };
 

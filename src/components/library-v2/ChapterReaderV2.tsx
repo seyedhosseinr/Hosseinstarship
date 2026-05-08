@@ -12,12 +12,10 @@ import {
   EyeOff,
   Maximize2,
   Minimize2,
-  Minus,
   MoreHorizontal,
   NotebookPen,
   PanelLeft,
   Pen,
-  Plus,
   StickyNote,
   Trash2,
   Undo2,
@@ -28,7 +26,7 @@ import type { ChapterStatus } from "@/lib/library/progress";
 import type { ReaderAnnotation, ReaderSelectionPayload } from "@/hooks/useReaderAnnotations";
 import { useReaderAnnotations } from "@/hooks/useReaderAnnotations";
 import { useAutoHighlight } from "@/hooks/useAutoHighlight";
-import { useReaderSettings } from "@/hooks/useReaderSettings";
+import { useReaderSettings, READER_FONT_STACKS } from "@/hooks/useReaderSettings";
 import { useReaderPenSelection } from "@/hooks/useReaderPenSelection";
 import { usePalmBeforePenGuard } from "@/hooks/usePalmBeforePenGuard";
 import { useReaderSelectionWatcher } from "@/hooks/useReaderSelectionWatcher";
@@ -40,7 +38,9 @@ import { useScrollSpy } from "@/hooks/useScrollSpy";
 import { cn } from "@/lib/utils";
 
 import { DrawingLayer, type DrawingLayerHandle, type DrawTool } from "./DrawingLayer";
+import { ReaderDisplaySettings } from "./ReaderDisplaySettings";
 import { LibraryShell } from "./LibraryShell";
+import { PencilGpuInkLayer } from "./PencilGpuInkLayer";
 import { PencilDebugOverlay } from "./PencilDebugOverlay";
 import { ReaderHighlightLayer } from "./ReaderHighlightLayer";
 import { NoteMarkerLayer } from "./NoteMarkerLayer";
@@ -90,6 +90,13 @@ const DRAW_WIDTHS = [
   { value: 9, dot: 15, label: "Thick" },
 ] as const;
 
+/**
+ * Stable selector for the reader content area.
+ * Used by highlight, underline, annotation, and pen-selection hooks.
+ * Centralised here so a rename never silently breaks multiple call-sites.
+ */
+const READER_CONTENT_SELECTOR = "[data-reader-content]";
+
 /* ════════════════════════════════════════════════════════
    ChapterReaderV2 — multi-segment chapter reader.
    Slim top bar: Back | TOC | Annotations | Focus | Pen
@@ -114,14 +121,32 @@ export function ChapterReaderV2({
   // ── Pen / drawing mode ──
   const [penMode, setPenMode] = useState(false);
 
+  /**
+   * When entering pen/draw mode, clear any active text selection so that:
+   *  1. SelectionPopup does not linger over the canvas.
+   *  2. The first Pencil stroke is not accidentally interpreted as a
+   *     selection-extend gesture by the browser.
+   */
+  useEffect(() => {
+    if (!penMode) return;
+    window.getSelection()?.removeAllRanges();
+  }, [penMode]);
+
+  /**
+   * Stable callback for toggling pen mode.
+   * Avoids re-creating child callbacks on every render.
+   */
+  const togglePenMode = useCallback(() => setPenMode((v) => !v), []);
+
   // ── User notes panel (study notes, local-first) ──
   const [userNotesOpen, setUserNotesOpen] = useState(false);
+  const toggleUserNotes = useCallback(() => setUserNotesOpen((v) => !v), []);
 
   // Pencil drag-selects text in Select mode (penMode=false).
   // iPadOS Safari otherwise treats Pencil drag as a scroll gesture.
   useReaderPenSelection({
     scrollRef,
-    contentSelector: "[data-reader-content]",
+    contentSelector: READER_CONTENT_SELECTOR,
     active: !penMode,
   });
 
@@ -132,7 +157,7 @@ export function ChapterReaderV2({
   // mouseup/touchend listeners. Fires on any selectionchange (mouse, pen,
   // finger, keyboard, double/triple-click, programmatic) once settled.
   useReaderSelectionWatcher({
-    contentSelector: "[data-reader-content]",
+    contentSelector: READER_CONTENT_SELECTOR,
     scrollRef,
   });
 
@@ -141,6 +166,12 @@ export function ChapterReaderV2({
   const [penTool, setPenTool] = useState<DrawTool>("pen");
   const drawingLayerRef = useRef<DrawingLayerHandle>(null);
 
+  const toggleEraser = useCallback(
+    () => setPenTool((t) => (t === "eraser" ? "pen" : "eraser")),
+    [],
+  );
+  const undoStroke = useCallback(() => drawingLayerRef.current?.undo(), []);
+  const clearDrawing = useCallback(() => drawingLayerRef.current?.clear(), []);
 
   // ── Reader AA controls ──
   const { settings: readerSettings, update: updateReaderSettings } = useReaderSettings();
@@ -159,6 +190,7 @@ export function ChapterReaderV2({
       if (saved === "1") setToolbarPinnedCollapsed(true);
     } catch { /* ignore */ }
   }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem("reader:topbar:collapsed", toolbarPinnedCollapsed ? "1" : "0");
@@ -273,7 +305,15 @@ export function ChapterReaderV2({
   const progressLabel = `${currentIdx}/${allSectionIds.length}`;
 
   return (
-    <LibraryShell ref={shellRef} isFocusMode={isFocusMode}>
+    <LibraryShell
+      ref={shellRef}
+      isFocusMode={isFocusMode}
+      measureMax={
+        readerSettings.maxWidth >= 1800
+          ? "100%"
+          : `min(${readerSettings.maxWidth}px, 100%)`
+      }
+    >
       <LibrarySpine
         tree={navigation}
         microNav={microNav}
@@ -392,7 +432,7 @@ export function ChapterReaderV2({
               {/* User study notes */}
               <button
                 type="button"
-                onClick={() => setUserNotesOpen((v) => !v)}
+                onClick={toggleUserNotes}
                 title="یادداشت‌های من"
                 aria-label={userNotesOpen ? "بستن یادداشت‌ها" : "باز کردن یادداشت‌ها"}
                 className={cn(
@@ -435,7 +475,7 @@ export function ChapterReaderV2({
               {/* Pen mode toggle */}
               <button
                 type="button"
-                onClick={() => setPenMode((v) => !v)}
+                onClick={togglePenMode}
                 title={penMode ? "Exit pen mode" : "Draw on page"}
                 className={cn(
                   "inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors",
@@ -477,90 +517,13 @@ export function ChapterReaderV2({
               </button>
             </div>
 
-            {/* ── Font-size popover pill — visible when AA button is active ── */}
+            {/* ── Reader display settings panel — visible when AA button is active ── */}
             {fontSizeOpen && (
-              <div className="pointer-events-auto flex items-center rounded-full border border-lib-border/55 bg-lib-glass px-0.5 py-1 shadow-[0_4px_24px_-8px_color-mix(in_oklab,hsl(var(--foreground))_18%,transparent)] backdrop-blur-xl">
-                {/* Decrease */}
-                <button
-                  type="button"
-                  onClick={() => updateReaderSettings({ fontSize: Math.max(13, readerSettings.fontSize - 1) })}
-                  disabled={readerSettings.fontSize <= 13}
-                  aria-label="Smaller text"
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  <Minus className="h-3.5 w-3.5" />
-                </button>
-
-                {/* AA label */}
-                <div className="flex min-w-[56px] select-none flex-col items-center gap-[3px] px-1.5">
-                  <div className="flex items-end gap-0.5 leading-none">
-                    <span className="text-[9px] font-bold text-lib-text-secondary">A</span>
-                    <span className="text-[13px] font-bold text-lib-text">A</span>
-                  </div>
-                  <div className="font-mono text-[10px] tabular-nums text-lib-text-muted">
-                    {readerSettings.fontSize}px
-                  </div>
-                </div>
-
-                {/* Increase */}
-                <button
-                  type="button"
-                  onClick={() => updateReaderSettings({ fontSize: Math.min(24, readerSettings.fontSize + 1) })}
-                  disabled={readerSettings.fontSize >= 24}
-                  aria-label="Larger text"
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-
-                <div className="mx-1 h-4 w-px bg-lib-border/55" />
-
-                <button
-                  type="button"
-                  onClick={() => updateReaderSettings({ lineHeight: Math.max(1.4, Number((readerSettings.lineHeight - 0.1).toFixed(1))) })}
-                  aria-label="Tighter line spacing"
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover disabled:cursor-not-allowed disabled:opacity-30"
-                  disabled={readerSettings.lineHeight <= 1.4}
-                >
-                  <Minus className="h-3.5 w-3.5" />
-                </button>
-                <span className="min-w-[48px] text-center text-[10px] font-medium text-lib-text-muted">
-                  Line {readerSettings.lineHeight.toFixed(1)}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => updateReaderSettings({ lineHeight: Math.min(2.2, Number((readerSettings.lineHeight + 0.1).toFixed(1))) })}
-                  aria-label="Looser line spacing"
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover disabled:cursor-not-allowed disabled:opacity-30"
-                  disabled={readerSettings.lineHeight >= 2.2}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-
-                <div className="mx-1 h-4 w-px bg-lib-border/55" />
-
-                <button
-                  type="button"
-                  onClick={() => updateReaderSettings({ maxWidth: Math.max(540, readerSettings.maxWidth - 60) })}
-                  aria-label="Narrower line width"
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover disabled:cursor-not-allowed disabled:opacity-30"
-                  disabled={readerSettings.maxWidth <= 540}
-                >
-                  <Minus className="h-3.5 w-3.5" />
-                </button>
-                <span className="min-w-[52px] text-center text-[10px] font-medium text-lib-text-muted">
-                  Width {readerSettings.maxWidth}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => updateReaderSettings({ maxWidth: Math.min(900, readerSettings.maxWidth + 60) })}
-                  aria-label="Wider line width"
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover disabled:cursor-not-allowed disabled:opacity-30"
-                  disabled={readerSettings.maxWidth >= 900}
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                </button>
-              </div>
+              <ReaderDisplaySettings
+                settings={readerSettings}
+                onUpdate={updateReaderSettings}
+                className="pointer-events-auto"
+              />
             )}
 
             {/* ── Drawing palette pill — visible only when pen mode is active ── */}
@@ -611,7 +574,7 @@ export function ChapterReaderV2({
                 {/* Eraser */}
                 <button
                   type="button"
-                  onClick={() => setPenTool((t) => (t === "eraser" ? "pen" : "eraser"))}
+                  onClick={toggleEraser}
                   title={penTool === "eraser" ? "Switch to pen" : "Eraser"}
                   className={cn(
                     "inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors",
@@ -626,7 +589,7 @@ export function ChapterReaderV2({
                 {/* Undo */}
                 <button
                   type="button"
-                  onClick={() => drawingLayerRef.current?.undo()}
+                  onClick={undoStroke}
                   title="Undo last stroke"
                   className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover"
                 >
@@ -636,7 +599,7 @@ export function ChapterReaderV2({
                 {/* Clear all */}
                 <button
                   type="button"
-                  onClick={() => drawingLayerRef.current?.clear()}
+                  onClick={clearDrawing}
                   title="Clear all drawings"
                   className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover hover:text-red-500"
                 >
@@ -756,7 +719,17 @@ export function ChapterReaderV2({
                 "--reader-font-size": `${readerSettings.fontSize}px`,
                 "--reader-font-scale": String(readerSettings.fontSize / 17),
                 "--reader-line-height": String(readerSettings.lineHeight),
-                "--reader-prose-w": `${readerSettings.maxWidth}px`,
+                /* Inner prose width follows the user's chosen column max.
+                   Sentinel: maxWidth ≥ 1800 → "Full". Cascade 100% so
+                   FrameBody paragraphs (max-w-[var(--reader-prose-w,70ch)])
+                   stretch to the full reading column instead of being
+                   centered inside it — which in RTL otherwise reads as
+                   "stuck to the right" with dead space on the left. */
+                "--reader-prose-w":
+                  readerSettings.maxWidth >= 1800
+                    ? "100%"
+                    : `${readerSettings.maxWidth}px`,
+                fontFamily: READER_FONT_STACKS[readerSettings.fontFamily],
               } as React.CSSProperties}
             >
               <MediaRefProvider chapterNo={chapter.chapterNo}>
@@ -858,6 +831,14 @@ export function ChapterReaderV2({
         storageKey={`ch-${chapter.chapterNo}`}
       />
 
+      <PencilGpuInkLayer
+        isActive={!penMode}
+        scrollRef={scrollRef}
+        contentSelector={READER_CONTENT_SELECTOR}
+        color={penColor}
+        options={{ lineWidth: penWidth }}
+      />
+
       <PencilDebugOverlay mode={penMode ? "draw" : "select"} />
 
       {/* On-text highlight + underline rendering via CSS Custom Highlight,
@@ -865,23 +846,23 @@ export function ChapterReaderV2({
           quote-search for legacy rows. */}
       <ReaderHighlightLayer
         annotations={annotations}
-        contentSelector="[data-reader-content]"
+        contentSelector={READER_CONTENT_SELECTOR}
         scrollRef={scrollRef}
         visible={highlightsVisible}
       />
       <NoteMarkerLayer
         annotations={annotations}
-        contentSelector="[data-reader-content]"
+        contentSelector={READER_CONTENT_SELECTOR}
         scrollRef={scrollRef}
         visible={highlightsVisible}
       />
-        {/* Reference navigation rail - slim right-gutter minimap */}
-        <ReaderReferenceRail
-          notes={notes}
-          scrollRef={scrollRef}
-          annotationsPanelOpen={panels.annotations}
-        />
 
+      {/* Reference navigation rail - slim right-gutter minimap */}
+      <ReaderReferenceRail
+        notes={notes}
+        scrollRef={scrollRef}
+        annotationsPanelOpen={panels.annotations}
+      />
     </LibraryShell>
   );
 }

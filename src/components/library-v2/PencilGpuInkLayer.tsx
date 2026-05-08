@@ -1,0 +1,68 @@
+"use client";
+
+import { useEffect, useRef, type RefObject } from "react";
+
+import { InkController } from "@/lib/reader-ink/InkController";
+import type { InkLayerOptions } from "@/lib/reader-ink/types";
+
+interface PencilGpuInkLayerProps {
+  isActive: boolean;
+  scrollRef: RefObject<HTMLElement | null>;
+  contentSelector: string;
+  color?: string;
+  options?: Partial<InkLayerOptions>;
+}
+
+export function PencilGpuInkLayer({
+  isActive,
+  scrollRef,
+  contentSelector,
+  color = "#f59e0b",
+  options,
+}: PencilGpuInkLayerProps) {
+  const gpuCanvasRef = useRef<HTMLCanvasElement>(null);
+  const fallbackCanvasRef = useRef<HTMLCanvasElement>(null);
+  const controllerRef = useRef<InkController | null>(null);
+
+  useEffect(() => {
+    const gpuCanvas = gpuCanvasRef.current;
+    const fallbackCanvas = fallbackCanvasRef.current;
+    if (!gpuCanvas || !fallbackCanvas) return;
+
+    const controller = new InkController({
+      gpuCanvas,
+      fallbackCanvas,
+      scrollContainer: scrollRef.current,
+      contentSelector,
+      isActive,
+      color,
+      options,
+    });
+
+    controllerRef.current = controller;
+
+    return () => {
+      controller.destroy();
+      if (controllerRef.current === controller) controllerRef.current = null;
+    };
+  }, [contentSelector, scrollRef]);
+
+  useEffect(() => {
+    controllerRef.current?.update({ isActive, color, options });
+  }, [isActive, color, options]);
+
+  return (
+    <>
+      <canvas
+        ref={gpuCanvasRef}
+        aria-hidden="true"
+        className="fixed inset-0 z-[34] pointer-events-none"
+      />
+      <canvas
+        ref={fallbackCanvasRef}
+        aria-hidden="true"
+        className="fixed inset-0 z-[35] pointer-events-none"
+      />
+    </>
+  );
+}

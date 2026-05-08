@@ -3,6 +3,7 @@ import { getDb } from "@/db/index";
 import {
   chapters,
   flashcards,
+  flashcardReviews,
   planStatus,
   questionAttempts,
   questions,
@@ -114,36 +115,55 @@ async function getFlashcardLiteStats() {
   const db = await getDb();
   const now = Date.now();
   const { startMs, endMs } = todayBoundsMs();
+  const weekAhead = now + 7 * 86_400_000;
 
-  const [totalRow, dueRow, masteredRow] = await Promise.all([
-    db
-      .select({ value: count(flashcards.id) })
-      .from(flashcards)
-      .where(eq(flashcards.isArchived, 0))
-      .limit(1),
-    db
-      .select({ value: count(flashcards.id) })
-      .from(flashcards)
-      .where(and(eq(flashcards.isArchived, 0), lte(flashcards.fsrsDue, now)))
-      .limit(1),
-    db
-      .select({ value: count(flashcards.id) })
-      .from(flashcards)
-      .where(
-        and(
-          eq(flashcards.isArchived, 0),
-          eq(flashcards.fsrsState, "review"),
-          gte(flashcards.fsrsDue, startMs),
-          lte(flashcards.fsrsDue, endMs + 365 * 86_400_000),
-        ),
-      )
-      .limit(1),
+  const activeCards = and(
+    eq(flashcards.isArchived, 0),
+    eq(flashcards.status, "active"),
+  );
+
+  const [
+    totalRow,
+    dueRow,
+    masteredRow,
+    dueWeekRow,
+    reviewedTodayRow,
+    leechRow,
+    avgRow,
+    matureRow,
+    overdueRow,
+    learningRow,
+    newRow,
+  ] = await Promise.all([
+    db.select({ value: count(flashcards.id) }).from(flashcards).where(eq(flashcards.isArchived, 0)).limit(1),
+    db.select({ value: count(flashcards.id) }).from(flashcards).where(and(activeCards, eq(flashcards.isSuspended, 0), eq(flashcards.isBuried, 0), lte(flashcards.fsrsDue, now))).limit(1),
+    db.select({ value: count(flashcards.id) }).from(flashcards).where(and(activeCards, eq(flashcards.fsrsState, "review"))).limit(1),
+    db.select({ value: count(flashcards.id) }).from(flashcards).where(and(activeCards, eq(flashcards.isSuspended, 0), eq(flashcards.isBuried, 0), lte(flashcards.fsrsDue, weekAhead))).limit(1),
+    db.select({ value: count(flashcardReviews.id) }).from(flashcardReviews).where(and(gte(flashcardReviews.reviewedAt, startMs), lte(flashcardReviews.reviewedAt, endMs - 1))).limit(1),
+    db.select({ value: count(flashcards.id) }).from(flashcards).where(and(eq(flashcards.isArchived, 0), eq(flashcards.isLeech, 1))).limit(1),
+    db.select({
+      avgStability: sql<number>`COALESCE(AVG(NULLIF(${flashcards.fsrsStability}, 0)), 0)`,
+      avgDifficulty: sql<number>`COALESCE(AVG(NULLIF(${flashcards.fsrsDifficulty}, 0)), 0)`,
+    }).from(flashcards).where(eq(flashcards.isArchived, 0)).limit(1),
+    db.select({ value: count(flashcards.id) }).from(flashcards).where(and(activeCards, eq(flashcards.fsrsState, "review"), gte(flashcards.fsrsScheduledDays, 21))).limit(1),
+    db.select({ value: count(flashcards.id) }).from(flashcards).where(and(activeCards, eq(flashcards.isSuspended, 0), eq(flashcards.isBuried, 0), lte(flashcards.fsrsDue, startMs - 1))).limit(1),
+    db.select({ value: count(flashcards.id) }).from(flashcards).where(and(activeCards, sql`${flashcards.fsrsState} in ('learning', 'relearning')`)).limit(1),
+    db.select({ value: count(flashcards.id) }).from(flashcards).where(and(activeCards, eq(flashcards.fsrsState, "new"))).limit(1),
   ]);
 
   return {
-    total: totalRow[0]?.value ?? 0,
-    dueToday: dueRow[0]?.value ?? 0,
-    mastered: masteredRow[0]?.value ?? 0,
+    total: Number(totalRow[0]?.value ?? 0),
+    dueToday: Number(dueRow[0]?.value ?? 0),
+    mastered: Number(masteredRow[0]?.value ?? 0),
+    dueThisWeek: Number(dueWeekRow[0]?.value ?? 0),
+    reviewedToday: Number(reviewedTodayRow[0]?.value ?? 0),
+    leechCount: Number(leechRow[0]?.value ?? 0),
+    avgStability: Number(avgRow[0]?.avgStability ?? 0),
+    avgDifficulty: Number(avgRow[0]?.avgDifficulty ?? 0),
+    matureCards: Number(matureRow[0]?.value ?? 0),
+    overdue: Number(overdueRow[0]?.value ?? 0),
+    learningCards: Number(learningRow[0]?.value ?? 0),
+    newCards: Number(newRow[0]?.value ?? 0),
   };
 }
 
@@ -359,17 +379,17 @@ export async function getHostedDashboardLiteData() {
     })),
     fsrsStats: {
       dueToday: flashcardStats.dueToday,
-      dueThisWeek: flashcardStats.dueToday,
-      reviewedToday: 0,
+      dueThisWeek: flashcardStats.dueThisWeek,
+      reviewedToday: flashcardStats.reviewedToday,
       retentionRate: readinessScore.factors.retention,
-      leechCount: 0,
-      avgStability: 0,
-      avgDifficulty: 0,
-      matureCards: flashcardStats.mastered,
+      leechCount: flashcardStats.leechCount,
+      avgStability: flashcardStats.avgStability,
+      avgDifficulty: flashcardStats.avgDifficulty,
+      matureCards: flashcardStats.matureCards,
       totalCards: flashcardStats.total,
-      overdue: flashcardStats.dueToday,
-      learningCards: 0,
-      newCards: Math.max(0, flashcardStats.total - flashcardStats.mastered),
+      overdue: flashcardStats.overdue,
+      learningCards: flashcardStats.learningCards,
+      newCards: flashcardStats.newCards,
     },
     plannerDetailedStats: {
       todayTasks: plannerStats.todayTasks,
@@ -394,17 +414,17 @@ export async function getHostedDashboardLiteData() {
       activityFeed: [],
       fsrsStats: {
         dueToday: flashcardStats.dueToday,
-        dueThisWeek: flashcardStats.dueToday,
-        reviewedToday: 0,
+        dueThisWeek: flashcardStats.dueThisWeek,
+        reviewedToday: flashcardStats.reviewedToday,
         retentionRate: readinessScore.factors.retention,
-        leechCount: 0,
-        avgStability: 0,
-        avgDifficulty: 0,
-        matureCards: flashcardStats.mastered,
+        leechCount: flashcardStats.leechCount,
+        avgStability: flashcardStats.avgStability,
+        avgDifficulty: flashcardStats.avgDifficulty,
+        matureCards: flashcardStats.matureCards,
         totalCards: flashcardStats.total,
-        overdue: flashcardStats.dueToday,
-        learningCards: 0,
-        newCards: Math.max(0, flashcardStats.total - flashcardStats.mastered),
+        overdue: flashcardStats.overdue,
+        learningCards: flashcardStats.learningCards,
+        newCards: flashcardStats.newCards,
       },
       plannerStats: {
         todayTasks: plannerStats.todayTasks,

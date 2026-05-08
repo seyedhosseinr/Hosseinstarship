@@ -1,0 +1,470 @@
+import type {
+  ActivityItem,
+  ChapterCoverage,
+  DashboardStats,
+  DifficultyBucket,
+  FsrsCard,
+  GraphEdge,
+  GraphNode,
+  HighYieldTopic,
+  McqChapterStat,
+  NotebookItem,
+  PlanBlock,
+  TrendPoint,
+} from "./types"
+
+export const DEMO_STATS: DashboardStats = {
+  cardsDueToday: 47,
+  cardsDueDelta: 12,
+  mcqThisWeek: 128,
+  mcqWeekDelta: 8,
+  overallAccuracy: 78,
+  accuracyDelta: 3,
+  streakDays: 14,
+  boardReadinessPct: 55,
+  daysUntilBoard: 84,
+  spark: {
+    cardsDue: [22, 31, 28, 40, 35, 44, 47],
+    mcq: [80, 95, 88, 110, 102, 120, 128],
+    accuracy: [70, 72, 71, 74, 76, 75, 78],
+    readiness: [42, 44, 47, 49, 51, 53, 55],
+  },
+}
+
+export const DEMO_FSRS_QUEUE: FsrsCard[] = [
+  {
+    id: "1",
+    title: "Renal Cell Carcinoma — TNM Staging (8th Edition)",
+    chapterFa: "کلیه",
+    yieldScore: 9.4,
+    dueIn: "اکنون",
+    state: "review",
+    stability: 12.4,
+    difficulty: 0.32,
+  },
+  {
+    id: "2",
+    title: "BPH — α-blockers vs 5-ARI Mechanisms & Selection",
+    chapterFa: "پروستات",
+    yieldScore: 9.1,
+    dueIn: "۳ دقیقه",
+    state: "review",
+    stability: 8.7,
+    difficulty: 0.41,
+  },
+  {
+    id: "3",
+    title: "Bladder Cancer — Intravesical BCG Protocol",
+    chapterFa: "مثانه",
+    yieldScore: 8.8,
+    dueIn: "۱۵ دقیقه",
+    state: "new",
+    stability: 0,
+    difficulty: 0.3,
+  },
+  {
+    id: "4",
+    title: "Ureteroscopy — Intraoperative Complication Mgmt",
+    chapterFa: "مجاری ادراری",
+    yieldScore: 8.3,
+    dueIn: "۱ ساعت",
+    state: "review",
+    stability: 21.3,
+    difficulty: 0.28,
+  },
+  {
+    id: "5",
+    title: "Testicular Torsion — Bell-Clapper Deformity",
+    chapterFa: "بیضه",
+    yieldScore: 7.9,
+    dueIn: "۳ ساعت",
+    state: "relearning",
+    stability: 2.1,
+    difficulty: 0.58,
+  },
+  {
+    id: "6",
+    title: "Pheochromocytoma — Pre-op α/β Blockade",
+    chapterFa: "آدرنال",
+    yieldScore: 7.6,
+    dueIn: "۴ ساعت",
+    state: "review",
+    stability: 6.4,
+    difficulty: 0.45,
+  },
+]
+
+export const DEMO_MCQ_BY_CHAPTER: McqChapterStat[] = [
+  { chapterFa: "کلیه", chapterEn: "Kidney", accuracy: 82, answered: 45, total: 60 },
+  { chapterFa: "مجاری", chapterEn: "Upper Tract", accuracy: 71, answered: 32, total: 50 },
+  { chapterFa: "مثانه", chapterEn: "Bladder", accuracy: 78, answered: 28, total: 45 },
+  { chapterFa: "پروستات", chapterEn: "Prostate", accuracy: 65, answered: 38, total: 70 },
+  { chapterFa: "آلت", chapterEn: "Penis", accuracy: 88, answered: 21, total: 30 },
+  { chapterFa: "بیضه", chapterEn: "Testis", accuracy: 74, answered: 19, total: 35 },
+  { chapterFa: "آدرنال", chapterEn: "Adrenal", accuracy: 69, answered: 15, total: 25 },
+  { chapterFa: "اطفال", chapterEn: "Pediatric", accuracy: 61, answered: 12, total: 40 },
+]
+
+export const DEMO_COVERAGE: ChapterCoverage[] = [
+  {
+    sectionName: "Kidney & Upper Tract",
+    sectionFa: "کلیه و مجاری فوقانی",
+    cwwRef: "CWW Vol I · Ch 1–8",
+    pct: 72,
+    done: 86,
+    total: 120,
+    subSkills: [
+      { name: "Anatomy", pct: 88 },
+      { name: "Physiology", pct: 75 },
+      { name: "Oncology", pct: 70 },
+      { name: "Surgery", pct: 58 },
+    ],
+  },
+  {
+    sectionName: "Bladder & Urethra",
+    sectionFa: "مثانه و پیشابراه",
+    cwwRef: "CWW Vol II · Ch 9–15",
+    pct: 58,
+    done: 55,
+    total: 95,
+    subSkills: [
+      { name: "Onco", pct: 65 },
+      { name: "Func", pct: 52 },
+      { name: "Trauma", pct: 60 },
+      { name: "Recon", pct: 48 },
+    ],
+  },
+  {
+    sectionName: "Prostate",
+    sectionFa: "پروستات",
+    cwwRef: "CWW Vol II · Ch 16–21",
+    pct: 45,
+    done: 50,
+    total: 110,
+    subSkills: [
+      { name: "BPH", pct: 60 },
+      { name: "PCa", pct: 42 },
+      { name: "Inflam", pct: 40 },
+      { name: "Surgery", pct: 38 },
+    ],
+  },
+  {
+    sectionName: "Male Genitalia",
+    sectionFa: "اندام تناسلی مردانه",
+    cwwRef: "CWW Vol III · Ch 22–27",
+    pct: 83,
+    done: 71,
+    total: 85,
+    subSkills: [
+      { name: "Anat", pct: 92 },
+      { name: "Onco", pct: 80 },
+      { name: "Inferil", pct: 78 },
+      { name: "ED", pct: 84 },
+    ],
+  },
+  {
+    sectionName: "Adrenal & Retro",
+    sectionFa: "آدرنال و رتروپریتوئن",
+    cwwRef: "CWW Vol I · Ch 28–31",
+    pct: 35,
+    done: 21,
+    total: 60,
+    subSkills: [
+      { name: "Endo", pct: 38 },
+      { name: "Onco", pct: 30 },
+      { name: "Surg", pct: 32 },
+      { name: "Imag", pct: 42 },
+    ],
+  },
+  {
+    sectionName: "Pediatric Urology",
+    sectionFa: "ارولوژی اطفال",
+    cwwRef: "CWW Vol III · Ch 32–38",
+    pct: 20,
+    done: 28,
+    total: 140,
+    subSkills: [
+      { name: "Cong", pct: 28 },
+      { name: "VUR", pct: 18 },
+      { name: "Onco", pct: 12 },
+      { name: "Surg", pct: 22 },
+    ],
+  },
+]
+
+export const DEMO_ACTIVITY: ActivityItem[] = [
+  {
+    id: "1",
+    type: "mcq",
+    text: "۱۲ MCQ پاسخ داد — Renal Physiology & Pathology",
+    meta: "۸ صحیح · ۴ غلط · ۶۷٪",
+    timeAgo: "۲۰ دقیقه پیش",
+    group: "today",
+  },
+  {
+    id: "2",
+    type: "fsrs",
+    text: "۲۵ کارت FSRS مرور کرد — Prostate & Bladder",
+    meta: "Retention: ۹۱٪",
+    timeAgo: "۱ ساعت پیش",
+    group: "today",
+  },
+  {
+    id: "3",
+    type: "ai",
+    text: "از دستیار AI پرسید: «تفاوت TURBT و Radical Cystectomy؟»",
+    timeAgo: "۲ ساعت پیش",
+    group: "today",
+  },
+  {
+    id: "4",
+    type: "note",
+    text: "یادداشت بالینی: Transitional Cell Carcinoma staging",
+    meta: "۳ پاراگراف · ۲ تصویر",
+    timeAgo: "دیروز",
+    group: "yesterday",
+  },
+  {
+    id: "5",
+    type: "sync",
+    text: "همگام‌سازی با Neon PostgreSQL — ۳۴۱ رکورد",
+    timeAgo: "دیروز",
+    group: "yesterday",
+  },
+  {
+    id: "6",
+    type: "mcq",
+    text: "آزمون شبیه‌سازی ABU — Block 3",
+    meta: "۸۲٪ · رتبه ۲۴ از ۲۸۷",
+    timeAgo: "۲ روز پیش",
+    group: "earlier",
+  },
+]
+
+export const DEMO_PLAN: PlanBlock[] = [
+  {
+    id: "p1",
+    startFa: "۰۸:۰۰",
+    endFa: "۰۸:۴۵",
+    title: "FSRS Review · کلیه",
+    subtitle: "۲۳ کارت سررسید · YIELD ≥ ۸",
+    type: "fsrs",
+    estMinutes: 45,
+    done: true,
+  },
+  {
+    id: "p2",
+    startFa: "۰۹:۰۰",
+    endFa: "۱۰:۰۰",
+    title: "MCQ Block · Prostate",
+    subtitle: "۲۵ سوال CWW · سطح متوسط",
+    type: "mcq",
+    estMinutes: 60,
+    done: true,
+  },
+  {
+    id: "p3",
+    startFa: "۱۰:۳۰",
+    endFa: "۱۲:۰۰",
+    title: "Reading · CWW Ch 17",
+    subtitle: "BPH Pharmacology · ۳۲ صفحه",
+    type: "read",
+    estMinutes: 90,
+  },
+  {
+    id: "p4",
+    startFa: "۱۴:۰۰",
+    endFa: "۱۴:۳۰",
+    title: "Quick Notes · Bladder Ca",
+    subtitle: "خلاصه‌نویسی + flashcard creation",
+    type: "note",
+    estMinutes: 30,
+  },
+  {
+    id: "p5",
+    startFa: "۱۵:۰۰",
+    endFa: "۱۶:۰۰",
+    title: "Mock Exam · Block 4",
+    subtitle: "۳۰ سوال · شبیه‌سازی ABU",
+    type: "mcq",
+    estMinutes: 60,
+  },
+]
+
+export const DEMO_HIGH_YIELD: HighYieldTopic[] = [
+  {
+    id: "hy1",
+    title: "Renal Cell Carcinoma",
+    chapterFa: "کلیه",
+    yieldScore: 9.4,
+    due: 12,
+    mastered: 28,
+    total: 48,
+    accuracy: 84,
+    cwwRef: "CWW Vol I · Ch 4",
+  },
+  {
+    id: "hy2",
+    title: "BPH Pharmacology",
+    chapterFa: "پروستات",
+    yieldScore: 9.1,
+    due: 8,
+    mastered: 22,
+    total: 35,
+    accuracy: 76,
+    cwwRef: "CWW Vol II · Ch 17",
+  },
+  {
+    id: "hy3",
+    title: "Bladder Cancer Staging",
+    chapterFa: "مثانه",
+    yieldScore: 8.8,
+    due: 15,
+    mastered: 19,
+    total: 42,
+    accuracy: 71,
+    cwwRef: "CWW Vol II · Ch 11",
+  },
+  {
+    id: "hy4",
+    title: "Prostate Cancer Screening",
+    chapterFa: "پروستات",
+    yieldScore: 8.6,
+    due: 6,
+    mastered: 14,
+    total: 30,
+    accuracy: 68,
+    cwwRef: "CWW Vol II · Ch 19",
+  },
+  {
+    id: "hy5",
+    title: "Stone Disease — Metabolic",
+    chapterFa: "مجاری",
+    yieldScore: 8.4,
+    due: 9,
+    mastered: 17,
+    total: 38,
+    accuracy: 79,
+    cwwRef: "CWW Vol I · Ch 7",
+  },
+  {
+    id: "hy6",
+    title: "Testicular Torsion",
+    chapterFa: "بیضه",
+    yieldScore: 8.1,
+    due: 4,
+    mastered: 12,
+    total: 22,
+    accuracy: 88,
+    cwwRef: "CWW Vol III · Ch 25",
+  },
+  {
+    id: "hy7",
+    title: "Pheochromocytoma",
+    chapterFa: "آدرنال",
+    yieldScore: 7.9,
+    due: 5,
+    mastered: 9,
+    total: 18,
+    accuracy: 73,
+    cwwRef: "CWW Vol I · Ch 29",
+  },
+]
+
+export const DEMO_TREND: TrendPoint[] = [
+  { label: "۲ هفته پیش", accuracy: 68, cards: 32 },
+  { label: "۱۳ روز", accuracy: 70, cards: 28 },
+  { label: "۱۲ روز", accuracy: 69, cards: 35 },
+  { label: "۱۱ روز", accuracy: 72, cards: 41 },
+  { label: "۱۰ روز", accuracy: 73, cards: 38 },
+  { label: "۹ روز", accuracy: 71, cards: 30 },
+  { label: "۸ روز", accuracy: 74, cards: 45 },
+  { label: "۷ روز", accuracy: 75, cards: 42 },
+  { label: "۶ روز", accuracy: 73, cards: 39 },
+  { label: "۵ روز", accuracy: 76, cards: 47 },
+  { label: "۴ روز", accuracy: 77, cards: 44 },
+  { label: "۳ روز", accuracy: 75, cards: 40 },
+  { label: "۲ روز", accuracy: 79, cards: 50 },
+  { label: "دیروز", accuracy: 78, cards: 46 },
+  { label: "امروز", accuracy: 81, cards: 47 },
+]
+
+export const DEMO_DIFFICULTY: DifficultyBucket[] = [
+  { label: "آسان", value: 412, color: "hsl(var(--chart-2))" },
+  { label: "متوسط", value: 638, color: "hsl(var(--chart-1))" },
+  { label: "سخت", value: 287, color: "hsl(var(--chart-3))" },
+  { label: "بسیار سخت", value: 94, color: "hsl(var(--chart-4))" },
+]
+
+export const DEMO_GRAPH_NODES: GraphNode[] = [
+  { id: "rcc", label: "RCC", group: "renal", size: 22 },
+  { id: "stones", label: "Stones", group: "renal", size: 18 },
+  { id: "uti", label: "UTI", group: "general", size: 16 },
+  { id: "bph", label: "BPH", group: "prostate", size: 22 },
+  { id: "pca", label: "PCa", group: "prostate", size: 24 },
+  { id: "tcc", label: "TCC", group: "bladder", size: 20 },
+  { id: "bcg", label: "BCG", group: "bladder", size: 14 },
+  { id: "torsion", label: "Torsion", group: "testis", size: 16 },
+  { id: "tumor", label: "Testis Ca", group: "testis", size: 18 },
+  { id: "pheo", label: "Pheo", group: "adrenal", size: 16 },
+  { id: "tnm", label: "TNM", group: "general", size: 19 },
+  { id: "psa", label: "PSA", group: "prostate", size: 17 },
+]
+
+export const DEMO_GRAPH_EDGES: GraphEdge[] = [
+  { source: "rcc", target: "tnm", weight: 3 },
+  { source: "rcc", target: "stones", weight: 1 },
+  { source: "tcc", target: "tnm", weight: 3 },
+  { source: "tcc", target: "bcg", weight: 4 },
+  { source: "pca", target: "psa", weight: 4 },
+  { source: "pca", target: "tnm", weight: 3 },
+  { source: "bph", target: "psa", weight: 2 },
+  { source: "bph", target: "pca", weight: 3 },
+  { source: "torsion", target: "tumor", weight: 2 },
+  { source: "uti", target: "stones", weight: 2 },
+  { source: "uti", target: "bph", weight: 1 },
+  { source: "pheo", target: "tnm", weight: 1 },
+  { source: "tumor", target: "tnm", weight: 2 },
+]
+
+export const DEMO_NOTES: NotebookItem[] = [
+  {
+    id: "n1",
+    title: "TNM 8th Edition — Quick Reference",
+    excerpt:
+      "Renal: T1a ≤4cm, T1b 4-7cm, T2 >7cm. Bladder: Ta non-invasive, T1 lamina propria, T2 muscle...",
+    chapterFa: "Onco",
+    updatedFa: "۲۰ دقیقه پیش",
+    pinned: true,
+  },
+  {
+    id: "n2",
+    title: "Pre-op Pheochromocytoma Protocol",
+    excerpt:
+      "Phenoxybenzamine 7-14 days pre-op, then β-blocker after adequate α-blockade. NEVER β before α.",
+    chapterFa: "Adrenal",
+    updatedFa: "دیروز",
+    pinned: true,
+  },
+  {
+    id: "n3",
+    title: "BCG Failure — Definitions & Mgmt",
+    excerpt:
+      "BCG-unresponsive (refractory + relapsing within 6mo) → Radical cystectomy or pembrolizumab.",
+    chapterFa: "Bladder",
+    updatedFa: "۲ روز پیش",
+  },
+]
+
+/** 12 weeks × 7 days streak heatmap (0–4 intensity) */
+export const DEMO_HEATMAP: number[][] = Array.from({ length: 12 }, (_, w) =>
+  Array.from({ length: 7 }, (_, d) => {
+    const seed = (w * 7 + d * 3) % 11
+    if (w >= 10) return [3, 4, 4, 3, 4, 2, 3][d] // recent active
+    if (seed > 8) return 0
+    if (seed > 6) return 1
+    if (seed > 4) return 2
+    if (seed > 2) return 3
+    return 4
+  }),
+)

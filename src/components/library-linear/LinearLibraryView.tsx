@@ -1366,7 +1366,7 @@ export function LinearLibraryView({
         </aside>
 
         <main className="ll-scroll min-w-0 flex-1 overflow-y-auto">
-          <div className="mx-auto max-w-[1180px] px-6 py-8 md:px-8 lg:px-10 lg:py-10">
+          <div className="w-full max-w-none px-4 py-6 md:px-5 lg:px-6 lg:py-8">
             <PageAnchor
               action={nextAction}
               featuredContext={featuredContext}

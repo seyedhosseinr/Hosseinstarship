@@ -25,6 +25,10 @@ export interface FCStats {
   reviewed: number;
   learning: number;
   leech: number;
+  hardReviews: number;
+  hardReviews7d: number;
+  difficultCards: number;
+  avgDifficulty: number;
   newCount: number;
   suspended: number;
   deckCount: number;

@@ -15,12 +15,10 @@ import {
   Layers,
   Maximize2,
   Minimize2,
-  Minus,
   MoreHorizontal,
   NotebookPen,
   PanelLeft,
   PencilLine,
-  Plus,
   StickyNote,
   Target,
   Zap,
@@ -37,7 +35,7 @@ import { useAutoHighlight } from "@/hooks/useAutoHighlight";
 import { useReaderPenSelection } from "@/hooks/useReaderPenSelection";
 import { usePalmBeforePenGuard } from "@/hooks/usePalmBeforePenGuard";
 import { useReaderSelectionWatcher } from "@/hooks/useReaderSelectionWatcher";
-import { useReaderSettings } from "@/hooks/useReaderSettings";
+import { READER_FONT_STACKS, useReaderSettings } from "@/hooks/useReaderSettings";
 import { useMissedQuestionIds } from "@/hooks/useMissedQuestionIds";
 import { useStatusMachine } from "@/hooks/useStatusMachine";
 import { useFocusMode } from "@/hooks/useFocusMode";
@@ -74,8 +72,10 @@ import { ReaderStage } from "./ReaderStage";
 import { MeasureColumn } from "./MeasureColumn";
 import { ReaderHighlightLayer } from "./ReaderHighlightLayer";
 import { NoteMarkerLayer } from "./NoteMarkerLayer";
+import { PencilGpuInkLayer } from "./PencilGpuInkLayer";
 import { SegmentRenderer } from "./SegmentRenderer";
 import { StatusBadge } from "./StatusBadge";
+import { ReaderDisplaySettings } from "./ReaderDisplaySettings";
 import { MediaRefProvider } from "@/components/starship-media/MediaRefProvider";
 
 const QuickCardEditor = dynamic(
@@ -101,6 +101,8 @@ const STUDY_TABS: { id: StudyTab; label: string }[] = [
   { id: "note", label: "یادداشت" },
   { id: "yield", label: "Yield" },
 ];
+
+const READER_CONTENT_SELECTOR = "[data-reader-content]";
 
 interface NotePageV2Props {
   note: NoteViewerModel;
@@ -136,7 +138,7 @@ export function NotePageV2({
   // NotePageV2 has no pen/draw mode — always-on pen-selection is safe.
   useReaderPenSelection({
     scrollRef,
-    contentSelector: "[data-reader-content]",
+    contentSelector: READER_CONTENT_SELECTOR,
     active: true,
   });
   usePalmBeforePenGuard(scrollRef);
@@ -144,7 +146,7 @@ export function NotePageV2({
   // Input-agnostic SelectionPopup trigger: replaces the popup's internal
   // mouseup/touchend listeners.
   useReaderSelectionWatcher({
-    contentSelector: "[data-reader-content]",
+    contentSelector: READER_CONTENT_SELECTOR,
     scrollRef,
   });
 
@@ -381,7 +383,15 @@ export function NotePageV2({
   ].filter(Boolean).length;
 
   return (
-    <LibraryShell ref={shellRef} isFocusMode={isFocusMode}>
+    <LibraryShell
+      ref={shellRef}
+      isFocusMode={isFocusMode}
+      measureMax={
+        readerLayers.maxWidth >= 1800
+          ? "100%"
+          : `min(${readerLayers.maxWidth}px, 100%)`
+      }
+    >
       <LibrarySpine
         tree={navigation}
         microNav={microNav}
@@ -641,70 +651,11 @@ export function NotePageV2({
               </button>
             )}
 
-            <div className="ml-auto flex items-center gap-1 rounded-lib-sm border border-lib-border bg-lib-surface px-1">
-              <button
-                type="button"
-                onClick={() => updateLayer({ fontSize: Math.max(13, readerLayers.fontSize - 1) })}
-                className="flex h-8 w-8 items-center justify-center rounded text-lib-text-secondary hover:bg-lib-hover"
-                aria-label="Smaller text"
-              >
-                <Minus className="h-3 w-3" />
-              </button>
-              <span className="min-w-[24px] text-center text-xs tabular-nums text-lib-text-muted">
-                {readerLayers.fontSize}
-              </span>
-              <button
-                type="button"
-                onClick={() => updateLayer({ fontSize: Math.min(24, readerLayers.fontSize + 1) })}
-                className="flex h-8 w-8 items-center justify-center rounded text-lib-text-secondary hover:bg-lib-hover"
-                aria-label="Larger text"
-              >
-                <Plus className="h-3 w-3" />
-              </button>
-            </div>
-
-            <div className="flex items-center gap-1 rounded-lib-sm border border-lib-border bg-lib-surface px-1">
-              <button
-                type="button"
-                onClick={() => updateLayer({ lineHeight: Math.max(1.4, Number((readerLayers.lineHeight - 0.1).toFixed(1))) })}
-                className="flex h-8 w-8 items-center justify-center rounded text-lib-text-secondary hover:bg-lib-hover"
-                aria-label="Tighter line spacing"
-              >
-                <Minus className="h-3 w-3" />
-              </button>
-              <span className="min-w-[52px] text-center text-xs tabular-nums text-lib-text-muted">
-                Line {readerLayers.lineHeight.toFixed(1)}
-              </span>
-              <button
-                type="button"
-                onClick={() => updateLayer({ lineHeight: Math.min(2.2, Number((readerLayers.lineHeight + 0.1).toFixed(1))) })}
-                className="flex h-8 w-8 items-center justify-center rounded text-lib-text-secondary hover:bg-lib-hover"
-                aria-label="Looser line spacing"
-              >
-                <Plus className="h-3 w-3" />
-              </button>
-            </div>
-
-            <div className="flex items-center gap-1 rounded-lib-sm border border-lib-border bg-lib-surface px-1">
-              <button
-                type="button"
-                onClick={() => updateLayer({ maxWidth: Math.max(540, readerLayers.maxWidth - 60) })}
-                className="flex h-8 w-8 items-center justify-center rounded text-lib-text-secondary hover:bg-lib-hover"
-                aria-label="Narrower line width"
-              >
-                <Minus className="h-3 w-3" />
-              </button>
-              <span className="min-w-[60px] text-center text-xs tabular-nums text-lib-text-muted">
-                Width {readerLayers.maxWidth}
-              </span>
-              <button
-                type="button"
-                onClick={() => updateLayer({ maxWidth: Math.min(900, readerLayers.maxWidth + 60) })}
-                className="flex h-8 w-8 items-center justify-center rounded text-lib-text-secondary hover:bg-lib-hover"
-                aria-label="Wider line width"
-              >
-                <Plus className="h-3 w-3" />
-              </button>
+            <div className="ml-auto w-full min-w-[280px] sm:w-auto">
+              <ReaderDisplaySettings
+                settings={readerLayers}
+                onUpdate={updateLayer}
+              />
             </div>
           </div>
         </div>
@@ -822,7 +773,11 @@ export function NotePageV2({
                   "--reader-font-size": `${readerLayers.fontSize}px`,
                   "--reader-font-scale": String(readerLayers.fontSize / 17),
                   "--reader-line-height": String(readerLayers.lineHeight),
-                  "--reader-prose-w": `${readerLayers.maxWidth}px`,
+                  "--reader-prose-w":
+                    readerLayers.maxWidth >= 1800
+                      ? "100%"
+                      : `${readerLayers.maxWidth}px`,
+                  fontFamily: READER_FONT_STACKS[readerLayers.fontFamily],
                 } as React.CSSProperties}
                 onClick={handleReaderClick}
               >
@@ -934,15 +889,21 @@ export function NotePageV2({
 
       <ReaderHighlightLayer
         annotations={annotations}
-        contentSelector="[data-reader-content]"
+        contentSelector={READER_CONTENT_SELECTOR}
         scrollRef={scrollRef}
         visible={highlightsVisible}
       />
       <NoteMarkerLayer
         annotations={annotations}
-        contentSelector="[data-reader-content]"
+        contentSelector={READER_CONTENT_SELECTOR}
         scrollRef={scrollRef}
         visible={highlightsVisible}
+      />
+
+      <PencilGpuInkLayer
+        isActive={true}
+        scrollRef={scrollRef}
+        contentSelector={READER_CONTENT_SELECTOR}
       />
 
       {flashcardEnabled && (

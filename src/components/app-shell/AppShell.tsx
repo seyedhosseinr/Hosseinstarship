@@ -99,8 +99,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         ) : (
           <div
             className={cn(
-              isFullBleed ? "w-full" : "mx-auto w-full max-w-[92rem]",
-              "px-4 py-5 md:px-6 md:py-6",
+              "w-full max-w-none",
+              isFullBleed ? "" : "px-3 py-4 md:px-4 md:py-5",
             )}
           >
             {children}
