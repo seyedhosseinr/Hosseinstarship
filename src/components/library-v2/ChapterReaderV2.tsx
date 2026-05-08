@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
@@ -75,19 +75,21 @@ interface ChapterReaderV2Props {
 }
 
 /* ── Drawing palette constants ── */
+/* Ink palette */
+/* Ink palette */
 const DRAW_COLORS = [
-  { value: "#6366f1", label: "Indigo" },
-  { value: "#ef4444", label: "Red" },
-  { value: "#22c55e", label: "Green" },
-  { value: "#f59e0b", label: "Amber" },
-  { value: "#ec4899", label: "Pink" },
-  { value: "#f1f5f9", label: "White" },
+  { value: "#2B2B2B", label: "Graphite / Ù¾ÛŒØ´â€ŒÙØ±Ø¶" },
+  { value: "#2563EB", label: "Blue / Ù†Ú©ØªÙ‡ Ø¹Ù„Ù…ÛŒ" },
+  { value: "#15803D", label: "Green / ØªØ§ÛŒÛŒØ¯" },
+  { value: "#C2410C", label: "Amber-red / critical" },
+  { value: "#7C3AED", label: "Purple / ÙÙ„Ø´â€ŒÚ©Ø§Ø±Øª" },
+  { value: "#0F766E", label: "Teal / clinical pearl" },
 ] as const;
 
 const DRAW_WIDTHS = [
-  { value: 2, dot: 5, label: "Fine" },
-  { value: 4, dot: 9, label: "Medium" },
-  { value: 9, dot: 15, label: "Thick" },
+  { value: 1.2, dot: 5, label: "Fine" },
+  { value: 2.05, dot: 8, label: "Book" },
+  { value: 2.7, dot: 11, label: "Margin" },
 ] as const;
 
 /**
@@ -714,6 +716,8 @@ export function ChapterReaderV2({
           ) : (
             <article
               data-reader-content="true"
+              dir="rtl"
+              lang="fa"
               className="reader-content space-y-8"
               style={{
                 "--reader-font-size": `${readerSettings.fontSize}px`,
@@ -829,6 +833,8 @@ export function ChapterReaderV2({
         lineWidth={penWidth}
         tool={penTool}
         storageKey={`ch-${chapter.chapterNo}`}
+  scrollRef={scrollRef}
+  contentSelector={READER_CONTENT_SELECTOR}
       />
 
       <PencilGpuInkLayer

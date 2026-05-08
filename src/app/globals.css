@@ -1,4 +1,4 @@
-@import "../styles/medical-typography.css";
+﻿@import "../styles/medical-typography.css";
 @import "../styles/clinical-tokens.css";
 @import "../styles/lib-tokens.css";
 @import "../styles/reader-2027.css";
@@ -23,6 +23,13 @@
        brand.light03 #E7F6F8 · neutral.black #1A1C1C
      ───────────────────────────────────────────────────── */
   :root {
+    /* Ink palette */
+    --ink-graphite: #2B2B2B;   /* Ù¾ÛŒØ´â€ŒÙØ±Ø¶ Ø§ØµÙ„ÛŒ */
+    --ink-blue:     #2563EB;   /* Ù†Ú©ØªÙ‡ Ø¹Ù„Ù…ÛŒ */
+    --ink-red:      #C2410C;   /* Ø§Ø´ØªØ¨Ø§Ù‡/critical */
+    --ink-green:    #15803D;   /* ÙÙ‡Ù…ÛŒØ¯Ù…/ØªØ§ÛŒÛŒØ¯ */
+    --ink-purple:   #7C3AED;   /* ÙÙ„Ø´â€ŒÚ©Ø§Ø±Øª/Ø­Ø§ÙØ¸Ù‡ */
+    --ink-teal:     #0F766E;   /* clinical pearl */
     /* ── AMBOSS Brand ──────────────────────────────── */
     --brand-primary:        186 90% 38%;   /* #0AA6B8 */
     --brand-primary-dark:   186 94% 27%;   /* #047A88 */
@@ -527,6 +534,13 @@
 /* ── Dashboard replacement compatibility tokens ───────────────────── */
 @layer base {
   :root {
+    /* Ink palette */
+    --ink-graphite: #2B2B2B;   /* Ù¾ÛŒØ´â€ŒÙØ±Ø¶ Ø§ØµÙ„ÛŒ */
+    --ink-blue:     #2563EB;   /* Ù†Ú©ØªÙ‡ Ø¹Ù„Ù…ÛŒ */
+    --ink-red:      #C2410C;   /* Ø§Ø´ØªØ¨Ø§Ù‡/critical */
+    --ink-green:    #15803D;   /* ÙÙ‡Ù…ÛŒØ¯Ù…/ØªØ§ÛŒÛŒØ¯ */
+    --ink-purple:   #7C3AED;   /* ÙÙ„Ø´â€ŒÚ©Ø§Ø±Øª/Ø­Ø§ÙØ¸Ù‡ */
+    --ink-teal:     #0F766E;   /* clinical pearl */
     --chart-1: 186 90% 38%;
     --chart-2: 142 71% 45%;
     --chart-3: 36 92% 50%;
