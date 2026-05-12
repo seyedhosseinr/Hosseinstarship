@@ -112,6 +112,21 @@ type FlashcardAgg = {
   mastered: number;
 };
 
+type FsrsStatsByChapter = {
+  chapterId: string;
+  totalCards: number;
+  dueCards: number;
+  reviewedCards: number;
+  avgRetention: number | null;
+  lastReviewedAt: string | null;
+};
+
+type ReaderStatsByChapter = {
+  chapterId: string;
+  readPercent: number;
+  lastReadAt: string | null;
+};
+
 type QBankAgg = {
   totalQuestions: number;
   attemptedQuestions: number;
@@ -206,6 +221,15 @@ type DashboardActivityItem = {
   type: "exam" | "flashcard" | "note" | "planner" | "achievement";
 };
 
+type ActivityFeedRow = {
+  id: string;
+  type: "card_review" | "mcq_block" | "chapter_read";
+  entityLabel: string;
+  detail: string;
+  delta: string;
+  timestamp: string;
+};
+
 type FsrsDetailedStats = {
   dueToday: number;
   dueThisWeek: number;
@@ -239,7 +263,7 @@ type DashboardSnapshot = {
   recommendations: DashboardRecommendation[];
   trapQuestions: TrapQuestion[];
   recentNotes: StudyNote[];
-  activityFeed: DashboardActivityItem[];
+  activityFeed: ActivityFeedRow[];
   fsrsStats: FsrsDetailedStats;
   plannerStats: PlannerDetailedStats;
   monthlyActivity: MonthlyActivityPoint[];
@@ -260,6 +284,8 @@ type DashboardServerStats = {
   studyTimeToday: number;
   /** Flashcard aggregate from real DB */
   flashcardStats: FlashcardAgg;
+  fsrsStatsByChapter: FsrsStatsByChapter[];
+  readerStatsByChapter: ReaderStatsByChapter[];
   /** Today's actual task objects from planner */
   todayTaskObjects: PlannerTaskObj[];
   /** Overdue task objects from planner */
@@ -303,7 +329,7 @@ type DashboardServerStats = {
   trapQuestions: TrapQuestion[];
   studyNotes: StudyNote[];
   weakSpots: WeakSpot[];
-  activityFeed: DashboardActivityItem[];
+  activityFeed: ActivityFeedRow[];
   fsrsStats: FsrsDetailedStats | null;
   plannerDetailedStats: PlannerDetailedStats | null;
   monthlyActivity: MonthlyActivityPoint[];
@@ -358,6 +384,8 @@ const EMPTY_SERVER_STATS: DashboardServerStats = {
   },
   studyTimeToday: 0,
   flashcardStats: { total: 0, dueToday: 0, mastered: 0 },
+  fsrsStatsByChapter: [],
+  readerStatsByChapter: [],
   qbankStats: {
     totalQuestions: 0,
     attemptedQuestions: 0,
@@ -465,6 +493,25 @@ function normalizeStatsPayload(json: any): DashboardServerStats {
             mastered: Number(json.flashcards.mastered) || 0,
           }
         : EMPTY_SERVER_STATS.flashcardStats,
+
+    fsrsStatsByChapter: Array.isArray(json.fsrsStatsByChapter)
+      ? json.fsrsStatsByChapter.map((item: any) => ({
+          chapterId: String(item.chapterId ?? ""),
+          totalCards: Number(item.totalCards) || 0,
+          dueCards: Number(item.dueCards) || 0,
+          reviewedCards: Number(item.reviewedCards) || 0,
+          avgRetention: item.avgRetention == null ? null : Number(item.avgRetention),
+          lastReviewedAt: item.lastReviewedAt == null ? null : String(item.lastReviewedAt),
+        }))
+      : [],
+
+    readerStatsByChapter: Array.isArray(json.readerStatsByChapter)
+      ? json.readerStatsByChapter.map((item: any) => ({
+          chapterId: String(item.chapterId ?? ""),
+          readPercent: Math.min(100, Math.max(0, Number(item.readPercent) || 0)),
+          lastReadAt: item.lastReadAt == null ? null : String(item.lastReadAt),
+        }))
+      : [],
 
     qbankStats:
       json.qbank && typeof json.qbank === "object"
@@ -623,7 +670,7 @@ function normalizeStatsPayload(json: any): DashboardServerStats {
           reason: String(item.reason ?? ""),
           alert: item.alert != null ? String(item.alert) : undefined,
           type: item.type ?? "practice",
-          href: String(item.href ?? "/analytics"),
+          href: String(item.href ?? "/history"),
           priority: Number(item.priority) || 0,
         }))
       : [],
@@ -670,12 +717,12 @@ function normalizeStatsPayload(json: any): DashboardServerStats {
 
     activityFeed: Array.isArray(json.activityFeed)
       ? json.activityFeed.map((item: any) => ({
-          id: String(item.id ?? ""),
-          text: String(item.text ?? ""),
-          time: String(item.time ?? ""),
-          timestamp: Number(item.timestamp) || 0,
-          tone: item.tone ?? "blue",
-          type: item.type ?? "achievement",
+          id: String(item.id ?? Math.random()),
+          type: item.type ?? "card_review",
+          entityLabel: String(item.entityLabel ?? ""),
+          detail: String(item.detail ?? ""),
+          delta: String(item.delta ?? ""),
+          timestamp: String(item.timestamp ?? ""),
         }))
       : [],
 
@@ -795,6 +842,13 @@ export function useDashboardData() {
     async function load() {
       setLoading(true);
 
+      // ── Fire API calls immediately ──────────────────────────────────
+      // Don't wait for OPFS/PGlite to finish before starting network requests
+      const apiPromises = Promise.all([
+        fetch("/api/app-shell/context", { cache: "no-store" }).catch(() => null),
+        fetch("/api/dashboard/stats", { cache: "no-store" }).catch(() => null),
+      ]);
+
       // ── Local-first: hydrate instantly from the last captured snapshot
       //    so the page renders even in airplane mode. Non-blocking: the
       //    rest of the load still runs underneath.
@@ -827,6 +881,13 @@ export function useDashboardData() {
             exams: local.totalSessions,
             dueFlashcards: local.dueFlashcards,
           });
+          setServerStats((prev) => ({
+            ...prev,
+            chapterPerformance: local.chapterPerformance,
+            fsrsStatsByChapter: local.fsrsStatsByChapter,
+            readerStatsByChapter: local.readerStatsByChapter,
+            activityFeed: local.activityFeed,
+          }));
         }
       } catch {
         // OPFS unavailable or timed out — will try API below
@@ -834,15 +895,7 @@ export function useDashboardData() {
 
       // ── Network: enrich with server stats if online ────────────────
       try {
-        const [contextResponse, statsResponse] =
-          await Promise.all([
-            fetch("/api/app-shell/context", { cache: "no-store" }).catch(
-              () => null,
-            ),
-            fetch("/api/dashboard/stats", { cache: "no-store" }).catch(
-              () => null,
-            ),
-          ]);
+        const [contextResponse, statsResponse] = await apiPromises;
 
         if (contextResponse && contextResponse.ok) {
           const contextJson = (await contextResponse.json().catch(() => null)) as AppShellContextResponse | null;
@@ -992,7 +1045,7 @@ export function useDashboardData() {
         key: "analytics",
         title: "آنالیتیکس",
         subtitle: "Analytics",
-        href: "/analytics",
+        href: "/history",
         accent: "#2DB5C6",
       },
       {
@@ -1020,7 +1073,7 @@ export function useDashboardData() {
         key: "srs-insights",
         title: "بینش SRS",
         subtitle: "Insights",
-        href: "/srs/insights",
+        href: "/flashcards/stats",
         accent: "#22C55E",
       },
       {

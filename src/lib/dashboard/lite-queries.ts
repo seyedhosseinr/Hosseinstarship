@@ -1,7 +1,10 @@
-import { and, count, desc, eq, gte, lte, sql } from "drizzle-orm";
+﻿import { and, count, desc, eq, gte, isNotNull, lte, or, sql } from "drizzle-orm";
 import { getDb } from "@/db/index";
 import {
   chapters,
+  chunkStudySessions,
+  conceptMastery,
+  examSessions,
   flashcards,
   flashcardReviews,
   planStatus,
@@ -28,11 +31,139 @@ type WeeklyActivityRow = {
   correct: number;
 };
 
+export type MonthlyActivityRow = {
+  date: string;
+  questionsAnswered: number;
+  cardsReviewed: number;
+  minutesStudied: number;
+};
+
+type FsrsStatsByChapterRow = {
+  chapterId: string;
+  totalCards: number;
+  dueCards: number;
+  reviewedCards: number;
+  avgRetention: number | null;
+  lastReviewedAt: string | null;
+};
+
+type ReaderStatsByChapterRow = {
+  chapterId: string;
+  readPercent: number;
+  lastReadAt: string | null;
+};
+
+type ActivityFeedRow = {
+  id: string;
+  type: "card_review" | "mcq_block" | "chapter_read";
+  entityLabel: string;
+  detail: string;
+  delta: string;
+  timestamp: string;
+};
+
+type DashboardActivityItem = {
+  id: string;
+  text: string;
+  time: string;
+  timestamp: number;
+  tone: "blue" | "emerald" | "rose" | "amber" | "violet";
+  type: "exam" | "flashcard" | "note" | "planner" | "achievement";
+};
+
+type MonthlyActivitySources = {
+  questions: Array<{ attemptedAt: number; timeSpentSeconds: number | null }>;
+  reviews: Array<{ reviewedAt: number }>;
+  tasks: Array<{ completedAt: number | null; actualMinutes: number | null }>;
+  chunks: Array<{ startedAt: number; durationSeconds: number | null }>;
+};
+
 function todayBoundsMs() {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   const startMs = d.getTime();
   return { startMs, endMs: startMs + 86_400_000 };
+}
+
+function dayKey(timestamp: number) {
+  return new Date(timestamp).toISOString().slice(0, 10);
+}
+
+function stripHtml(value: string | null | undefined) {
+  return String(value ?? "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function formatActivityDate(timestamp: number) {
+  return timestamp > 0 ? new Date(timestamp).toLocaleDateString("en-CA") : "";
+}
+
+function monthBoundsMs(year: number, month: number) {
+  const start = new Date(year, month - 1, 1);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(year, month, 1);
+  end.setHours(0, 0, 0, 0);
+  return { startMs: start.getTime(), endMs: end.getTime() };
+}
+
+function recentDayBoundsMs(days: number) {
+  const end = new Date();
+  end.setHours(0, 0, 0, 0);
+  end.setDate(end.getDate() + 1);
+
+  const start = new Date(end);
+  start.setDate(start.getDate() - Math.max(1, days));
+  return { startMs: start.getTime(), endMs: end.getTime() };
+}
+
+function enumerateDays(startMs: number, endMs: number) {
+  const days: string[] = [];
+  const cursor = new Date(startMs);
+  cursor.setHours(12, 0, 0, 0);
+  while (cursor.getTime() < endMs) {
+    days.push(cursor.toISOString().slice(0, 10));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return days;
+}
+
+export function buildMonthlyActivityRows(
+  startMs: number,
+  endMs: number,
+  sources: MonthlyActivitySources,
+): MonthlyActivityRow[] {
+  const byDate = new Map<string, MonthlyActivityRow>();
+  for (const date of enumerateDays(startMs, endMs)) {
+    byDate.set(date, { date, questionsAnswered: 0, cardsReviewed: 0, minutesStudied: 0 });
+  }
+
+  for (const row of sources.questions) {
+    const item = byDate.get(dayKey(row.attemptedAt));
+    if (!item) continue;
+    item.questionsAnswered += 1;
+    item.minutesStudied += Math.max(0, Math.round((Number(row.timeSpentSeconds) || 0) / 60));
+  }
+
+  for (const row of sources.reviews) {
+    const item = byDate.get(dayKey(row.reviewedAt));
+    if (item) item.cardsReviewed += 1;
+  }
+
+  for (const row of sources.tasks) {
+    if (!row.completedAt) continue;
+    const item = byDate.get(dayKey(row.completedAt));
+    if (item) item.minutesStudied += Math.max(0, Number(row.actualMinutes) || 0);
+  }
+
+  for (const row of sources.chunks) {
+    const item = byDate.get(dayKey(row.startedAt));
+    if (item) item.minutesStudied += Math.max(0, Math.round((Number(row.durationSeconds) || 0) / 60));
+  }
+
+  return Array.from(byDate.values());
 }
 
 function buildHostedReadiness(input: {
@@ -167,11 +298,191 @@ async function getFlashcardLiteStats() {
   };
 }
 
+async function getFsrsStatsByChapterLite(): Promise<FsrsStatsByChapterRow[]> {
+  const db = await getDb();
+  const now = Date.now();
+
+  const rows = await db
+    .select({
+      chapterId: flashcards.chapterId,
+      chapterNo: flashcards.chapterNo,
+      totalCards: count(flashcards.id),
+      dueCards: sql<number>`
+        COUNT(*) FILTER (
+          WHERE ${flashcards.fsrsDue} IS NOT NULL
+          AND ${flashcards.fsrsDue} <= ${now}
+        )
+      `,
+      reviewedCards: sql<number>`
+        COUNT(*) FILTER (WHERE ${flashcards.fsrsReps} > 0)
+      `,
+      avgRetention: sql<number | null>`
+        AVG(
+          CASE WHEN ${flashcards.fsrsStability} > 0
+          THEN EXP(-1.0 / ${flashcards.fsrsStability}) * 100
+          ELSE NULL END
+        )
+      `,
+      lastReviewedAt: sql<string | null>`
+        MAX(${flashcards.fsrsLastReview})::text
+      `,
+    })
+    .from(flashcards)
+    .where(
+      and(
+        or(isNotNull(flashcards.chapterId), isNotNull(flashcards.chapterNo)),
+        eq(flashcards.isArchived, 0),
+        eq(flashcards.isDeleted, 0),
+      ),
+    )
+    .groupBy(flashcards.chapterId, flashcards.chapterNo);
+
+  return rows.map((row) => ({
+    chapterId: row.chapterNo ? `ch-${Number(row.chapterNo)}` : row.chapterId ?? "",
+    totalCards: Number(row.totalCards) || 0,
+    dueCards: Number(row.dueCards) || 0,
+    reviewedCards: Number(row.reviewedCards) || 0,
+    avgRetention: row.avgRetention == null ? null : Number(row.avgRetention),
+    lastReviewedAt: row.lastReviewedAt,
+  }));
+}
+
+async function getReaderStatsByChapterLite(): Promise<ReaderStatsByChapterRow[]> {
+  const db = await getDb();
+
+  const rows = await db
+    .select({
+      chapterId: chunkStudySessions.chapterId,
+      chapterNo: chapters.chapterNo,
+      readPercent: sql<number>`
+        AVG(
+          LEAST(100, GREATEST(0, ${chunkStudySessions.progressPercent}))
+        )
+      `,
+      lastReadAt: sql<string | null>`
+        MAX(
+          COALESCE(
+            ${chunkStudySessions.endedAt},
+            ${chunkStudySessions.startedAt},
+            ${chunkStudySessions.createdAt}
+          )
+        )::text
+      `,
+    })
+    .from(chunkStudySessions)
+    .innerJoin(chapters, eq(chunkStudySessions.chapterId, chapters.id))
+    .where(isNotNull(chunkStudySessions.chapterId))
+    .groupBy(chunkStudySessions.chapterId, chapters.chapterNo);
+
+  return rows.map((row) => ({
+    chapterId: row.chapterNo ? `ch-${Number(row.chapterNo)}` : row.chapterId ?? "",
+    readPercent: Math.min(100, Math.max(0, Number(row.readPercent) || 0)),
+    lastReadAt: row.lastReadAt ?? null,
+  }));
+}
+
+async function getActivityFeedLite(): Promise<ActivityFeedRow[]> {
+  const db = await getDb();
+
+  const [cardReviews, mcqBlocks, chapterReads] = await Promise.all([
+    db
+      .select({
+        id: sql<string>`CAST(${flashcards.id} AS TEXT)`,
+        entityLabel: sql<string>`COALESCE('ch-' || CAST(${flashcards.chapterNo} AS TEXT), ${flashcards.chapterId}, 'Flashcard')`,
+        delta: sql<string>`'+1 Ú©Ø§Ø±Øª'`,
+        timestamp: flashcards.fsrsLastReview,
+      })
+      .from(flashcards)
+      .where(
+        and(
+          isNotNull(flashcards.fsrsLastReview),
+          eq(flashcards.isDeleted, 0),
+          eq(flashcards.isArchived, 0),
+        ),
+      )
+      .orderBy(desc(flashcards.fsrsLastReview))
+      .limit(5),
+
+    db
+      .select({
+        id: sql<string>`CAST(${examSessions.id} AS TEXT)`,
+        entityLabel: sql<string>`COALESCE(${examSessions.title}, 'MCQ Block')`,
+        delta: sql<string>`
+          CAST(${examSessions.totalCorrect} AS TEXT) || '/' ||
+          CAST(${examSessions.totalQuestions} AS TEXT)
+        `,
+        timestamp: examSessions.completedAt,
+      })
+      .from(examSessions)
+      .where(and(isNotNull(examSessions.completedAt), eq(examSessions.isDeleted, 0)))
+      .orderBy(desc(examSessions.completedAt))
+      .limit(5),
+
+    db
+      .select({
+        id: sql<string>`CAST(${chunkStudySessions.id} AS TEXT)`,
+        entityLabel: sql<string>`COALESCE('ch-' || CAST(${chapters.chapterNo} AS TEXT), ${chunkStudySessions.chapterId}, 'ÙØµÙ„')`,
+        delta: sql<string>`
+          CAST(COALESCE(${chunkStudySessions.durationSeconds}, 0) AS TEXT) || ' Ø«Ø§Ù†ÛŒÙ‡'
+        `,
+        timestamp: sql<string>`
+          COALESCE(
+            ${chunkStudySessions.endedAt},
+            ${chunkStudySessions.startedAt},
+            ${chunkStudySessions.createdAt}
+          )
+        `,
+      })
+      .from(chunkStudySessions)
+      .leftJoin(chapters, eq(chunkStudySessions.chapterId, chapters.id))
+      .where(isNotNull(chunkStudySessions.chapterId))
+      .orderBy(desc(sql`
+        COALESCE(
+          ${chunkStudySessions.endedAt},
+          ${chunkStudySessions.startedAt},
+          ${chunkStudySessions.createdAt}
+        )
+      `))
+      .limit(5),
+  ]);
+
+  return [
+    ...cardReviews.map((row) => ({
+      id: row.id,
+      type: "card_review" as const,
+      entityLabel: row.entityLabel,
+      detail: "Ù…Ø±ÙˆØ± Ø´Ø¯",
+      delta: row.delta,
+      timestamp: String(row.timestamp ?? ""),
+    })),
+    ...mcqBlocks.map((row) => ({
+      id: row.id,
+      type: "mcq_block" as const,
+      entityLabel: row.entityLabel,
+      detail: "",
+      delta: row.delta,
+      timestamp: String(row.timestamp ?? ""),
+    })),
+    ...chapterReads.map((row) => ({
+      id: row.id,
+      type: "chapter_read" as const,
+      entityLabel: row.entityLabel,
+      detail: "Ø®ÙˆØ§Ù†Ø¯Ù‡ Ø´Ø¯",
+      delta: row.delta,
+      timestamp: String(row.timestamp ?? ""),
+    })),
+  ]
+    .filter((row) => !!row.timestamp)
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+    .slice(0, 10);
+}
+
 async function getChapterPerformanceLite(): Promise<ChapterPerformanceRow[]> {
   const db = await getDb();
   const rows = await db
     .select({
       chapterId: questions.chapterId,
+      chapterNo: chapters.chapterNo,
       chapterTitle: chapters.title,
       total: count(questionAttempts.id),
       correct: sql<number>`SUM(CASE WHEN ${questionAttempts.outcome} = 'correct' THEN 1 ELSE 0 END)`,
@@ -179,11 +490,11 @@ async function getChapterPerformanceLite(): Promise<ChapterPerformanceRow[]> {
     .from(questionAttempts)
     .innerJoin(questions, eq(questionAttempts.questionId, questions.id))
     .innerJoin(chapters, eq(questions.chapterId, chapters.id))
-    .groupBy(questions.chapterId, chapters.title);
+    .groupBy(questions.chapterId, chapters.chapterNo, chapters.title);
 
   return rows
     .map((row) => ({
-      chapterId: row.chapterId ?? `chapter-${row.chapterTitle ?? "unknown"}`,
+      chapterId: row.chapterNo ? `ch-${Number(row.chapterNo)}` : row.chapterId ?? `chapter-${row.chapterTitle ?? "unknown"}`,
       chapterTitle: row.chapterTitle,
       total: row.total,
       correct: row.correct ?? 0,
@@ -202,6 +513,34 @@ const PLANNER_STATS_EMPTY = {
   overdueTasks: 0,
   studyStreak: 0,
   dailyGoalMinutes: 120,
+  tasksToday: [] as Array<{
+    id: string;
+    title: string;
+    taskType: string;
+    status: string;
+    estimatedMinutes: number;
+    priority: number;
+    scheduledFor: string | null;
+  }>,
+  tasksOverdue: [] as Array<{
+    id: string;
+    title: string;
+    taskType: string;
+    status: string;
+    estimatedMinutes: number;
+    priority: number;
+    scheduledFor: string | null;
+  }>,
+  activePlan: null as null | {
+    id: string;
+    title: string | null;
+    status: string;
+    startDate: string | null;
+    endDate: string | null;
+    totalTasks: number;
+    completedTasks: number;
+    progressPercent: number;
+  },
 };
 
 async function getPlannerLiteStats(): Promise<typeof PLANNER_STATS_EMPTY> {
@@ -209,9 +548,14 @@ async function getPlannerLiteStats(): Promise<typeof PLANNER_STATS_EMPTY> {
     const db = await getDb();
     const today = new Date().toISOString().slice(0, 10);
 
-    const [activePlanRows, todayTaskRows, settingsRows] = await Promise.all([
+    const [activePlanRows, todayTaskRows, settingsRows, tasksTodayRows, tasksOverdueRows] = await Promise.all([
       db
         .select({
+          id: studyPlans.id,
+          title: studyPlans.title,
+          status: studyPlans.status,
+          startDate: studyPlans.startDate,
+          endDate: studyPlans.endDate,
           examDate: studyPlans.examDate,
           totalTasks: studyPlans.totalTasks,
           completedTasks: studyPlans.completedTasks,
@@ -236,6 +580,34 @@ async function getPlannerLiteStats(): Promise<typeof PLANNER_STATS_EMPTY> {
         })
         .from(studyPlannerSettings)
         .limit(1),
+      db
+        .select({
+          id: studyTasks.id,
+          title: studyTasks.title,
+          taskType: studyTasks.taskType,
+          status: studyTasks.status,
+          estimatedMinutes: studyTasks.estimatedMinutes,
+          priority: studyTasks.priority,
+          scheduledFor: studyTasks.scheduledFor,
+        })
+        .from(studyTasks)
+        .where(eq(studyTasks.scheduledFor, today))
+        .orderBy(desc(studyTasks.priority))
+        .limit(10),
+      db
+        .select({
+          id: studyTasks.id,
+          title: studyTasks.title,
+          taskType: studyTasks.taskType,
+          status: studyTasks.status,
+          estimatedMinutes: studyTasks.estimatedMinutes,
+          priority: studyTasks.priority,
+          scheduledFor: studyTasks.scheduledFor,
+        })
+        .from(studyTasks)
+        .where(eq(studyTasks.status, taskStatus.overdue))
+        .orderBy(desc(studyTasks.priority))
+        .limit(10),
     ]);
 
     const plan = activePlanRows[0];
@@ -259,6 +631,39 @@ async function getPlannerLiteStats(): Promise<typeof PLANNER_STATS_EMPTY> {
       overdueTasks: todayRow?.overdueTasks ?? 0,
       studyStreak: settings?.studyStreak ?? 0,
       dailyGoalMinutes: settings?.dailyGoalMinutes ?? 120,
+      tasksToday: tasksTodayRows.map((task) => ({
+        id: String(task.id),
+        title: task.title,
+        taskType: task.taskType,
+        status: task.status,
+        estimatedMinutes: task.estimatedMinutes ?? 0,
+        priority: task.priority ?? 0,
+        scheduledFor: task.scheduledFor,
+      })),
+      tasksOverdue: tasksOverdueRows.map((task) => ({
+        id: String(task.id),
+        title: task.title,
+        taskType: task.taskType,
+        status: task.status,
+        estimatedMinutes: task.estimatedMinutes ?? 0,
+        priority: task.priority ?? 0,
+        scheduledFor: task.scheduledFor,
+      })),
+      activePlan: plan
+        ? {
+            id: String(plan.id),
+            title: plan.title ?? null,
+            status: String(plan.status),
+            startDate: plan.startDate ?? null,
+            endDate: plan.endDate ?? null,
+            totalTasks: plan.totalTasks ?? 0,
+            completedTasks: plan.completedTasks ?? 0,
+            progressPercent:
+              plan.totalTasks && plan.totalTasks > 0
+                ? Math.round(((plan.completedTasks ?? 0) / plan.totalTasks) * 100)
+                : 0,
+          }
+        : null,
     };
   } catch (err) {
     console.error("[getPlannerLiteStats] DB query failed:", err);
@@ -295,14 +700,266 @@ async function getWeeklyActivityLite(): Promise<WeeklyActivityRow[]> {
     }));
 }
 
+async function getDomainMasteryLite() {
+  const db = await getDb();
+  const rows = await db
+    .select({
+      domain: conceptMastery.conceptId,
+      masteryScore: conceptMastery.masteryScore,
+      questionAccuracy: conceptMastery.questionAccuracy,
+      retentionScore: conceptMastery.flashcardRetention,
+      recencyScore: conceptMastery.recencyScore,
+      volume: conceptMastery.exposureCount,
+    })
+    .from(conceptMastery)
+    .orderBy(desc(conceptMastery.lastReviewedAt))
+    .limit(16);
+
+  return {
+    domainMastery: rows.map((row) => {
+      const masteryScore = Number(row.masteryScore) || 0;
+      const questionAccuracy = Number(row.questionAccuracy) || 0;
+      const retentionScore = Number(row.retentionScore) || 0;
+      const recencyScore = Number(row.recencyScore) || 0;
+      return {
+        domain: row.domain,
+        masteryScore,
+        confidence: Math.min(100, Math.max(0, Number(row.volume) || 0)),
+        questionAccuracy,
+        retentionScore,
+        completionScore: masteryScore,
+        recencyScore,
+        volume: Number(row.volume) || 0,
+        sourceCoverage: {
+          qbank: questionAccuracy > 0,
+          srs: retentionScore > 0,
+          notes: false,
+          planner: recencyScore > 0,
+        },
+      };
+    }),
+  };
+}
+
+export async function getMonthlyActivityLite(input?: {
+  year?: number;
+  month?: number;
+  days?: number;
+}): Promise<MonthlyActivityRow[]> {
+  const db = await getDb();
+  const now = new Date();
+  const { startMs, endMs } =
+    input?.days != null
+      ? recentDayBoundsMs(input.days)
+      : monthBoundsMs(
+          Number(input?.year) || now.getFullYear(),
+          Number(input?.month) || now.getMonth() + 1,
+        );
+
+  const [questionRows, reviewRows, taskRows, chunkRows] = await Promise.all([
+    db
+      .select({
+        attemptedAt: questionAttempts.attemptedAt,
+        timeSpentSeconds: questionAttempts.timeSpentSeconds,
+      })
+      .from(questionAttempts)
+      .where(and(gte(questionAttempts.attemptedAt, startMs), lte(questionAttempts.attemptedAt, endMs - 1))),
+    db
+      .select({ reviewedAt: flashcardReviews.reviewedAt })
+      .from(flashcardReviews)
+      .where(and(gte(flashcardReviews.reviewedAt, startMs), lte(flashcardReviews.reviewedAt, endMs - 1))),
+    db
+      .select({
+        completedAt: studyTasks.completedAt,
+        actualMinutes: studyTasks.actualMinutes,
+      })
+      .from(studyTasks)
+      .where(and(eq(studyTasks.status, taskStatus.completed), gte(studyTasks.completedAt, startMs), lte(studyTasks.completedAt, endMs - 1))),
+    db
+      .select({
+        startedAt: chunkStudySessions.startedAt,
+        durationSeconds: chunkStudySessions.durationSeconds,
+      })
+      .from(chunkStudySessions)
+      .where(and(gte(chunkStudySessions.startedAt, startMs), lte(chunkStudySessions.startedAt, endMs - 1))),
+  ]);
+
+  return buildMonthlyActivityRows(startMs, endMs, {
+    questions: questionRows,
+    reviews: reviewRows,
+    tasks: taskRows,
+    chunks: chunkRows,
+  });
+}
+
+async function getRecentActivityFeedLite(libraryData: Awaited<ReturnType<typeof getLibraryDashboardData>>): Promise<DashboardActivityItem[]> {
+  const db = await getDb();
+  const since = Date.now() - 30 * 86_400_000;
+  const [questionRows, reviewRows, taskRows] = await Promise.all([
+    db
+      .select({
+        id: questionAttempts.id,
+        outcome: questionAttempts.outcome,
+        attemptedAt: questionAttempts.attemptedAt,
+        timeSpentSeconds: questionAttempts.timeSpentSeconds,
+        chapterTitle: chapters.title,
+      })
+      .from(questionAttempts)
+      .innerJoin(questions, eq(questionAttempts.questionId, questions.id))
+      .innerJoin(chapters, eq(questions.chapterId, chapters.id))
+      .where(gte(questionAttempts.attemptedAt, since))
+      .orderBy(desc(questionAttempts.attemptedAt))
+      .limit(8),
+    db
+      .select({
+        id: flashcardReviews.id,
+        rating: flashcardReviews.rating,
+        reviewedAt: flashcardReviews.reviewedAt,
+        frontHtml: flashcards.frontHtml,
+        deck: flashcards.deck,
+      })
+      .from(flashcardReviews)
+      .innerJoin(flashcards, eq(flashcardReviews.flashcardId, flashcards.id))
+      .where(gte(flashcardReviews.reviewedAt, since))
+      .orderBy(desc(flashcardReviews.reviewedAt))
+      .limit(8),
+    db
+      .select({
+        id: studyTasks.id,
+        title: studyTasks.title,
+        taskType: studyTasks.taskType,
+        completedAt: studyTasks.completedAt,
+        actualMinutes: studyTasks.actualMinutes,
+      })
+      .from(studyTasks)
+      .where(and(eq(studyTasks.status, taskStatus.completed), gte(studyTasks.completedAt, since)))
+      .orderBy(desc(studyTasks.completedAt))
+      .limit(8),
+  ]);
+
+  const items: DashboardActivityItem[] = [
+    ...libraryData.recentlyRead.map((item) => ({
+      id: `read-${item.chapterNo}`,
+      text: `Reviewed ${item.title}`,
+      time: formatActivityDate(item.lastReadAt),
+      timestamp: item.lastReadAt,
+      tone: "blue" as const,
+      type: "note" as const,
+    })),
+    ...questionRows.map((item) => ({
+      id: `mcq-${item.id}`,
+      text: `Answered MCQ in ${item.chapterTitle}`,
+      time: formatActivityDate(item.attemptedAt),
+      timestamp: item.attemptedAt,
+      tone: item.outcome === "correct" ? "emerald" as const : "amber" as const,
+      type: "exam" as const,
+    })),
+    ...reviewRows.map((item) => ({
+      id: `fsrs-${item.id}`,
+      text: `Reviewed FSRS card: ${stripHtml(item.frontHtml).slice(0, 80) || item.deck || "Flashcard"}`,
+      time: formatActivityDate(item.reviewedAt),
+      timestamp: item.reviewedAt,
+      tone: item.rating >= 3 ? "emerald" as const : "amber" as const,
+      type: "flashcard" as const,
+    })),
+    ...taskRows
+      .filter((item) => item.completedAt != null)
+      .map((item) => ({
+        id: `planner-${item.id}`,
+        text: `Completed planner task: ${item.title}`,
+        time: formatActivityDate(item.completedAt ?? 0),
+        timestamp: item.completedAt ?? 0,
+        tone: "violet" as const,
+        type: "planner" as const,
+      })),
+  ];
+
+  return items
+    .filter((item) => item.timestamp > 0)
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 12);
+}
+
+async function getRecentExamsLite() {
+  const db = await getDb();
+  const rows = await db
+    .select({
+      id: examSessions.id,
+      title: examSessions.title,
+      mode: examSessions.mode,
+      status: examSessions.status,
+      totalQuestions: examSessions.totalQuestions,
+      totalCorrect: examSessions.totalCorrect,
+      totalIncorrect: examSessions.totalIncorrect,
+      totalOmitted: examSessions.totalOmitted,
+      scorePercent: examSessions.scorePercent,
+      completedAt: examSessions.completedAt,
+      elapsedSeconds: examSessions.elapsedSeconds,
+    })
+    .from(examSessions)
+    .where(eq(examSessions.isDeleted, 0))
+    .orderBy(desc(examSessions.completedAt))
+    .limit(8);
+
+  return rows.map((row) => ({
+    id: String(row.id),
+    title: row.title ?? null,
+    mode: row.mode ?? null,
+    status: row.status ?? null,
+    totalQuestions: row.totalQuestions ?? null,
+    totalCorrect: row.totalCorrect ?? null,
+    totalIncorrect: row.totalIncorrect ?? null,
+    totalOmitted: row.totalOmitted ?? null,
+    scorePercent: row.scorePercent ?? null,
+    completedAt: row.completedAt ?? null,
+    elapsedSeconds: row.elapsedSeconds ?? null,
+  }));
+}
+
+async function getTrapQuestionsLite() {
+  const db = await getDb();
+  const rows = await db
+    .select({
+      questionId: questionAttempts.questionId,
+      attempts: count(questionAttempts.id),
+      lastAttemptAt: sql<number>`MAX(${questionAttempts.attemptedAt})`,
+    })
+    .from(questionAttempts)
+    .where(eq(questionAttempts.outcome, "incorrect"))
+    .groupBy(questionAttempts.questionId)
+    .orderBy(desc(count(questionAttempts.id)))
+    .limit(5);
+
+  return rows.map((row, index) => ({
+    id: `trap-${row.questionId}`,
+    question: `Question ${row.questionId}`,
+    trapType: "distractor" as const,
+    domain: "qbank",
+    difficulty: "Medium" as const,
+    yourAnswer: "Incorrect",
+    correctAnswer: "â€”",
+    explanation: "Derived from repeated incorrect attempts in real QBank history.",
+    isHard: (row.attempts ?? 0) >= 2,
+    resolved: false,
+    attemptedAt: Number(row.lastAttemptAt) || Date.now() - index,
+  }));
+}
+
 export async function getHostedDashboardLiteData() {
-  const [libraryData, qbankStats, flashcardStats, chapterPerformance, weeklyActivity, plannerStats] = await Promise.all([
+  const [libraryData, qbankStats, flashcardStats, fsrsStatsByChapter, readerStatsByChapter, activityFeed, chapterPerformance, weeklyActivity, plannerStats, monthlyActivity, domainMastery, recentExams, trapQuestions] = await Promise.all([
     getLibraryDashboardData(),
     getQbankLiteStats(),
     getFlashcardLiteStats(),
+    getFsrsStatsByChapterLite(),
+    getReaderStatsByChapterLite(),
+    getActivityFeedLite(),
     getChapterPerformanceLite(),
     getWeeklyActivityLite(),
     getPlannerLiteStats(),
+    getMonthlyActivityLite({ days: 35 }),
+    getDomainMasteryLite(),
+    getRecentExamsLite(),
+    getTrapQuestionsLite(),
   ]);
 
   const readinessScore = buildHostedReadiness({
@@ -314,11 +971,71 @@ export async function getHostedDashboardLiteData() {
     weakAreaCount: libraryData.weakChapters.length,
   });
 
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayActivity = monthlyActivity.find((row) => row.date === todayKey);
+  const studyTimeToday = Math.max(0, (todayActivity?.minutesStudied ?? 0) * 60);
+
+  const dashboardRecommendations = chapterPerformance
+    .slice(0, 3)
+    .map((row, index) => ({
+      id: `weak-${row.chapterId}-${index}`,
+      title: row.chapterTitle || row.chapterId,
+      subtitle: "ØªÙ…Ø±Ú©Ø² Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ÛŒ Ø§Ù…Ø±ÙˆØ²",
+      accuracy: row.accuracy,
+      duration: "15m",
+      mcqCount: row.total,
+      reason: "Based on lowest chapter accuracy from real attempts.",
+      type: "weak_area" as const,
+      href: `/qbank?chapter=${row.chapterId}`,
+      priority: Math.max(1, 100 - row.accuracy),
+    }));
+
+  const studyNotes = libraryData.recentlyRead.slice(0, 5).map((item, index) => ({
+    id: `note-${item.chapterNo}-${index}`,
+    title: item.title,
+    preview: `Chapter ${item.chapterNo}`,
+    detail: "Recent reading progress captured from library activity.",
+    category: "reader",
+    linkedMCQs: 0,
+    linkedFlashcards: 0,
+    concepts: [],
+    createdAt: new Date(item.lastReadAt).toISOString(),
+  }));
+
+  const analyticsSnapshot = {
+    overallAccuracy: qbankStats.accuracy,
+    questionsAnswered: qbankStats.totalAttempts,
+    questionsRemaining: Math.max(0, qbankStats.totalQuestions - qbankStats.attemptedQuestions),
+    totalStudyMinutes: Math.round(monthlyActivity.reduce((sum, row) => sum + row.minutesStudied, 0)),
+    avgTimePerQuestion: qbankStats.totalAttempts > 0 ? Math.round(studyTimeToday / qbankStats.totalAttempts) : 0,
+    cardsReviewed: flashcardStats.reviewedToday,
+    cardsDueToday: flashcardStats.dueToday,
+    retentionRate: readinessScore.factors.retention,
+    chaptersCompleted: libraryData.totalRead,
+    chaptersTotal: libraryData.totalIncluded,
+    segmentsMastered: flashcardStats.matureCards,
+    segmentsTotal: flashcardStats.total,
+    accuracyTrend: "stable" as const,
+    studyTrend: "stable" as const,
+    daysToExam: plannerStats.daysToExam,
+    predictedScore: null,
+    readinessLevel:
+      readinessScore.level === "ready" ? "ready" :
+      readinessScore.level === "proficient" ? "on_track" :
+      readinessScore.level === "developing" ? "needs_work" :
+      "not_ready",
+    topStrengths: chapterPerformance.filter((item) => item.total > 0 && item.accuracy >= 80).sort((a, b) => b.accuracy - a.accuracy).slice(0, 3).map((item) => item.chapterTitle ?? item.chapterId),
+    topWeaknesses: libraryData.weakChapters.slice(0, 3).map((item) => item.title),
+    recommendedFocus: dashboardRecommendations.map((item) => item.title),
+  };
+
   return {
     accuracy: qbankStats.accuracy,
     weakAreaCount: libraryData.weakChapters.length,
     qbank: qbankStats,
     flashcards: flashcardStats,
+    fsrsStatsByChapter,
+    readerStatsByChapter,
     planner: {
       totalTasks: plannerStats.totalTasks,
       completedTasks: plannerStats.completedTasks,
@@ -329,12 +1046,12 @@ export async function getHostedDashboardLiteData() {
         ? Math.round((plannerStats.completedTasks / plannerStats.totalTasks) * 100)
         : 0,
     },
-    recentExams: [],
-    studyTimeToday: 0,
+    recentExams,
+    studyTimeToday,
     weeklyActivity,
     chapterPerformance,
-    domainMastery: { domainMastery: [] },
-    analyticsSnapshot: null,
+    domainMastery,
+    analyticsSnapshot,
     strengthsAndWeaknesses: {
       strengths: [],
       weaknesses: libraryData.weakChapters.map((item) => ({
@@ -359,9 +1076,9 @@ export async function getHostedDashboardLiteData() {
       suggestedAction: "Review the chapter and linked notes.",
       color: "var(--amber)",
     })),
-    dashboardRecommendations: [],
-    trapQuestions: [],
-    studyNotes: [],
+    dashboardRecommendations,
+    trapQuestions,
+    studyNotes,
     weakSpots: libraryData.weakChapters.map((item) => ({
       domain: item.title,
       accuracy: item.accuracyPercent,
@@ -369,14 +1086,7 @@ export async function getHostedDashboardLiteData() {
       questionsAnswered: item.attempted,
       trend: "stable" as const,
     })),
-    activityFeed: libraryData.recentlyRead.map((item) => ({
-      id: `read-${item.chapterNo}`,
-      text: `Reviewed ${item.title}`,
-      time: new Date(item.lastReadAt).toLocaleDateString("en-CA"),
-      timestamp: item.lastReadAt,
-      tone: "blue" as const,
-      type: "note" as const,
-    })),
+    activityFeed,
     fsrsStats: {
       dueToday: flashcardStats.dueToday,
       dueThisWeek: flashcardStats.dueThisWeek,
@@ -397,21 +1107,21 @@ export async function getHostedDashboardLiteData() {
       overdueTasks: plannerStats.overdueTasks,
       upcomingTasks: [],
       dailyGoalMinutes: plannerStats.dailyGoalMinutes,
-      dailyGoalProgress: plannerStats.dailyGoalMinutes > 0
+      dailyGoalProgress: plannerStats.dailyGoalMinutes > 0 && plannerStats.todayTasks > 0
         ? Math.min(100, Math.round((plannerStats.completedToday / plannerStats.todayTasks) * 100))
         : 0,
       examDate: plannerStats.examDate,
       daysToExam: plannerStats.daysToExam,
       studyStreak: plannerStats.studyStreak,
     },
-    monthlyActivity: [],
+    monthlyActivity,
     dashboardSnapshot: {
       readinessScore,
       weakAreas: [],
-      recommendations: [],
-      trapQuestions: [],
-      recentNotes: [],
-      activityFeed: [],
+      recommendations: dashboardRecommendations,
+      trapQuestions,
+      recentNotes: studyNotes,
+      activityFeed,
       fsrsStats: {
         dueToday: flashcardStats.dueToday,
         dueThisWeek: flashcardStats.dueThisWeek,
@@ -432,21 +1142,23 @@ export async function getHostedDashboardLiteData() {
         overdueTasks: plannerStats.overdueTasks,
         upcomingTasks: [],
         dailyGoalMinutes: plannerStats.dailyGoalMinutes,
-        dailyGoalProgress: plannerStats.dailyGoalMinutes > 0
+        dailyGoalProgress: plannerStats.dailyGoalMinutes > 0 && plannerStats.todayTasks > 0
           ? Math.min(100, Math.round((plannerStats.completedToday / plannerStats.todayTasks) * 100))
           : 0,
         examDate: plannerStats.examDate,
         daysToExam: plannerStats.daysToExam,
         studyStreak: plannerStats.studyStreak,
       },
-      monthlyActivity: [],
+      monthlyActivity,
     },
     tasks: {
-      today: [] as Array<never>,
-      overdue: [] as Array<never>,
+      today: plannerStats.tasksToday,
+      overdue: plannerStats.tasksOverdue,
     },
-    todayTasks: [],
-    overdueTasks: [],
-    activePlan: null,
+    todayTasks: plannerStats.tasksToday,
+    overdueTasks: plannerStats.tasksOverdue,
+    activePlan: plannerStats.activePlan,
   };
 }
+
+

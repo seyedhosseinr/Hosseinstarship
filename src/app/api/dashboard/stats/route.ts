@@ -16,6 +16,8 @@ export async function GET() {
       weakAreaCount: data.weakAreaCount,
       qbank: data.qbank,
       flashcards: data.flashcards,
+      fsrsStatsByChapter: data.fsrsStatsByChapter,
+      readerStatsByChapter: data.readerStatsByChapter,
       planner: data.planner,
       recentExams: data.recentExams,
       studyTimeToday: data.studyTimeToday,
@@ -40,6 +42,11 @@ export async function GET() {
       activePlan: data.activePlan,
     });
   } catch {
+    // On error, return a 500 with a clear error message instead of a silent
+    // 200 with empty/zeroed data. This helps debugging and prevents the UI
+    // from showing a misleading "empty" state.
+    return NextResponse.json({ error: "Failed to fetch dashboard stats" }, { status: 500 });
+    /*
     return NextResponse.json({
       accuracy: 0,
       weakAreaCount: 0,
@@ -57,6 +64,8 @@ export async function GET() {
         dueToday: 0,
         mastered: 0,
       },
+      fsrsStatsByChapter: [],
+      readerStatsByChapter: [],
       planner: {
         totalTasks: 0,
         completedTasks: 0,
@@ -168,5 +177,6 @@ export async function GET() {
       overdueTasks: [],
       activePlan: null,
     });
+    */
   }
 }

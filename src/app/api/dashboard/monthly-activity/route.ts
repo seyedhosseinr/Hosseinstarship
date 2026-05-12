@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getMonthlyActivityLite } from "@/lib/dashboard/lite-queries";
 
 export async function GET(request: Request) {
   try {
@@ -11,8 +12,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ activity: [] }, { status: 400 });
     }
 
+    const activity = await getMonthlyActivityLite({ year, month });
+
     return NextResponse.json({
-      activity: [],
+      activity,
       year,
       month,
     });
