@@ -1,0 +1,10 @@
+[build]
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NEXT_TELEMETRY_DISABLED = "1"
+  DB_RUNTIME = "postgres"
+  NEXT_PUBLIC_ENABLE_SERVICE_WORKER = "1"
+  NEXT_PUBLIC_STARSHIP_LOCAL_FIRST = "1"
+  NETLIFY_NEXT_SKEW_PROTECTION = "true"
