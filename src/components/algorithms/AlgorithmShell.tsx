@@ -102,7 +102,7 @@ export function AlgorithmShell({ ir }: AlgorithmShellProps) {
 
       {/* Body: sidebar + main */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left rail (right side in RTL) — Amboss-style clinical TOC */}
+        {/* Left rail (right side in RTL) */}
         <AlgorithmSurfaceSelector
           surfaces={surfaces}
           selectedSurfaceId={selectedSurfaceId}
@@ -110,14 +110,14 @@ export function AlgorithmShell({ ir }: AlgorithmShellProps) {
           shortTitle={shortTitle}
         />
 
-        {/* Main canvas area */}
+        {/* Main canvas area — canvas-first layout */}
         <main className="flex flex-1 flex-col overflow-hidden">
-          {/* Surface header */}
-          <div className="border-b border-slate-700/40 bg-slate-900/60 px-4 pt-4 pb-0">
+          {/* Compact surface header — single line, expandable */}
+          <div className="shrink-0 border-b border-slate-700/40 bg-slate-900/60 px-4 py-2.5">
             <AlgorithmSurfaceHeader surface={selectedSurface} />
           </div>
 
-          {/* Path navigator */}
+          {/* Path navigator — slim bar */}
           <AlgorithmPathNavigator
             surface={selectedSurface}
             selectedNodeId={selectedNodeId}
@@ -127,29 +127,24 @@ export function AlgorithmShell({ ir }: AlgorithmShellProps) {
             onBack={handleBack}
           />
 
-          {/* Scrollable content area */}
-          <div className="flex flex-1 flex-col overflow-y-auto">
-            {/* Canvas */}
-            <div className="flex-1 overflow-auto p-4">
-              <AlgorithmCanvas
-                surface={selectedSurface}
-                selectedNodeId={selectedNodeId}
-                visitedPath={visitedPath}
-                onSelectNode={handleSelectNode}
-              />
-            </div>
+          {/* Canvas — takes all remaining space */}
+          <div className="flex-1 overflow-auto p-4">
+            <AlgorithmCanvas
+              surface={selectedSurface}
+              selectedNodeId={selectedNodeId}
+              visitedPath={visitedPath}
+              onSelectNode={handleSelectNode}
+            />
+          </div>
 
-            {/* Step panel */}
-            <div className="px-4 pb-2">
-              <AlgorithmStepPanel
-                surface={selectedSurface}
-                selectedNodeId={selectedNodeId}
-                onSelectNode={handleSelectNode}
-                onReset={handleReset}
-              />
-            </div>
-
-            {/* Details panel */}
+          {/* Bottom panels — collapsed by default, shrink-0 so they don't push canvas */}
+          <div className="shrink-0">
+            <AlgorithmStepPanel
+              surface={selectedSurface}
+              selectedNodeId={selectedNodeId}
+              onSelectNode={handleSelectNode}
+              onReset={handleReset}
+            />
             <AlgorithmDetailsPanel surface={selectedSurface} />
           </div>
         </main>
