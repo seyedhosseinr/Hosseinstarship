@@ -33,7 +33,6 @@ export function AlgorithmCanvas({
     );
   }
 
-  // Find nodes connected to selected
   const connectedNodeIds = new Set<string>();
   if (selectedNodeId) {
     for (const edge of surface.edges) {
@@ -43,7 +42,6 @@ export function AlgorithmCanvas({
   }
 
   if (surface.edges.length === 0) {
-    // No edges: render in a simple vertical list
     return (
       <div
         dir="rtl"
@@ -71,44 +69,82 @@ export function AlgorithmCanvas({
     );
   }
 
+  // Compute which edges should show a label
+  const activeEdgeLabels = layout.edges
+    .filter((le) => {
+      if (!le.edge.condition) return false;
+      const traversed = visitedSet.has(le.edge.from) && visitedSet.has(le.edge.to);
+      const active = selectedNodeId === le.edge.from || selectedNodeId === le.edge.to;
+      return traversed || active;
+    })
+    .map((le) => {
+      const midX = (le.fromPos.x + le.toPos.x) / 2;
+      const midY = (le.fromPos.y + le.toPos.y) / 2;
+      return { edgeId: le.edge.edgeId, condition: le.edge.condition!, midX, midY };
+    });
+
   return (
     <div
-      className="relative overflow-auto"
-      style={{ maxHeight: "calc(100vh - 220px)" }}
+      className="relative"
+      style={{ width: layout.canvasWidth, height: layout.canvasHeight }}
       data-surface-id={surface.surfaceId}
     >
-      <div
-        style={{
-          position: "relative",
-          width: layout.canvasWidth,
-          height: layout.canvasHeight,
-        }}
-      >
-        {/* SVG edge layer behind nodes */}
-        <AlgorithmEdgeLayer
-          layoutEdges={layout.edges}
-          surfaceId={surface.surfaceId}
-          selectedNodeId={selectedNodeId}
-          visitedPath={visitedPath}
-          canvasWidth={layout.canvasWidth}
-          canvasHeight={layout.canvasHeight}
-        />
+      {/* Layer 0: SVG bezier lines */}
+      <AlgorithmEdgeLayer
+        layoutEdges={layout.edges}
+        surfaceId={surface.surfaceId}
+        selectedNodeId={selectedNodeId}
+        visitedPath={visitedPath}
+        canvasWidth={layout.canvasWidth}
+        canvasHeight={layout.canvasHeight}
+      />
 
-        {/* Node cards */}
-        {layout.nodes.map((ln) => (
-          <AlgorithmNodeCard
-            key={ln.node.nodeId}
-            node={ln.node}
-            surfaceId={surface.surfaceId}
-            x={ln.x}
-            y={ln.y}
-            isSelected={ln.node.nodeId === selectedNodeId}
-            isInPath={visitedSet.has(ln.node.nodeId)}
-            isConnected={connectedNodeIds.has(ln.node.nodeId)}
-            onClick={onSelectNode}
-          />
-        ))}
-      </div>
+      {/* Layer 1: node cards */}
+      {layout.nodes.map((ln) => (
+        <AlgorithmNodeCard
+          key={ln.node.nodeId}
+          node={ln.node}
+          surfaceId={surface.surfaceId}
+          x={ln.x}
+          y={ln.y}
+          isSelected={ln.node.nodeId === selectedNodeId}
+          isInPath={visitedSet.has(ln.node.nodeId)}
+          isConnected={connectedNodeIds.has(ln.node.nodeId)}
+          onClick={onSelectNode}
+        />
+      ))}
+
+      {/* Layer 2: edge condition labels — on top of node cards */}
+      {activeEdgeLabels.map(({ edgeId, condition, midX, midY }) => (
+        <div
+          key={edgeId}
+          dir="rtl"
+          style={{
+            position: "absolute",
+            left: midX,
+            top: midY,
+            transform: "translate(-50%, -50%)",
+            zIndex: 30,
+            pointerEvents: "none",
+          }}
+        >
+          <span
+            style={{
+              display: "inline-block",
+              background: "rgba(15,17,23,0.92)",
+              border: "1px solid rgba(99,102,241,0.45)",
+              borderRadius: 6,
+              padding: "2px 8px",
+              fontSize: 11,
+              color: "#94a3b8",
+              whiteSpace: "nowrap",
+              lineHeight: "1.5",
+            }}
+          >
+            {condition}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

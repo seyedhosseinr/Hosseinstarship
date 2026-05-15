@@ -158,35 +158,7 @@ export function AlgorithmEdgeLayer({
               strokeDasharray={edgeStyle.dashArray}
               markerEnd={isTraversed ? `url(#${surfaceId}-arrow)` : markerEnd}
             />
-            {/* Edge condition label */}
-            {edge.condition && (isActive || isTraversed) && (
-              <foreignObject
-                x={midX - 60}
-                y={midY - 12}
-                width={120}
-                height={28}
-                style={{ overflow: "visible" }}
-              >
-                <div
-                  dir="rtl"
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    background: "rgba(15,17,23,0.85)",
-                    border: "1px solid rgba(99,102,241,0.4)",
-                    borderRadius: 6,
-                    padding: "2px 8px",
-                    fontSize: 11,
-                    color: "#94a3b8",
-                    whiteSpace: "nowrap",
-                    maxWidth: 160,
-                    pointerEvents: "none",
-                  }}
-                >
-                  {edge.condition}
-                </div>
-              </foreignObject>
-            )}
+            {/* Labels are rendered as HTML in AlgorithmCanvas to avoid SVG z-index issues */}
           </g>
         );
       })}
