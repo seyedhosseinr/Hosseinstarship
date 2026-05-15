@@ -14,7 +14,6 @@ import {
   CreditCard,
   FileDown,
   FileText,
-  GitBranch,
   History,
   HardDrive,
   Inbox,
@@ -132,7 +131,6 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/library",            label: "کتابخانه",   icon: BookOpen,   shortcut: ["G", "L"] },
       { href: "/qbank",              label: "بانک سوال",  icon: Brain,      shortcut: ["G", "Q"] },
       { href: "/outliner",           label: "Outliner",    icon: FileText,   shortcut: ["G", "O"] },
-      { href: "/algorithms/96_01",   label: "الگوریتم‌ها", icon: GitBranch,  shortcut: ["G", "A"] },
       {
         href: "/flashcards",
         label: "فلش‌کارت",
