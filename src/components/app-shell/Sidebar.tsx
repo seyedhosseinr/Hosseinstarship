@@ -13,7 +13,10 @@ import {
   ChevronsUpDown,
   CreditCard,
   FileDown,
+  FileText,
+  GitBranch,
   History,
+  HardDrive,
   Inbox,
   LayoutGrid,
   type LucideIcon,
@@ -21,6 +24,7 @@ import {
   MoreHorizontal,
   PanelLeft,
   PanelRight,
+  RefreshCw,
   Search,
   Settings2,
   Star,
@@ -123,10 +127,12 @@ const NAV_SECTIONS: NavSection[] = [
     id: "core",
     defaultOpen: true,
     items: [
-      { href: "/",                   label: "داشبورد",    icon: LayoutGrid, shortcut: ["G", "H"], exact: true },
+      { href: "/dashboard",          label: "داشبورد",    icon: LayoutGrid, shortcut: ["G", "H"], exact: true },
       { href: "/flashcards/review",  label: "مرور امروز", icon: Inbox,      shortcut: ["G", "I"], badge: "due" },
       { href: "/library",            label: "کتابخانه",   icon: BookOpen,   shortcut: ["G", "L"] },
       { href: "/qbank",              label: "بانک سوال",  icon: Brain,      shortcut: ["G", "Q"] },
+      { href: "/outliner",           label: "Outliner",    icon: FileText,   shortcut: ["G", "O"] },
+      { href: "/algorithms/96_01",   label: "الگوریتم‌ها", icon: GitBranch,  shortcut: ["G", "A"] },
       {
         href: "/flashcards",
         label: "فلش‌کارت",
@@ -604,6 +610,14 @@ function SidebarContent({
   const stats = useAppStore((s) => s.stats);
   const dueCount = stats?.dueFlashcards ?? 0;
   const isDark = resolvedTheme === "dark";
+  const isDashboard = pathname.startsWith("/dashboard");
+  const [dashboardLocalState, setDashboardLocalState] = useState({
+    storageMB: 0,
+    storagePct: 0,
+    lastSyncLabel: "لحظاتی پیش",
+    pendingOps: 0,
+    hydrating: true,
+  });
 
   // Section (group) collapse state — persisted.
   const [openSections, setOpenSections] = useState<Record<string, boolean>>(() => {
@@ -641,6 +655,56 @@ function SidebarContent({
     });
 
   useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    if (!isDashboard) return;
+
+    let cancelled = false;
+
+    const refreshDashboardState = async () => {
+      const online = typeof navigator !== "undefined" ? navigator.onLine : true;
+      let storageMB = 0;
+      let storagePct = 0;
+      let pendingOps = 0;
+
+      try {
+        const estimate = await navigator.storage?.estimate?.();
+        if (estimate) {
+          const used = estimate.usage ?? 0;
+          const quota = estimate.quota ?? 134_217_728;
+          storageMB = Math.round((used / 1024 / 1024) * 10) / 10;
+          storagePct = Math.round((used / Math.max(quota, 1)) * 100);
+        }
+      } catch {}
+
+      try {
+        const { listUnsynced } = await import("@/lib/local-first/outbox");
+        pendingOps = (await listUnsynced()).length;
+      } catch {}
+
+      if (!cancelled) {
+        setDashboardLocalState({
+          storageMB,
+          storagePct,
+          lastSyncLabel: online ? "لحظاتی پیش" : "آفلاین",
+          pendingOps,
+          hydrating: false,
+        });
+      }
+    };
+
+    void refreshDashboardState();
+    const intervalId = window.setInterval(refreshDashboardState, 30_000);
+    window.addEventListener("online", refreshDashboardState);
+    window.addEventListener("offline", refreshDashboardState);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      window.removeEventListener("online", refreshDashboardState);
+      window.removeEventListener("offline", refreshDashboardState);
+    };
+  }, [isDashboard]);
 
   const isActive = (href: string, exact?: boolean) => matchRoute(href, pathname, exact);
 
@@ -766,6 +830,46 @@ function SidebarContent({
           />
         ))}
       </nav>
+
+      {isDashboard && !collapsed && (
+        <div className="shrink-0 border-t border-border/25 p-3 text-xs text-muted-foreground">
+          <div className="space-y-3 rounded-[8px] border border-border/35 bg-background/35 p-3">
+            <div>
+              <div className="mb-2 flex items-center gap-2 font-medium text-foreground">
+                <HardDrive className="h-4 w-4 text-primary" strokeWidth={1.75} />
+                <span>حافظه محلی</span>
+              </div>
+              <div className="mb-1.5 h-1.5 overflow-hidden rounded-full bg-foreground/[0.06]">
+                <div
+                  style={{ width: `${Math.min(100, dashboardLocalState.storagePct)}%` }}
+                  className={cn(
+                    "h-full rounded-full bg-primary",
+                    dashboardLocalState.hydrating && "animate-pulse",
+                  )}
+                />
+              </div>
+              <div dir="ltr" className="font-mono text-[11px] text-muted-foreground/80">
+                {dashboardLocalState.storageMB.toFixed(1)} MB
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-1 flex items-center gap-2 font-medium text-foreground">
+                <RefreshCw className="h-4 w-4 text-primary" strokeWidth={1.75} />
+                <span>آخرین sync</span>
+              </div>
+              <div>{dashboardLocalState.lastSyncLabel}</div>
+            </div>
+
+            {dashboardLocalState.pendingOps > 0 && (
+              <div className="font-medium text-warning">
+                <span dir="ltr">{dashboardLocalState.pendingOps}</span>
+                <span> تغییر محلی</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Expand toggle (collapsed rail only) ───────────────
          Placed above the footer so it sits in a comfortable
