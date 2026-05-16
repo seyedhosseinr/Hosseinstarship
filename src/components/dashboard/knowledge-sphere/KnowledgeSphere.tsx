@@ -16,7 +16,13 @@ interface KnowledgeSphereProps {
   className?: string;
 }
 
-const nf = new Intl.NumberFormat("fa-IR");
+function formatFaNumber(value: number): string {
+  try {
+    return new Intl.NumberFormat("fa-IR").format(Math.round(value));
+  } catch {
+    return String(Math.round(value));
+  }
+}
 
 export function KnowledgeSphere({
   data,
@@ -74,9 +80,9 @@ export function KnowledgeSphere({
         </div>
 
         <div className="grid grid-cols-3 gap-2 text-center sm:min-w-[330px]">
-          <SummaryPill label="آمادگی" value={`${nf.format(data.summary.averageMastery)}٪`} />
-          <SummaryPill label="پوشش داده" value={`${nf.format(data.summary.dataCoverage)}٪`} />
-          <SummaryPill label="مرور فوری" value={nf.format(data.summary.dueNowCount)} />
+          <SummaryPill label="آمادگی" value={`${formatFaNumber(data.summary.averageMastery)}٪`} />
+          <SummaryPill label="پوشش داده" value={`${formatFaNumber(data.summary.dataCoverage)}٪`} />
+          <SummaryPill label="مرور فوری" value={formatFaNumber(data.summary.dueNowCount)} />
         </div>
       </header>
 
@@ -109,7 +115,7 @@ export function KnowledgeSphere({
                       className="shrink-0 rounded-full px-2 py-0.5 text-xs font-bold text-slate-900"
                       style={{ background: node.visual.colorToken }}
                     >
-                      {nf.format(node.metrics.priorityScore)}
+                      {formatFaNumber(node.metrics.priorityScore)}
                     </span>
                   </button>
                 ))}

@@ -1,12 +1,12 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReaderAnnotation, ReaderSelectionPayload } from "./useReaderAnnotations";
 import { resolveSelectionAgainstCanonicalSurface } from "@/components/flashcard/SelectionPopup";
+import { DEFAULT_READER_HIGHLIGHT_COLOR, normalizeHighlightColor } from "@/lib/readerHighlightPalette";
 
 export const AUTO_HIGHLIGHT_KEY = "starship.reader.autoHighlight";
 const LAST_COLOR_KEY = "reader:highlight-color:last";
-const DEFAULT_COLOR = "#DFFF4F";
 
 function readPref(): boolean {
   if (typeof localStorage === "undefined") return false;
@@ -18,8 +18,8 @@ function writePref(v: boolean) {
 }
 
 function getActiveColor(): string {
-  if (typeof localStorage === "undefined") return DEFAULT_COLOR;
-  return localStorage.getItem(LAST_COLOR_KEY) ?? DEFAULT_COLOR;
+  if (typeof localStorage === "undefined") return DEFAULT_READER_HIGHLIGHT_COLOR;
+  return normalizeHighlightColor(localStorage.getItem(LAST_COLOR_KEY));
 }
 
 interface UseAutoHighlightOptions {
@@ -118,3 +118,4 @@ export function useAutoHighlight({
 
   return { autoHighlight: enabled, toggleAutoHighlight: toggle };
 }
+

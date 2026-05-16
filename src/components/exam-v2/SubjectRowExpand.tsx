@@ -52,7 +52,7 @@ export function SubjectRowExpand({ sb, results }: SubjectRowExpandProps) {
         </span>
         <div className="h-1.5 overflow-hidden rounded-full bg-lib-hover">
           <div
-            className="h-full rounded-full transition-[width] [transition-duration:400ms]"
+            className="h-full rounded-full transition-[width] duration-[400ms]"
             style={{ width: `${sb.percentage}%`, background: scoreColor(sb.percentage) }}
           />
         </div>

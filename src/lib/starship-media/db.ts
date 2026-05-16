@@ -23,14 +23,10 @@
  */
 
 import { eq, inArray, sql } from "drizzle-orm";
-import { mediaAssetPayloads, mediaAssets } from "@/db/schema";
+import { mediaAssets } from "@/db/schema";
 import type { AppDrizzleInstance } from "@/db/index";
 import type { AssetUpserter, MediaAssetUpsertRow } from "./importer";
 import type { MediaAsset, MediaAssetKind } from "./types";
-import {
-  buildBundledMediaServePath,
-  storagePathToBundledMediaKey,
-} from "./storage";
 
 /**
  * Bulk upsert N media-asset rows into the `media_assets` table, keyed
@@ -112,79 +108,6 @@ export function drizzleUpserter(db: AppDrizzleInstance): AssetUpserter {
   };
 }
 
-export interface MediaAssetPayloadUpsertRow {
-  storageKey: string;
-  contentType: string;
-  base64Data: string;
-  byteLength: number;
-}
-
-export async function upsertMediaAssetPayloadsBatch(
-  db: AppDrizzleInstance,
-  rows: MediaAssetPayloadUpsertRow[],
-  now: number = Date.now(),
-): Promise<{ inserted: number; updated: number }> {
-  if (rows.length === 0) return { inserted: 0, updated: 0 };
-
-  const keys = rows.map((row) => row.storageKey);
-  const existing = await db
-    .select({ storageKey: mediaAssetPayloads.storageKey })
-    .from(mediaAssetPayloads)
-    .where(inArray(mediaAssetPayloads.storageKey, keys));
-  const existingSet = new Set(existing.map((row) => row.storageKey));
-
-  await db
-    .insert(mediaAssetPayloads)
-    .values(
-      rows.map((row) => ({
-        storageKey: row.storageKey,
-        contentType: row.contentType,
-        base64Data: row.base64Data,
-        byteLength: row.byteLength,
-        createdAt: now,
-        updatedAt: now,
-      })),
-    )
-    .onConflictDoUpdate({
-      target: mediaAssetPayloads.storageKey,
-      set: {
-        contentType: sql`excluded.content_type`,
-        base64Data: sql`excluded.base64_data`,
-        byteLength: sql`excluded.byte_length`,
-        updatedAt: sql`excluded.updated_at`,
-      },
-    });
-
-  const inserted = rows.length - existingSet.size;
-  const updated = rows.length - inserted;
-  return { inserted, updated };
-}
-
-export async function getMediaAssetPayloadByStorageKey(
-  db: AppDrizzleInstance,
-  storageKey: string,
-): Promise<{
-  storageKey: string;
-  contentType: string;
-  base64Data: string;
-  byteLength: number;
-} | null> {
-  const [row] = await db
-    .select()
-    .from(mediaAssetPayloads)
-    .where(eq(mediaAssetPayloads.storageKey, storageKey))
-    .limit(1);
-
-  if (!row) return null;
-
-  return {
-    storageKey: row.storageKey,
-    contentType: row.contentType,
-    base64Data: row.base64Data,
-    byteLength: row.byteLength,
-  };
-}
-
 /**
  * Fetch every `media_assets` row for one chapter and convert each into
  * the client-shaped `MediaAsset`. Used by `GET /api/media-registry/:chapter`.
@@ -209,7 +132,6 @@ export async function listMediaAssetsForChapter(
 export function rowToMediaAsset(
   row: typeof mediaAssets.$inferSelect,
 ): MediaAsset {
-  const normalizedStoragePath = normalizeMediaStoragePath(row.storagePath);
   return {
     id: row.id,
     mediaId: row.mediaId,
@@ -219,7 +141,7 @@ export function rowToMediaAsset(
     figureLabel: row.figureLabel,
     kind: row.kind as MediaAssetKind,
     filename: row.filename,
-    storagePath: normalizedStoragePath,
+    storagePath: row.storagePath,
     sourcePage: row.sourcePage,
     caption: row.caption,
     tags: parseTagsJson(row.tagsJson),
@@ -227,15 +149,6 @@ export function rowToMediaAsset(
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
-}
-
-function normalizeMediaStoragePath(raw: string | null): string | null {
-  if (!raw) return null;
-  const storageKey = storagePathToBundledMediaKey(raw);
-  if (storageKey) {
-    return buildBundledMediaServePath(storageKey);
-  }
-  return raw;
 }
 
 /**

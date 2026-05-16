@@ -1,0 +1,214 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+/* ─── Design Tokens — Light / Online ─────────────────────────────── */
+:root {
+  --bg-root:        #F8F7F4;
+  --bg-card:        #FCFBF9;
+  --bg-card-hover:  #F6F4F0;
+  --border:         #E8E3DA;
+  --border-strong:  #D9D0C4;
+  --text-primary:   #0D0C0A;
+  --text-secondary: #5C5551;
+  --text-muted:     #9E9890;
+  --accent:         #0D7A72;
+  --accent-amber:   #C26D1D;
+  --accent-blue:    #1A4DB8;
+  --accent-red:     #A81A1A;
+  --ring-bg:        #F2EEE6;
+
+  /* shadcn tokens mapped */
+  --background:           var(--bg-root);
+  --foreground:           var(--text-primary);
+  --card:                 var(--bg-card);
+  --card-foreground:      var(--text-primary);
+  --popover:              var(--bg-card);
+  --popover-foreground:   var(--text-primary);
+  --primary:              var(--accent);
+  --primary-foreground:   #FFFFFF;
+  --secondary:            var(--ring-bg);
+  --secondary-foreground: var(--text-primary);
+  --muted:                var(--ring-bg);
+  --muted-foreground:     var(--text-muted);
+  --destructive:          var(--accent-red);
+  --destructive-foreground: #FFFFFF;
+  --border-token:         var(--border);
+  --input:                var(--bg-card);
+  --ring:                 var(--accent);
+  --radius:               0.75rem;
+
+  /* offline-specific border override */
+  --offline-border: #8FA3BF;
+}
+
+/* ─── Offline Overrides ───────────────────────────────────────────── */
+:root[data-mode="offline"] {
+  --bg-root:        #ECEEF2;
+  --bg-card:        #F4F6FA;
+  --bg-card-hover:  #EBEef4;
+  --border:         #C8D0DC;
+  --border-strong:  var(--offline-border);
+  --accent:         #2563EB;
+  --background:     var(--bg-root);
+  --card:           var(--bg-card);
+  --primary:        var(--accent);
+}
+
+/* ─── Dark Mode ───────────────────────────────────────────────────── */
+.dark {
+  --bg-root:        #0F0E0C;
+  --bg-card:        #1A1916;
+  --bg-card-hover:  #242219;
+  --border:         #2E2A24;
+  --border-strong:  #3E3934;
+  --text-primary:   #F5F3F0;
+  --text-secondary: #B5ADA3;
+  --text-muted:     #7A7268;
+  --accent:         #1AD4C4;
+  --accent-amber:   #FFA500;
+  --accent-blue:    #40B9FF;
+  --accent-red:     #FF5555;
+  --ring-bg:        #232017;
+  --background:     var(--bg-root);
+  --foreground:     var(--text-primary);
+  --card:           var(--bg-card);
+  --card-foreground: var(--text-primary);
+  --popover:        var(--bg-card);
+  --popover-foreground: var(--text-primary);
+  --primary:        var(--accent);
+  --primary-foreground: #000;
+  --secondary:      var(--ring-bg);
+  --secondary-foreground: var(--text-primary);
+  --muted:          var(--ring-bg);
+  --muted-foreground: var(--text-muted);
+  --destructive:    var(--accent-red);
+  --ring:           var(--accent);
+}
+
+/* ─── Tailwind theme wiring ───────────────────────────────────────── */
+@theme inline {
+  --font-sans: 'Vazirmatn', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Geist Mono', monospace;
+
+  --color-background:           var(--background);
+  --color-foreground:           var(--foreground);
+  --color-card:                 var(--card);
+  --color-card-foreground:      var(--card-foreground);
+  --color-popover:              var(--popover);
+  --color-popover-foreground:   var(--popover-foreground);
+  --color-primary:              var(--primary);
+  --color-primary-foreground:   var(--primary-foreground);
+  --color-secondary:            var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted:                var(--muted);
+  --color-muted-foreground:     var(--muted-foreground);
+  --color-destructive:          var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border:               var(--border);
+  --color-input:                var(--input);
+  --color-ring:                 var(--ring);
+  --radius-sm:  calc(var(--radius) - 4px);
+  --radius-md:  calc(var(--radius) - 2px);
+  --radius-lg:  var(--radius);
+  --radius-xl:  calc(var(--radius) + 4px);
+}
+
+/* ─── Base ────────────────────────────────────────────────────────── */
+@layer base {
+  * {
+    @apply border-border outline-ring/50 box-border;
+  }
+  html {
+    background: var(--bg-root);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+  }
+  body {
+    background: var(--bg-root);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+  }
+}
+
+/* ─── Mount Choreography ──────────────────────────────────────────── */
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-14px); }
+  to   { opacity: 1; transform: translateY(0);     }
+}
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+@keyframes spinOnce {
+  from { transform: rotate(0deg);   }
+  to   { transform: rotate(360deg); }
+}
+@keyframes bumpScale {
+  0%   { transform: scale(1);   }
+  50%  { transform: scale(1.3); }
+  100% { transform: scale(1);   }
+}
+@keyframes dotPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(13, 122, 114, 0.4); }
+  50%      { box-shadow: 0 0 0 12px rgba(13, 122, 114, 0);  }
+}
+
+.anim-topbar    { animation: slideDown    0.35s ease-out both; }
+.anim-hero      { animation: fadeSlideUp  0.45s ease-out 0.10s both; }
+.anim-stat-0    { animation: fadeSlideUp  0.4s  ease-out 0.20s both; }
+.anim-stat-1    { animation: fadeSlideUp  0.4s  ease-out 0.25s both; }
+.anim-stat-2    { animation: fadeSlideUp  0.4s  ease-out 0.30s both; }
+.anim-stat-3    { animation: fadeSlideUp  0.4s  ease-out 0.35s both; }
+.anim-fsrs      { animation: fadeSlideUp  0.4s  ease-out 0.40s both; }
+.anim-sphere    { animation: fadeIn       0.5s  ease-out 0.70s both; }
+.anim-mcq       { animation: fadeSlideUp  0.4s  ease-out 0.45s both; }
+.anim-heatmap   { animation: fadeSlideUp  0.4s  ease-out 0.50s both; }
+.anim-activity  { animation: fadeSlideUp  0.4s  ease-out 0.55s both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-topbar, .anim-hero, .anim-stat-0, .anim-stat-1, .anim-stat-2,
+  .anim-stat-3, .anim-fsrs, .anim-sphere, .anim-mcq, .anim-heatmap,
+  .anim-activity {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* ─── Shimmer loading ─────────────────────────────────────────────── */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--ring-bg) 25%,
+    var(--bg-card-hover) 50%,
+    var(--ring-bg) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+
+/* ─── Custom scrollbar ────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ─── Selection ───────────────────────────────────────────────────── */
+::selection { background: color-mix(in srgb, var(--accent) 25%, transparent); }

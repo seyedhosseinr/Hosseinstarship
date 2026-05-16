@@ -21,7 +21,9 @@ import type { MediaAsset } from "@/lib/starship-media/types";
 const CACHE = new Map<number, MediaAsset[]>();
 const INFLIGHT = new Map<number, Promise<MediaAsset[]>>();
 
-async function fetchChapterRegistry(chapterNo: number): Promise<MediaAsset[]> {
+export async function fetchMediaRegistryForChapter(
+  chapterNo: number,
+): Promise<MediaAsset[]> {
   // Cache only NON-EMPTY responses. An empty array from a pre-import
   // fetch must NOT block subsequent re-fetches — otherwise once a user
   // visited a chapter before importing its bundle, every later visit
@@ -81,7 +83,7 @@ export function useMediaRegistry(
     }
     latest.current = chapterNo;
     let cancelled = false;
-    fetchChapterRegistry(chapterNo).then((next) => {
+    fetchMediaRegistryForChapter(chapterNo).then((next) => {
       if (cancelled) return;
       if (latest.current !== chapterNo) return;
       setAssets(next);

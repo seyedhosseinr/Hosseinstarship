@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, unlinkSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
@@ -55,12 +55,24 @@ function ensureFilesystemLocation(location: string) {
   mkdirSync(location, { recursive: true });
 }
 
-function quarantineUncleanPGliteDataDir(location: string) {
+function clearStalePGlitePidFile(location: string) {
   if (location.startsWith("idb://") || location.startsWith("memory://")) return;
   if (!existsSync(location)) return;
 
   const pidFile = join(location, "postmaster.pid");
   if (!existsSync(pidFile)) return;
+
+  try {
+    unlinkSync(pidFile);
+    console.warn(
+      `Removed stale PGlite postmaster.pid at ${pidFile}; preserving data dir ${location}.`,
+    );
+    return;
+  } catch {
+    // Fall back to the old quarantine path only if the stale pid file cannot be
+    // removed. Preserving the data directory is the normal path; wholesale
+    // quarantine loses planner progress after seed/dev restarts.
+  }
 
   const backupLocation = `${location}-unclean-${Date.now()}`;
 
@@ -72,7 +84,7 @@ function quarantineUncleanPGliteDataDir(location: string) {
 
   mkdirSync(location, { recursive: true });
   console.warn(
-    `Reset stale PGlite data dir at ${location} after finding postmaster.pid.` +
+    `Reset stale PGlite data dir at ${location} after failing to remove postmaster.pid.` +
       ` Previous files were moved to ${backupLocation}.`,
   );
 }
@@ -186,7 +198,7 @@ export function createPGliteDb() {
   const location = getPGliteLocation();
 
   if (!globals.pgliteDb) {
-    quarantineUncleanPGliteDataDir(location);
+    clearStalePGlitePidFile(location);
     ensureFilesystemLocation(location);
 
     if (!globals.pgliteClient) {

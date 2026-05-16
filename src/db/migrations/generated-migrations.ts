@@ -315,21 +315,9 @@ export const migration_0003: BundledMigration = {
   ],
 };
 
-export const migration_0004: BundledMigration = {
-  idx: 4,
-  tag: "0004_media_asset_payloads",
-  when: 1778443200000,
-  hash: "052673f7c6969e143e9b98f4a3ff01f49adcfa909ecb75b0279ae5491f5452bf",
-  statements: [
-    "-- 0004_media_asset_payloads\n--\n-- Hossein Starship Phase 3.7 — Vercel-safe media payload storage.\n-- Adds a DB-backed payload table so imported chapter images can be served\n-- after deployment without writing into /public on a read-only filesystem.\n--\n-- Compatibility:\n--   - plain text + integer columns only\n--   - base64_data stores the binary payload in a portable form for both\n--     Postgres and PGlite\n--\n-- Idempotent: uses CREATE TABLE / CREATE INDEX IF NOT EXISTS.\n\nCREATE TABLE IF NOT EXISTS \"media_asset_payloads\" (\n  \"storage_key\"  text PRIMARY KEY NOT NULL,\n  \"content_type\" text NOT NULL,\n  \"base64_data\"  text NOT NULL,\n  \"byte_length\"  bigint NOT NULL,\n  \"created_at\"   bigint NOT NULL DEFAULT ((extract(epoch from now()) * 1000)::bigint),\n  \"updated_at\"   bigint NOT NULL DEFAULT ((extract(epoch from now()) * 1000)::bigint)\n);",
-    "CREATE INDEX IF NOT EXISTS \"media_asset_payloads_updated_at_idx\"\n  ON \"media_asset_payloads\" USING btree (\"updated_at\");",
-  ],
-};
-
 export const allMigrations: BundledMigration[] = [
   migration_0000,
   migration_0001,
   migration_0002,
   migration_0003,
-  migration_0004,
 ];

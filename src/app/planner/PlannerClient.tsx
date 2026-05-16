@@ -1,5 +1,7 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react"
+import { createElement } from "react"
 import { useCallback, useEffect, useState, Component, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { AlertTriangle, CalendarCheck, CalendarDays, Flame, RefreshCw, TrendingUp } from "lucide-react";
@@ -13,7 +15,7 @@ import { n, useVisibilityRefresh } from "@/components/planner/task-helpers";
 import { cn } from "@/lib/utils";
 import { getPlannerSummaryAction } from "@/lib/actions/planner-runtime-actions";
 import { isLocalFirstEnabled } from "@/lib/local-first/flag";
-import { getSummaryLocal } from "@/lib/local-first/planner-local";
+import { getSummaryLocal, hasUnsyncedPlannerMutations } from "@/lib/local-first/planner-local";
 
 type Tab = "today" | "week";
 
@@ -49,7 +51,7 @@ class PlannerErrorBoundary extends Component<{ children: ReactNode }, { hasError
             <div className="flex flex-col items-center gap-4 py-8">
               <AlertTriangle size={22} className="text-muted-foreground/70" />
               <div className="text-[13.5px] font-semibold text-foreground">
-                خطایی در نمایش planner رخ داد
+                خطا در نمایش برنامه‌ریز
               </div>
               <button
                 onClick={() => {
@@ -140,7 +142,12 @@ export default function PlannerClient() {
     try {
       const result = await getPlannerSummaryAction();
       if (result.ok) {
-        setSummary(result.data);
+        if (isLocalFirstEnabled() && (await hasUnsyncedPlannerMutations().catch(() => false))) {
+          const local = await getSummaryLocal().catch(() => null);
+          setSummary(local ?? result.data);
+        } else {
+          setSummary(result.data);
+        }
       }
     } catch {
       // silent refresh — local data already shown if available
@@ -164,7 +171,7 @@ export default function PlannerClient() {
         <style dangerouslySetInnerHTML={{ __html: PLANNER_STYLES }} />
         <PageHeader
           title="برنامه مطالعه"
-          description="نمای امروز و هفته‌ی پلن فعال شما."
+          description="همگام با پلن فعال، تسک‌های امروز و این هفته را از اینجا مدیریت کنید."
           icon={<CalendarCheck size={18} className="text-muted-foreground" />}
           breadcrumb={[
             { label: "داشبورد", href: "/" },
@@ -177,7 +184,7 @@ export default function PlannerClient() {
         {/* Linear-style segmented tabs */}
         <div
           role="tablist"
-          aria-label="نمای planner"
+          aria-label="تب‌های برنامه‌ریز"
           className="mb-5 inline-flex items-center gap-0.5 rounded-md border border-border/60 bg-muted/30 p-0.5"
         >
           {TABS.map((tab) => {
@@ -197,7 +204,7 @@ export default function PlannerClient() {
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                <TabIcon size={13} strokeWidth={1.75} />
+                {createElement(TabIcon as LucideIcon, { size: 13, strokeWidth: 1.75 })}
                 {tab.label}
               </button>
             );

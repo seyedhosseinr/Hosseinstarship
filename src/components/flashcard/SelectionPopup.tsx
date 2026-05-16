@@ -1,18 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Eraser, FileQuestion, Layers, MessageSquarePlus, Send, Underline as UnderlineIcon, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ReaderAnnotation, ReaderSelectionPayload } from "@/hooks/useReaderAnnotations";
 import { cn } from "@/lib/utils";
-
-const HIGHLIGHT_COLORS = [
-  "#DFFF4F", // lime-yellow
-  "#B8F36B", // green
-  "#98F0FF", // cyan
-  "#F7A8D7", // pink
-  "#F7BE62", // amber
-] as const;
+import { READER_HIGHLIGHT_COLORS, DEFAULT_READER_HIGHLIGHT_COLOR, normalizeHighlightColor } from "@/lib/readerHighlightPalette";
 
 const POPUP_HALF_W = 220;
 const LAST_COLOR_KEY = "reader:highlight-color:last";
@@ -20,18 +13,18 @@ const NOTE_MAX_CHARS = 2000;
 const NOTE_COUNTER_THRESHOLD = 1800;
 
 function getLastColor(): string {
-  if (typeof localStorage === "undefined") return HIGHLIGHT_COLORS[0];
-  return localStorage.getItem(LAST_COLOR_KEY) ?? HIGHLIGHT_COLORS[0];
+  if (typeof localStorage === "undefined") return DEFAULT_READER_HIGHLIGHT_COLOR;
+  return normalizeHighlightColor(localStorage.getItem(LAST_COLOR_KEY));
 }
 
 function saveLastColor(color: string) {
-  try { localStorage.setItem(LAST_COLOR_KEY, color); } catch {}
+  try { localStorage.setItem(LAST_COLOR_KEY, normalizeHighlightColor(color)); } catch {}
 }
 
 /**
  * Walk text nodes inside `root` up to `(container, offset)` and return the
  * linear offset within `root.textContent`. This is the inverse of asking the
- * browser where a given character in the rendered text lives — we compute
+ * browser where a given character in the rendered text lives â€” we compute
  * the character index that the range endpoint corresponds to.
  *
  * Returns -1 when the container is not inside root (shouldn't happen when
@@ -50,7 +43,7 @@ function textOffsetWithin(root: Node, container: Node, offset: number): number {
     // Now sum the offset of `container` itself within `root`.
     return sum + textOffsetOfNodeStart(root, container);
   }
-  // Text node — walk.
+  // Text node â€” walk.
   return textOffsetOfNodeStart(root, container) + offset;
 }
 
@@ -154,7 +147,7 @@ interface SelectionPopupProps {
   onHighlight: (payload: ReaderSelectionPayload, color: string) => void;
   onRemoveHighlight: (annotationIds: string[]) => void;
   onUnderline: (payload: ReaderSelectionPayload) => void;
-  /** commentText is provided by the popup's inline textarea — no window.prompt needed */
+  /** commentText is provided by the popup's inline textarea â€” no window.prompt needed */
   onComment: (payload: ReaderSelectionPayload, commentText: string) => void;
   /** When true, text drag-selections auto-create a highlight without popup interaction. */
   autoHighlight?: boolean;
@@ -240,7 +233,7 @@ export function SelectionPopup({
       // Compute text offsets within the frame element so the annotation
       // layer can capture a real text-position anchor (prefix/suffix/
       // blockChecksum). We do this here, not in the hook, because we need
-      // the live DOM Range — by the time the hook's callback fires the
+      // the live DOM Range â€” by the time the hook's callback fires the
       // selection has already collapsed.
       const resolved = resolveSelectionAgainstCanonicalSurface(frameElement ?? null, range, text);
 
@@ -289,7 +282,7 @@ export function SelectionPopup({
 
     const handleOutsideClick = (e: PointerEvent) => {
       if (popupRef.current && !popupRef.current.contains(e.target as Node)) {
-        // Don't close on a pointerdown that lands inside content — the watcher
+        // Don't close on a pointerdown that lands inside content â€” the watcher
         // will reopen us with the new selection (or fire cleared if the
         // gesture collapses the selection). This prevents a flash-close
         // followed by flash-open on extend-selection clicks.
@@ -371,7 +364,7 @@ export function SelectionPopup({
       }}
     >
       {commentMode ? (
-        /* ── Note input mode ── */
+        /* â”€â”€ Note input mode â”€â”€ */
         <div className="p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="text-xs font-medium text-lib-text-secondary">Note</span>
@@ -392,7 +385,7 @@ export function SelectionPopup({
               // (Pencil Scribble pasteboard can occasionally exceed in one shot).
               setCommentText(v.length > NOTE_MAX_CHARS ? v.slice(0, NOTE_MAX_CHARS) : v);
             }}
-            placeholder="Type your note… (Shift+Enter for newline)"
+            placeholder="Type your noteâ€¦ (Shift+Enter for newline)"
             rows={2}
             maxLength={NOTE_MAX_CHARS}
             // dir="auto" lets Persian + English mix render with correct
@@ -414,7 +407,7 @@ export function SelectionPopup({
             }}
           />
           <div className="mt-2 flex items-center justify-between gap-2">
-            <span className="text-[10px] text-lib-text-muted/60">Enter to save · Shift+Enter for newline</span>
+            <span className="text-[10px] text-lib-text-muted/60">Enter to save Â· Shift+Enter for newline</span>
             {commentText.length > NOTE_COUNTER_THRESHOLD && (
               <span
                 className={cn(
@@ -454,7 +447,7 @@ export function SelectionPopup({
           </div>
         </div>
       ) : (
-        /* ── Main action mode ── */
+        /* â”€â”€ Main action mode â”€â”€ */
         <div className="flex items-center gap-0.5 p-1.5">
           {allowCardCreation && (
             <>
@@ -480,23 +473,23 @@ export function SelectionPopup({
             </>
           )}
 
-          {/* Highlight colors — last-used color is remembered across sessions */}
-          {HIGHLIGHT_COLORS.map((color) => (
+          {/* Highlight color swatches â€” sourced from shared palette, last-used persisted */}
+          {READER_HIGHLIGHT_COLORS.map((c) => (
             <button
-              key={color}
+              key={c.id}
               type="button"
               onClick={() => {
                 if (overlappingHighlightIds.length > 0) onRemoveHighlight(overlappingHighlightIds);
-                saveLastColor(color);
-                setActiveColor(color);
-                onHighlight(selectionPayload, color);
+                saveLastColor(c.storage);
+                setActiveColor(c.storage);
+                onHighlight(selectionPayload, c.storage);
                 setIsVisible(false);
               }}
-              title={overlappingHighlightIds.length > 0 ? "Recolor" : "Highlight"}
-              style={{ backgroundColor: color }}
+              title={overlappingHighlightIds.length > 0 ? `Recolor â€” ${c.label}` : c.label}
+              style={{ backgroundColor: c.swatch }}
               className={cn(
                 "rounded-full shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-lib-accent/40 focus:ring-offset-1",
-                color === activeColor
+                c.storage === normalizeHighlightColor(activeColor)
                   ? "h-7 w-7 border-2 border-lib-text/40 scale-110"
                   : "h-6 w-6 border-2 border-lib-surface hover:scale-110",
               )}
@@ -556,7 +549,7 @@ export function SelectionPopup({
                 variant="ghost"
                 size="sm"
                 onClick={onToggleAutoHighlight}
-                title={autoHighlight ? "Auto highlight ON — click to turn off" : "Auto highlight OFF — click to turn on"}
+                title={autoHighlight ? "Auto highlight ON â€” click to turn off" : "Auto highlight OFF â€” click to turn on"}
                 aria-pressed={autoHighlight}
                 className={cn(
                   "h-8 w-8 p-0",
@@ -583,3 +576,4 @@ export function SelectionPopup({
     </div>
   );
 }
+

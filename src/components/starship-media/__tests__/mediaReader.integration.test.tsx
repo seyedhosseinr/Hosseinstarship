@@ -24,6 +24,7 @@ import { SegmentRenderer } from "@/components/library-v2/SegmentRenderer";
 import type { FrameViewModel, SectionViewModel } from "@/lib/contract/note-viewer.types";
 import { emptyDisplayV8, emptyFlagsV8 } from "@/lib/contract/note-v8.types";
 import type { MediaAsset } from "@/lib/starship-media/types";
+import { __clearMediaRegistryCache } from "../useMediaRegistry";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true;
@@ -87,6 +88,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
+  __clearMediaRegistryCache();
 });
 
 describe("Media reader pipeline (Phase 1)", () => {
@@ -99,7 +101,7 @@ describe("Media reader pipeline (Phase 1)", () => {
     ];
     act(() => {
       root.render(
-        <MediaRefProvider enabled>
+        <MediaRefProvider enabled chapterNo={164} assets={[]}>
           <SegmentRenderer
             sections={sections}
             chapterNo={164}
@@ -133,7 +135,7 @@ describe("Media reader pipeline (Phase 1)", () => {
     ];
     act(() => {
       root.render(
-        <MediaRefProvider enabled>
+        <MediaRefProvider enabled chapterNo={164} assets={[]}>
           <SegmentRenderer
             sections={sections}
             chapterNo={164}
@@ -228,6 +230,69 @@ describe("Media reader pipeline (Phase 1)", () => {
     const labels = Array.from(anchors).map((a) => a.textContent ?? "");
     expect(labels.some((t) => t.includes("تصویر ۲"))).toBe(true);
     expect(labels.some((t) => t.includes("شکل ۳"))).toBe(true);
+  });
+
+  it("early anchor click waits for the chapter registry before deciding fallback", async () => {
+    const originalFetch = globalThis.fetch;
+    const target = pickAsset({
+      mediaId: "campbell-164-fig-164-1",
+      refId: "figure:164.1",
+      figureLabel: "Fig. 164.1",
+      kind: "figure",
+      chapterNumber: 164,
+      storagePath: "/media/campbell/164/ch164_fig_164_1.png",
+      caption: "Registry arrived after the click.",
+    });
+
+    let resolveFetch: (value: Response) => void = () => {};
+    const registryResponse = new Promise<Response>((resolve) => {
+      resolveFetch = resolve;
+    });
+    globalThis.fetch = (() => registryResponse) as typeof fetch;
+
+    try {
+      act(() => {
+        root.render(
+          <MediaRefProvider enabled chapterNo={164}>
+            <SegmentRenderer
+              sections={[buildSection("sec-early-click", "See Fig. 164.1")]}
+              chapterNo={164}
+              segmentId="ch164-early-click"
+            />
+          </MediaRefProvider>,
+        );
+      });
+
+      const anchor = container.querySelector<HTMLButtonElement>(
+        "button[data-media-ref-anchor='true']",
+      );
+      expect(anchor, "anchor should render before registry resolves").not.toBeNull();
+
+      act(() => {
+        anchor!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      });
+
+      await act(async () => {
+        resolveFetch(
+          new Response(JSON.stringify({ ok: true, assets: [target] }), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+        );
+        await registryResponse;
+        await Promise.resolve();
+      });
+
+      expect(document.body.textContent).toContain("Imported asset");
+      expect(document.body.textContent).not.toContain("Image not imported yet");
+      expect(
+        document
+          .querySelector<HTMLImageElement>('[data-testid="media-image"]')
+          ?.getAttribute("src"),
+      ).toBe("/media/campbell/164/ch164_fig_164_1.png");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });
 
@@ -368,6 +433,168 @@ describe("Media reader pipeline — Phase 2 registry resolution", () => {
     expect(docText).toContain("3782");
     // mediaId surfaced as the canonical handle.
     expect(docText).toContain("campbell-164-fig-164-4");
+  });
+
+  it("real SegmentRenderer/FrameCard content path turns Fig. 164.1 into a matched imported image, not fallback", () => {
+    const target = pickAsset({
+      mediaId: "campbell-164-fig-164-1",
+      refId: "figure:164.1",
+      figureLabel: "Fig. 164.1",
+      kind: "figure",
+      chapterNumber: 164,
+      filename: "ch164_fig_164_1.png",
+      storagePath: "/media/campbell/164/ch164_fig_164_1.png",
+      caption: "Chapter 164 imported figure 1.",
+    });
+    const sections = [
+      buildSection("sec-real-reader", "See Fig. 164.1"),
+    ];
+
+    act(() => {
+      root.render(
+        <MediaRefProvider enabled chapterNo={164} assets={[target]}>
+          <SegmentRenderer
+            sections={sections}
+            chapterNo={164}
+            segmentId="ch164-real-reader-seg"
+          />
+        </MediaRefProvider>,
+      );
+    });
+
+    const anchor = container.querySelector<HTMLButtonElement>(
+      "button[data-media-ref-anchor='true']",
+    );
+    expect(anchor, "real reader path must render a MediaRefAnchor").not.toBeNull();
+    expect(anchor!.getAttribute("data-media-ref-id")).toBe("figure:164.1");
+    expect(anchor!.textContent).toContain("Fig. 164.1");
+
+    act(() => {
+      anchor!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const docText = document.body.textContent ?? "";
+    expect(docText).toContain("Imported asset");
+    expect(docText).not.toContain("Image not imported yet");
+    expect(
+      document
+        .querySelector<HTMLImageElement>('[data-testid="media-image"]')
+        ?.getAttribute("src"),
+    ).toBe("/media/campbell/164/ch164_fig_164_1.png");
+    expect(
+      document.querySelector('[data-testid="media-caption"]')?.textContent,
+    ).toContain("Chapter 164 imported figure 1");
+  });
+
+  it("shows a chapter-wide thumbnail rail and switches the main image by thumbnail click", () => {
+    const first = pickAsset({
+      id: "asset-164-1",
+      mediaId: "campbell-164-fig-164-1",
+      refId: "figure:164.1",
+      figureLabel: "Fig. 164.1",
+      chapterNumber: 164,
+      storagePath: "/media/campbell/164/ch164_fig_164_1.png",
+      caption: "First imported figure.",
+    });
+    const second = pickAsset({
+      id: "asset-164-2",
+      mediaId: "campbell-164-fig-164-2",
+      refId: "figure:164.2",
+      figureLabel: "Fig. 164.2",
+      chapterNumber: 164,
+      storagePath: "/media/campbell/164/ch164_fig_164_2.png",
+      caption: "Second imported figure.",
+    });
+
+    act(() => {
+      root.render(
+        <MediaRefProvider enabled chapterNo={164} assets={[first, second]}>
+          <SegmentRenderer
+            sections={[buildSection("sec-gallery", "See Fig. 164.1")]}
+            chapterNo={164}
+            segmentId="ch164-gallery"
+          />
+        </MediaRefProvider>,
+      );
+    });
+
+    act(() => {
+      container
+        .querySelector<HTMLButtonElement>("button[data-media-ref-anchor='true']")!
+        .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const thumbnails = document.querySelectorAll<HTMLButtonElement>(
+      '[data-testid="media-thumbnail"]',
+    );
+    expect(thumbnails.length).toBe(2);
+    expect(
+      document
+        .querySelector<HTMLImageElement>('[data-testid="media-image"]')
+        ?.getAttribute("src"),
+    ).toBe("/media/campbell/164/ch164_fig_164_1.png");
+
+    act(() => {
+      thumbnails[1]!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(
+      document
+        .querySelector<HTMLImageElement>('[data-testid="media-image"]')
+        ?.getAttribute("src"),
+    ).toBe("/media/campbell/164/ch164_fig_164_2.png");
+    expect(
+      document.querySelector('[data-testid="media-caption"]')?.textContent,
+    ).toContain("Second imported figure");
+    expect(thumbnails[1]!.getAttribute("data-active")).toBe("true");
+  });
+
+  it("unmatched refs open the same viewer shell and can browse imported chapter media", () => {
+    const imported = pickAsset({
+      id: "asset-browse-only",
+      mediaId: "campbell-164-fig-164-1",
+      refId: "figure:164.1",
+      figureLabel: "Fig. 164.1",
+      chapterNumber: 164,
+      storagePath: "/media/campbell/164/ch164_fig_164_1.png",
+      caption: "Browsable even from an unmatched ref.",
+    });
+
+    act(() => {
+      root.render(
+        <MediaRefProvider enabled chapterNo={164} assets={[imported]}>
+          <SegmentRenderer
+            sections={[buildSection("sec-unmatched-gallery", "See Fig. 164.99")]}
+            chapterNo={164}
+            segmentId="ch164-unmatched-gallery"
+          />
+        </MediaRefProvider>,
+      );
+    });
+
+    act(() => {
+      container
+        .querySelector<HTMLButtonElement>("button[data-media-ref-anchor='true']")!
+        .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(document.body.textContent).toContain("Image not imported yet");
+    expect(document.querySelector('[data-testid="media-fallback-state"]')).not.toBeNull();
+    expect(document.querySelectorAll('[data-testid="media-thumbnail"]').length).toBe(1);
+
+    act(() => {
+      document
+        .querySelector<HTMLButtonElement>('[data-testid="media-thumbnail"]')!
+        .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(document.body.textContent).toContain("Imported asset");
+    expect(document.body.textContent).not.toContain("Image not imported yet");
+    expect(
+      document
+        .querySelector<HTMLImageElement>('[data-testid="media-image"]')
+        ?.getAttribute("src"),
+    ).toBe("/media/campbell/164/ch164_fig_164_1.png");
   });
 
   it("flag off → registry assets supplied but no anchors mounted, no fetch attempted, prose intact", () => {

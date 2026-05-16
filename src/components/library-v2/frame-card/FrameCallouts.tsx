@@ -7,11 +7,9 @@ import { CALLOUT_TONE } from "./frameStyles";
 export function FrameCallouts({
   variant = "card",
   callouts,
-  onMediaRefClick,
 }: {
   variant?: "card" | "inline";
   callouts: CalloutV8[] | null | undefined;
-  onMediaRefClick?: (label: string) => void;
 }) {
   if (!callouts?.length) return null;
 
@@ -54,7 +52,7 @@ export function FrameCallouts({
                 tone.text,
               )}
             >
-              <FrameBody body={callout.text} compact onMediaRefClick={onMediaRefClick} />
+              <FrameBody body={callout.text} compact />
             </div>
           </div>
         );

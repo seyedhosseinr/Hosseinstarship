@@ -26,9 +26,9 @@ const WIDTH_MIN = 540;
 const WIDTH_MAX = 1800;
 
 const TOOLBAR_STYLE_OPTIONS: Array<{ value: ReaderToolbarStyle; label: string; caption: string }> = [
-  { value: "popup", label: "پاپ‌آپ", caption: "نمایش پس از انتخاب" },
-  { value: "rail",  label: "ریل",   caption: "نوار ثابت GoodNotes" },
-  { value: "both",  label: "هر دو", caption: "ریل + پاپ‌آپ" },
+  { value: "popup", label: "پاپ‌آپ",  caption: "نمایش پس از انتخاب" },
+  { value: "rail",  label: "ریل",    caption: "نوار ثابت GoodNotes" },
+  { value: "both",  label: "هر دو",  caption: "ریل + پاپ‌آپ" },
 ];
 
 function clamp(value: number, min: number, max: number) {

@@ -1,0 +1,58 @@
+diff --git a/src/app/globals.css b/src/app/globals.css
+index 5e220f4..5bc877a 100644
+--- a/src/app/globals.css
++++ b/src/app/globals.css
+@@ -86,11 +86,13 @@
+ 
+     --radius: 14px;
+ 
+-    /* ── Reader tokens ─────────────────────────────── */
+-    --reader-bg:            0 0% 100%;
+-    --reader-fg:            180 4% 11%;
+-    --reader-muted:         206 19% 43%;
+-    --reader-border:        207 22% 92%;
++    /* ── Reader: long-form study surface ──────────────
++       Warm paper, not pure white. Tuned for long Persian reading on iPad. */
++    --reader-bg:            43 33% 96%;    /* #F8F6F1 */
++    --reader-surface:       38 100% 98%;   /* #FFFCF7 */
++    --reader-fg:            210 24% 16%;   /* #1F2933 */
++    --reader-muted:         215 16% 47%;   /* #64748B */
++    --reader-border:        40 24% 88%;    /* #E7E2D8 */
+     --reader-highlight:     48 96% 89%;
+     --reader-underline:     199 89% 48%;
+     --reader-comment:       142 71% 92%;
+@@ -164,12 +166,13 @@
+     --sidebar-hover:        220 13% 18%;
+ 
+     /* ── Reader ────────────────────────────────────── */
+-    --reader-bg:            213 11% 14%;
+-    --reader-fg:            217 9% 82%;
+-    --reader-muted:         220 6% 60%;
+-    --reader-border:        220 11% 22%;
+-    --reader-highlight:     45 70% 20%;
+-    --reader-underline:     199 60% 30%;
++    --reader-bg:            212 29% 9%;    /* #10161D */
++    --reader-surface:       212 29% 13%;   /* #17202A */
++    --reader-fg:            206 26% 95%;   /* #EEF2F5 */
++    --reader-muted:         211 12% 65%;   /* #9AA4AF */
++    --reader-border:        213 21% 21%;   /* #2A3440 */
++    --reader-highlight:     50 41% 25%;    /* #5A5126 */
++    --reader-underline:     207 70% 70%;   /* #7DB7E8 */
+     --reader-comment:       142 40% 15%;
+   }
+ 
+diff --git a/src/components/library-v2/ReaderStage.tsx b/src/components/library-v2/ReaderStage.tsx
+index 8150c33..2f5c2a7 100644
+--- a/src/components/library-v2/ReaderStage.tsx
++++ b/src/components/library-v2/ReaderStage.tsx
+@@ -32,8 +32,8 @@ export const ReaderStage = forwardRef<HTMLDivElement, ReaderStageProps>(
+         ref={ref}
+         data-reader-stage
+         className={cn(
+-          "relative h-dvh overflow-y-auto",
+-          "pb-24 pt-2 transition-[padding] duration-300 ease-out",
++          "relative h-dvh overflow-y-auto bg-[hsl(var(--reader-bg))]",
++          "pb-24 pt-2 transition-[background-color,padding] duration-300 ease-out",
+           className,
+         )}
+         style={style}

@@ -17,9 +17,8 @@ const READER_ROUTES      = [
   "/library/campbell/chapter",
   "/notes",
 ];
-/** Dashboard routes: sidebar is kept, but no wrapper padding/max-width —
- *  HosseinStarshipDashboard is a full-bleed component that manages its own layout. */
-const DASHBOARD_ROUTES   = ["/"];
+/** Dashboard route: sidebar is kept, but no wrapper padding/max-width. */
+const DASHBOARD_ROUTES   = ["/dashboard"];
 const ENABLE_SERVICE_WORKER =
   process.env.NODE_ENV === "production" &&
   process.env.NEXT_PUBLIC_ENABLE_SERVICE_WORKER === "1";

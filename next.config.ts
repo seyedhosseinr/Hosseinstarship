@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+﻿import type { NextConfig } from "next";
 import { resolve } from "node:path";
 import withSerwist from "@serwist/next";
 
@@ -7,6 +7,7 @@ import withSerwist from "@serwist/next";
 const PROJECT_ROOT: string = resolve(".");
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
@@ -17,7 +18,7 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: PROJECT_ROOT,
   },
-  // PGlite uses import.meta.url for WASM resolution — Turbopack rewrites
+  // PGlite uses import.meta.url for WASM resolution â€” Turbopack rewrites
   // that to a URL object which then crashes Node `path` utilities.
   // Keeping PGlite external lets Node handle it natively.
   serverExternalPackages: ["@electric-sql/pglite"],
@@ -32,7 +33,7 @@ const nextConfig: NextConfig = {
 const serwistConfig = withSerwist({
   swSrc: "src/sw.ts",
   swDest: "public/sw.js",
-  maximumFileSizeToCacheInBytes: 12 * 1024 * 1024, // 12 MB — PGlite WASM (~9 MB)
+  maximumFileSizeToCacheInBytes: 12 * 1024 * 1024, // 12 MB â€” PGlite WASM (~9 MB)
   disable: process.env.NODE_ENV === "development",
   // @serwist/next only precaches /_next/static/** assets from the build
   // manifest. Files in public/ (like offline.html) are NOT auto-included.
@@ -41,7 +42,7 @@ const serwistConfig = withSerwist({
   additionalPrecacheEntries: [{ url: "/offline.html", revision: "3" }],
 })(nextConfig);
 
-// ── Serwist server-entry fix ─────────────────────────────────────────────────
+// â”€â”€ Serwist server-entry fix â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // @serwist/next wraps config.entry and injects sw-entry.js into "main.js" and
 // "main-app" for EVERY webpack compilation (both client and server).  When the
 // server build includes sw-entry.js in its own "main.js" entry it ends up
@@ -64,7 +65,7 @@ serwistConfig.webpack = function patchedWebpack(
     ? serwistWebpack(config, options)
     : config;
 
-  // Nothing to do for client builds — keep sw-entry intact.
+  // Nothing to do for client builds â€” keep sw-entry intact.
   if (!options.isServer) return result;
 
   // For server builds: unwrap the entry function and strip sw-entry.js.
@@ -77,12 +78,12 @@ serwistConfig.webpack = function patchedWebpack(
         : (originalEntry as Record<string, string | string[]>);
 
     // Remove sw-entry from every server entry bucket.
+    // IMPORTANT: never delete an entry key (e.g. pages/_document), because
+    // Next relies on those internal page entries during build.
     for (const key of Object.keys(entries)) {
       const bucket = entries[key];
       if (Array.isArray(bucket)) {
         entries[key] = bucket.filter((e) => !e.includes("sw-entry"));
-      } else if (typeof bucket === "string" && bucket.includes("sw-entry")) {
-        delete entries[key];
       }
     }
 
@@ -93,3 +94,4 @@ serwistConfig.webpack = function patchedWebpack(
 };
 
 export default serwistConfig;
+

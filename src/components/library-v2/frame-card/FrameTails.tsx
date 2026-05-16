@@ -6,11 +6,9 @@ import { FrameBody } from "@/components/note-viewer/FrameBody";
 export function PearlTail({
   variant = "card",
   pearl,
-  onMediaRefClick,
 }: {
   variant?: "card" | "inline";
   pearl: string | null | undefined;
-  onMediaRefClick?: (label: string) => void;
 }) {
   if (!pearl?.trim()) return null;
 
@@ -45,7 +43,7 @@ export function PearlTail({
             : "text-[13.5px] leading-[1.72] text-lib-text/90",
         )}
       >
-        <FrameBody body={pearl} compact onMediaRefClick={onMediaRefClick} />
+        <FrameBody body={pearl} compact />
       </div>
     </div>
   );
@@ -53,10 +51,8 @@ export function PearlTail({
 
 export function MarginTail({
   note,
-  onMediaRefClick,
 }: {
   note: string | null | undefined;
-  onMediaRefClick?: (label: string) => void;
 }) {
   if (!note?.trim()) return null;
 
@@ -66,7 +62,7 @@ export function MarginTail({
       dir="rtl"
       className="mt-3 border-t border-lib-border/50 pt-2.5 text-[13.5px] leading-[1.7] text-lib-text/80"
     >
-      <FrameBody body={note} compact onMediaRefClick={onMediaRefClick} />
+      <FrameBody body={note} compact />
     </div>
   );
 }

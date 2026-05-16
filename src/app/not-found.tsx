@@ -22,7 +22,7 @@ export default function NotFound() {
         </div>
 
         <Link
-          href="/"
+          href="/dashboard"
           className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
         >
           <Home className="h-4 w-4" />

@@ -158,6 +158,16 @@ export async function hasPlannerSeed(): Promise<boolean> {
   return (await db.plannerPlans.count()) > 0;
 }
 
+export async function hasUnsyncedPlannerMutations(): Promise<boolean> {
+  const db = getLocalDb();
+  const count = await db.outbox
+    .where("entityType")
+    .equals("planner_item")
+    .and((row) => row.syncStatus !== "synced")
+    .count();
+  return count > 0;
+}
+
 /* ── Adapter: Dexie row ↔ UI types ────────────────────────── */
 
 function normalizeStatus(s: string): PlannerTaskStatus {
@@ -224,6 +234,28 @@ function supportedTaskToRow(
   };
 }
 
+async function preserveLocallyEditedTaskRows(
+  incoming: PlannerTaskRow[],
+): Promise<PlannerTaskRow[]> {
+  if (incoming.length === 0) return incoming;
+
+  const db = getLocalDb();
+  const unsynced = await db.outbox
+    .where("entityType")
+    .equals("planner_item")
+    .and((row) => row.syncStatus !== "synced")
+    .toArray();
+  if (unsynced.length === 0) return incoming;
+
+  const protectedIds = new Set(unsynced.map((row) => row.entityLocalId));
+  return Promise.all(
+    incoming.map(async (row) => {
+      if (!protectedIds.has(row.id)) return row;
+      return (await db.plannerTasks.get(row.id)) ?? row;
+    }),
+  );
+}
+
 function dayRowToSupportedDay(row: PlannerDayRow): SupportedPlannerDay {
   const p = (row.payload ?? {}) as Record<string, unknown>;
   return {
@@ -274,6 +306,10 @@ export async function seedFromTodayPlan(data: TodayPlanResult): Promise<void> {
   const overdueTaskRows = data.overdueTasks.map((t) =>
     supportedTaskToRow(t, data.plan.id, `day-${t.scheduledDate ?? "past"}`),
   );
+  const allTaskRows = await preserveLocallyEditedTaskRows([
+    ...todayTaskRows,
+    ...overdueTaskRows,
+  ]);
 
   await db.transaction(
     "rw",
@@ -283,8 +319,7 @@ export async function seedFromTodayPlan(data: TodayPlanResult): Promise<void> {
     async () => {
       await db.plannerPlans.put(planRow);
       if (dayRow) await db.plannerDays.put(dayRow);
-      const all = [...todayTaskRows, ...overdueTaskRows];
-      if (all.length > 0) await db.plannerTasks.bulkPut(all);
+      if (allTaskRows.length > 0) await db.plannerTasks.bulkPut(allTaskRows);
     },
   );
 }
@@ -323,6 +358,10 @@ export async function seedFromWeekPlan(data: WeekPlanResult): Promise<void> {
   const overdueRows = data.overdueTasks.map((t) =>
     supportedTaskToRow(t, data.plan.id, `day-${t.scheduledDate ?? "past"}`),
   );
+  const allTaskRows = await preserveLocallyEditedTaskRows([
+    ...taskRows,
+    ...overdueRows,
+  ]);
 
   await db.transaction(
     "rw",
@@ -332,8 +371,7 @@ export async function seedFromWeekPlan(data: WeekPlanResult): Promise<void> {
     async () => {
       await db.plannerPlans.put(planRow);
       if (dayRows.length > 0) await db.plannerDays.bulkPut(dayRows);
-      const all = [...taskRows, ...overdueRows];
-      if (all.length > 0) await db.plannerTasks.bulkPut(all);
+      if (allTaskRows.length > 0) await db.plannerTasks.bulkPut(allTaskRows);
     },
   );
 }

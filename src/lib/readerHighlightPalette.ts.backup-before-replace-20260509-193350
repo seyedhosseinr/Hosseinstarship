@@ -1,0 +1,134 @@
+export type ReaderHighlightColorId =
+  | "yellow"
+  | "blue"
+  | "green"
+  | "pink"
+  | "purple"
+  | "orange";
+
+export type ReaderHighlightColor = {
+  id: ReaderHighlightColorId;
+  label: string;
+  semantic: string;
+  storage: `#${string}`;
+  swatch: string;
+  background: string;
+  underline: `#${string}`;
+};
+
+export const READER_HIGHLIGHT_COLORS: readonly ReaderHighlightColor[] = [
+  {
+    id: "yellow",
+    label: "Important",
+    semantic: "Important",
+    storage: "#FFE566",
+    swatch: "rgba(255, 229, 102, 0.75)",
+    background: "rgba(255, 229, 102, 0.38)",
+    underline: "#CC9A00",
+  },
+  {
+    id: "blue",
+    label: "Board fact",
+    semantic: "Board fact",
+    storage: "#90C8FF",
+    swatch: "rgba(144, 200, 255, 0.75)",
+    background: "rgba(144, 200, 255, 0.38)",
+    underline: "#2479D9",
+  },
+  {
+    id: "green",
+    label: "Understood",
+    semantic: "Understood",
+    storage: "#8EDFC5",
+    swatch: "rgba(142, 223, 197, 0.75)",
+    background: "rgba(142, 223, 197, 0.35)",
+    underline: "#1A9E72",
+  },
+  {
+    id: "pink",
+    label: "Mistake",
+    semantic: "Mistake",
+    storage: "#FFB3C8",
+    swatch: "rgba(255, 179, 200, 0.75)",
+    background: "rgba(255, 179, 200, 0.38)",
+    underline: "#D9336B",
+  },
+  {
+    id: "purple",
+    label: "Flashcard-worthy",
+    semantic: "Flashcard-worthy",
+    storage: "#C8AAFF",
+    swatch: "rgba(200, 170, 255, 0.75)",
+    background: "rgba(200, 170, 255, 0.35)",
+    underline: "#7040E0",
+  },
+  {
+    id: "orange",
+    label: "Decision / warning",
+    semantic: "Decision / warning",
+    storage: "#FFCB8C",
+    swatch: "rgba(255, 203, 140, 0.75)",
+    background: "rgba(255, 203, 140, 0.35)",
+    underline: "#D97A00",
+  },
+] as const;
+
+export const DEFAULT_READER_HIGHLIGHT_COLOR =
+  READER_HIGHLIGHT_COLORS[0].storage;
+
+const COLORS_BY_STORAGE = new Map<string, ReaderHighlightColor>(
+  READER_HIGHLIGHT_COLORS.map((color) => [color.storage.toUpperCase(), color]),
+);
+
+const COLORS_BY_ID = new Map<string, ReaderHighlightColor>(
+  READER_HIGHLIGHT_COLORS.map((color) => [color.id, color]),
+);
+
+function parseStoredColor(value: string | null | undefined): `#${string}` | null {
+  if (!value) return null;
+
+  const raw = value.trim();
+  if (!raw) return null;
+
+  const byId = COLORS_BY_ID.get(raw.toLowerCase());
+  if (byId) return byId.storage;
+
+  const hex = raw.replace(/^#/, "").toUpperCase();
+  if (!/^[0-9A-F]{6}$/.test(hex)) return null;
+
+  const normalized = `#${hex}` as `#${string}`;
+  return COLORS_BY_STORAGE.has(normalized) ? normalized : null;
+}
+
+export function normalizeHighlightColor(
+  color: string | null | undefined,
+): `#${string}` {
+  return parseStoredColor(color) ?? DEFAULT_READER_HIGHLIGHT_COLOR;
+}
+
+export function getHighlightBucketKey(
+  color: string | null | undefined,
+): string {
+  return normalizeHighlightColor(color).replace(/^#/, "");
+}
+
+export function getReaderHighlightColor(
+  color: string | null | undefined,
+): ReaderHighlightColor {
+  return (
+    COLORS_BY_STORAGE.get(normalizeHighlightColor(color)) ??
+    READER_HIGHLIGHT_COLORS[0]
+  );
+}
+
+export function getHighlightBackground(
+  color: string | null | undefined,
+): string {
+  return getReaderHighlightColor(color).background;
+}
+
+export function getHighlightUnderlineColor(
+  color: string | null | undefined,
+): `#${string}` {
+  return getReaderHighlightColor(color).underline;
+}

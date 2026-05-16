@@ -29,7 +29,7 @@ import {
 import { getWeekPlanAction } from "@/lib/actions/planner-runtime-actions";
 import type { WeekPlanResult } from "@/lib/planner/runtime-types";
 import { isLocalFirstEnabled } from "@/lib/local-first/flag";
-import { getWeekPlanLocal, seedFromWeekPlan } from "@/lib/local-first/planner-local";
+import { getWeekPlanLocal, hasUnsyncedPlannerMutations, seedFromWeekPlan } from "@/lib/local-first/planner-local";
 
 interface WeeklyViewProps {
   onReschedule?: (taskId: string) => void;
@@ -68,10 +68,18 @@ export function WeeklyView({ onReschedule, onShowOverdue }: WeeklyViewProps) {
     try {
       const res = await getWeekPlanAction(refDate);
       if (res.ok) {
-        setData(res.data);
         setError(null);
         if (isLocalFirstEnabled()) {
-          seedFromWeekPlan(res.data).catch(() => {});
+          const keepLocal = await hasUnsyncedPlannerMutations().catch(() => false);
+          await seedFromWeekPlan(res.data).catch(() => {});
+          if (keepLocal) {
+            const localAfterSeed = await getWeekPlanLocal(refDate).catch(() => null);
+            setData(localAfterSeed ?? res.data);
+          } else {
+            setData(res.data);
+          }
+        } else {
+          setData(res.data);
         }
       } else if (!hasLocalData) {
         setData(null);

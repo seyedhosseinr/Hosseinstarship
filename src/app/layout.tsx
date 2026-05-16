@@ -9,6 +9,7 @@ import LocalFirstBoot from "@/components/local-first/LocalFirstBoot";
 import StarshipAmbient from "@/components/starship/StarshipAmbient";
 import { Toaster } from "@/components/ui/sonner";
 import { getAppBaseUrl } from "@/lib/env/deployment";
+import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 
 import "./globals.css";
@@ -30,7 +31,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#16614d",
+  themeColor: "hsl(225 18% 7%)",
 };
 
 export const metadata: Metadata = {
@@ -111,8 +112,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fa" dir="rtl" suppressHydrationWarning className={vazirmatn.variable}>
+    <html lang="fa" dir="rtl" suppressHydrationWarning className={cn(vazirmatn.variable)}>
       <head>
+        {/* Blocking script: set data-mode before first paint to prevent offline color flash */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{document.documentElement.setAttribute('data-mode',navigator.onLine?'online':'offline');}catch(e){}})();`,
+          }}
+        />
         {process.env.NODE_ENV === "development" ? (
           <script dangerouslySetInnerHTML={{ __html: DEV_SERVICE_WORKER_CLEANUP }} />
         ) : null}
@@ -124,7 +131,7 @@ export default function RootLayout({
         <link rel="apple-touch-startup-image" href="/icons/splash-1668x2388.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2)" />
       </head>
       <body className="bg-background text-foreground">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
           <ThemeBridge />
           <ShellGate plain={<><StarshipAmbient />{children}</>} shell={<AppShell>{children}</AppShell>} />
           <LocalFirstBoot />

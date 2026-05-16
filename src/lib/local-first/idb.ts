@@ -223,55 +223,6 @@ export interface UserNoteRow {
   updatedAt: string;
 }
 
-export interface OutlinerAlgorithmSegmentRow {
-  segmentId: string;
-  schemaVersion: string;
-  title: string | null;
-  sourceNoteSegmentId: string | null;
-  sourceNoteSchemaVersion: string | null;
-  sourceFileName: string | null;
-  jsonHash: string;
-  surfaceCount: number;
-  coverageBlockCount: number;
-  totalBlockCount: number;
-  validationStatus: string;
-  chapterNo?: number | null;
-  importedAt: string;
-  updatedAt: string;
-}
-
-export interface OutlinerAlgorithmIRRow {
-  segmentId: string;
-  rawJson: unknown;
-  jsonHash: string;
-  importedAt: string;
-}
-
-export interface OutlinerSurfaceIndexRow {
-  id: string;
-  segmentId: string;
-  surfaceId: string;
-  surfaceType: string | null;
-  algorithmShape: string | null;
-  semanticRole: string | null;
-  title: string | null;
-  linkedBlockIds: string[];
-}
-
-export interface OutlinerValidationReportRow {
-  segmentId: string;
-  status: string;
-  rawReportJson: unknown;
-  warnings: string[];
-  importedAt: string;
-}
-
-export interface OutlinerMdxMirrorRow {
-  segmentId: string;
-  rawMdx: string;
-  importedAt: string;
-}
-
 /* â”€â”€ Dexie class â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 export class StarshipLocalFirstDb extends Dexie {
@@ -291,11 +242,6 @@ export class StarshipLocalFirstDb extends Dexie {
   attachmentMap!: Table<AttachmentMapRow, string>;
   handwrittenNotes!: Table<HandwrittenNote, string>;
   userNotes!: Table<UserNoteRow, string>;
-  outlinerAlgorithmSegments!: Table<OutlinerAlgorithmSegmentRow, string>;
-  outlinerAlgorithmIR!: Table<OutlinerAlgorithmIRRow, string>;
-  outlinerSurfaceIndex!: Table<OutlinerSurfaceIndexRow, string>;
-  outlinerValidationReports!: Table<OutlinerValidationReportRow, string>;
-  outlinerMdxMirrors!: Table<OutlinerMdxMirrorRow, string>;
 
   constructor() {
     super("starship-local-first");
@@ -330,22 +276,6 @@ export class StarshipLocalFirstDb extends Dexie {
     this.version(4).stores({
       userNotes:
         "id, docId, segmentId, chapterNo, isDeleted, updatedAt, [docId+isDeleted]",
-    });
-    this.version(5).stores({
-      outlinerAlgorithmSegments:
-        "segmentId, schemaVersion, title, chapterNo, validationStatus, updatedAt",
-      outlinerAlgorithmIR: "segmentId, jsonHash, importedAt",
-      outlinerSurfaceIndex:
-        "id, segmentId, surfaceId, surfaceType, algorithmShape, semanticRole",
-      outlinerValidationReports: "segmentId, status, importedAt",
-      outlinerMdxMirrors: "segmentId, importedAt",
-    });
-    // v6: ensure outlinerAlgorithmIR exists even if v5 was applied without it
-    // (happens when idb.ts was temporarily missing this store definition).
-    // Dexie only re-runs an upgrade when the version number advances, so bumping
-    // to 6 guarantees the store is created in browsers that already have v5.
-    this.version(6).stores({
-      outlinerAlgorithmIR: "segmentId, jsonHash, importedAt",
     });
   }
 }

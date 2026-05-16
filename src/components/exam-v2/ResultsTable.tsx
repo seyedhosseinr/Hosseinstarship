@@ -46,7 +46,7 @@ export function ResultsTable({ score, results, timeSpent, questionTimes, classNa
         </div>
         <div className="h-2.5 overflow-hidden rounded-full bg-lib-hover">
           <div
-            className="h-full rounded-full transition-[width] [transition-duration:600ms] ease-out"
+            className="h-full rounded-full transition-[width] duration-[600ms] ease-out"
             style={{ width: `${score.percentage}%`, background: scoreColor(score.percentage) }}
           />
         </div>

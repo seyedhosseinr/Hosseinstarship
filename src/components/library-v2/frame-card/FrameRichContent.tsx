@@ -13,13 +13,11 @@ import type { FrameCardV2Props } from "./frameTypes";
 type FrameRichContentProps = Pick<FrameCardV2Props, "annotations" | "highlightsVisible"> & {
   frame: FrameViewModel;
   isParentCallout: boolean;
-  onMediaRefClick?: (label: string) => void;
 };
 
 export function FrameRichContent({
   frame,
   isParentCallout,
-  onMediaRefClick,
 }: FrameRichContentProps) {
   const hasInteractive = Boolean(frame.interactiveData);
   const body = frame.content || frame.body;
@@ -48,7 +46,7 @@ export function FrameRichContent({
         </details>
       )}
 
-      <FrameTable tableData={frame.tableData} onMediaRefClick={onMediaRefClick} />
+      <FrameTable tableData={frame.tableData} />
 
       {frame.listItems?.length ? (
         <ul
@@ -62,7 +60,7 @@ export function FrameRichContent({
         >
           {frame.listItems.map((item, index) => (
             <li key={index}>
-              <FrameBody body={item} compact onMediaRefClick={onMediaRefClick} />
+              <FrameBody body={item} compact />
             </li>
           ))}
         </ul>
@@ -72,12 +70,11 @@ export function FrameRichContent({
         <div
           data-anchor-surface="canonical"
           data-content-hash={frame.contentHash ?? undefined}
-          className="[&_p]:leading-[1.9]"
+          className="[&_p]:leading-[1.8] [&_p]:mb-5 [&_p]:text-lib-text last:[&_p]:mb-0"
         >
           <FrameBody
             body={body}
             anchorPrimary={!frame.hasStructuralReformat}
-            onMediaRefClick={onMediaRefClick}
           />
         </div>
       ) : null}
@@ -85,7 +82,6 @@ export function FrameRichContent({
       <FrameCallouts
         variant={isParentCallout ? "inline" : "card"}
         callouts={frame.v8Display?.callouts}
-        onMediaRefClick={onMediaRefClick}
       />
     </>
   );

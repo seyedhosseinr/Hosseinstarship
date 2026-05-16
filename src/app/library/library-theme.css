@@ -1,3 +1,40 @@
+/* ── Per-theme reading surface overrides ───────────────────────────
+   Applied via data-bg-theme on ReaderStage regardless of dark/light.
+   Only --reader-bg is overridden; for dark bg themes we also provide
+   --reader-fg and a direct color cascade into .reader-content. */
+[data-bg-theme="paper"]     { --reader-bg: 40 24% 97%; }
+[data-bg-theme="parchment"] { --reader-bg: 38 55% 90%; }
+[data-bg-theme="warm"]      { --reader-bg: 38 72% 94%; }
+[data-bg-theme="cool"]      { --reader-bg: 0 0% 100%; }
+[data-bg-theme="night"]     { --reader-bg: 30 4% 11%;  }
+[data-bg-theme="slate"]     { --reader-bg: 220 38% 12%; }
+[data-bg-theme="eyecare"]   { --reader-bg: 135 26% 8%; }
+[data-bg-theme="amoled"]    { --reader-bg: 0 0% 3%;   }
+
+/* Latin inline terms: slightly heavier weight + slate color for visual distinction
+   in Persian-dominant prose. Dark themes get a lighter tint instead. */
+[data-reader-latin] {
+  font-weight: 500;
+  color: #1e293b; /* slate-800 */
+}
+[data-bg-theme="night"]   [data-reader-latin],
+[data-bg-theme="slate"]   [data-reader-latin],
+[data-bg-theme="eyecare"] [data-reader-latin],
+[data-bg-theme="amoled"]  [data-reader-latin] {
+  color: hsl(220 20% 82%);
+}
+
+/* Dark bg themes: force readable text inside the reading surface */
+[data-bg-theme="night"] .reader-content,
+[data-bg-theme="slate"] .reader-content,
+[data-bg-theme="eyecare"] .reader-content,
+[data-bg-theme="amoled"] .reader-content {
+  color: hsl(34deg 18% 88%);
+}
+[data-bg-theme="slate"] .reader-content   { color: hsl(220deg 16% 86%); }
+[data-bg-theme="eyecare"] .reader-content { color: hsl(130deg 14% 84%); }
+[data-bg-theme="amoled"] .reader-content  { color: hsl(0deg 0% 88%); }
+
 .library-theme {
   --background: 38 23% 96%;
   --surface: 40 22% 98%;
@@ -16,7 +53,7 @@
   --sidebar-bg: 38 23% 96%;
   --sidebar-fg: 26 12% 18%;
   --sidebar-hover: 36 18% 92%;
-  --reader-bg: 42 24% 98%;
+  --reader-bg: 40 24% 97%;   /* #FAF9F7 — Readwise Reader */
   --reader-fg: 26 12% 18%;
   --reader-muted: 28 10% 39%;
   --reader-border: 32 16% 88%;
@@ -41,7 +78,7 @@
   --sidebar-bg: 24 8% 13%;
   --sidebar-fg: 34 18% 90%;
   --sidebar-hover: 24 8% 18%;
-  --reader-bg: 24 8% 14%;
+  --reader-bg: 210 29% 7%;   /* #0C1116 — Readwise Reader */
   --reader-fg: 34 18% 90%;
   --reader-muted: 28 10% 64%;
   --reader-border: 24 8% 24%;

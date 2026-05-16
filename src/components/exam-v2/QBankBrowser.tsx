@@ -20,6 +20,14 @@ const ALL_SUBJECTS = getAllSubjects();
 const ALL_CHAPTERS  = getAllChapters();
 const CHAPTER_TITLE_MAP = new Map(ALL_CHAPTERS.map((c) => [c.id, c.title]));
 
+function normalizeChapterId(value: string | null | undefined): string | null {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  const match = text.match(/^(?:ch-)?0*(\d{1,3})$/i);
+  if (!match) return text;
+  return `ch-${Number(match[1])}`;
+}
+
 /* ═══════════════════════════════════════════════════
    ALL CSS  — scoped under .QB
 ═══════════════════════════════════════════════════ */
@@ -460,18 +468,28 @@ export const QB_CSS = `
 export interface QBankBrowserProps {
   questions: QBankQuestion[];
   initialChapterId?: string | null;
+  initialMode?: string | null;
 }
 
-export function QBankBrowser({ questions: initialQuestions, initialChapterId }: QBankBrowserProps) {
+export function QBankBrowser({
+  questions: initialQuestions,
+  initialChapterId,
+  initialMode,
+}: QBankBrowserProps) {
   const router = useRouter();
   const { collections, addItem, isBookmarked: isInCollection } = useCollections();
 
   const [questions]    = useState<QBankQuestion[]>(initialQuestions);
   const [selSubject,   setSelSubject]   = useState<string | null>(null);
   const [selSystem,    setSelSystem]    = useState<string | null>(null);
-  const [selChapter,   setSelChapter]   = useState<string | null>(initialChapterId ?? null);
+  const [selChapter,   setSelChapter]   = useState<string | null>(normalizeChapterId(initialChapterId));
   const [sidebarOpen,  setSidebarOpen]  = useState(true);
   const [headerSearch, setHeaderSearch] = useState("");
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(() => {
+    const initial = new Set<string>();
+    if (initialMode) initial.add(initialMode.toLowerCase());
+    return initial;
+  });
 
   const hydrated = useRef(false);
   useEffect(() => {
@@ -486,9 +504,19 @@ export function QBankBrowser({ questions: initialQuestions, initialChapterId }: 
 
   const persistFilters = useCallback(() => {
     if (!hydrated.current) return;
-    try { localStorage.setItem("starship:qbank-filters", JSON.stringify({ sidebarOpen })); } catch { /**/ }
+    try {
+      localStorage.setItem("starship:qbank-filters", JSON.stringify({ sidebarOpen }));
+    } catch { /**/ }
   }, [sidebarOpen]);
   useEffect(() => { persistFilters(); }, [persistFilters]);
+
+  const toggleFilter = (filter: string) => {
+    setActiveFilters((prev) => {
+      const next = new Set(prev);
+      next.has(filter) ? next.delete(filter) : next.add(filter);
+      return next;
+    });
+  };
 
   const chapterCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -525,8 +553,17 @@ export function QBankBrowser({ questions: initialQuestions, initialChapterId }: 
         );
       }
     }
+
+    if (activeFilters.has("wrong") || activeFilters.has("missed")) {
+      // @ts-expect-error - lastOutcome is not in the base type but may exist from query
+      qs = qs.filter((q) => q.lastOutcome === "incorrect");
+    }
+    if (activeFilters.has("bookmarked")) {
+      qs = qs.filter((q) => isInCollection(q.id));
+    }
+
     return qs;
-  }, [questions, selChapter, selSystem]);
+  }, [questions, selChapter, selSystem, activeFilters, isInCollection]);
 
   const handleBookmark = useCallback(
     (questionId: string) => {
@@ -623,13 +660,34 @@ export function QBankBrowser({ questions: initialQuestions, initialChapterId }: 
           )}
         </AnimatePresence>
 
-        {/* Question list */}
-        <QBankCardList
-          questions={filteredQuestions}
-          externalSearch={headerSearch}
-          isBookmarked={(id) => isInCollection(id)}
-          onToggleBookmark={handleBookmark}
-        />
+        <main className="QB-main">
+          <div className="QB-fbar">
+            <div className="QB-chips">
+              <button
+                type="button"
+                className={`QB-chip ${
+                  activeFilters.has("wrong") || activeFilters.has("missed") ? "on QB-chip-hard" : ""
+                }`}
+                onClick={() => toggleFilter("wrong")}
+              >
+                فقط اشتباهات
+              </button>
+              <button
+                type="button"
+                className={`QB-chip ${activeFilters.has("bookmarked") ? "on QB-chip-bm" : ""}`}
+                onClick={() => toggleFilter("bookmarked")}
+              >
+                نشان‌شده
+              </button>
+            </div>
+          </div>
+          <QBankCardList
+            questions={filteredQuestions}
+            externalSearch={headerSearch}
+            isBookmarked={(id) => isInCollection(id)}
+            onToggleBookmark={handleBookmark}
+          />
+        </main>
       </div>
     </div>
   );

@@ -73,7 +73,9 @@ export const syntheticFsrsQueue = [
     chapter: "Synthetic Overdue Chapter",
     dueLabel: "overdue",
     retention: 42,
-    yield: 5,
+    hasRetentionData: true,
+    yield: null,
+    hasYieldData: false,
     isOverdue: true,
   },
   {
@@ -82,7 +84,9 @@ export const syntheticFsrsQueue = [
     chapter: "Synthetic Weak Chapter",
     dueLabel: "today",
     retention: 61,
-    yield: 4,
+    hasRetentionData: true,
+    yield: null,
+    hasYieldData: false,
     isOverdue: false,
   },
 ];
@@ -145,17 +149,12 @@ export const syntheticDashboardStatsPayload = {
     learningCards: 2,
     newCards: 3,
   },
-  // avgStability values are realistic FSRS-5 stability (days) for each chapter scenario:
-  //   strong  → 21 d (well-consolidated, ~94% retrieval)
-  //   weak    →  5 d (fragile memory, ~58% retrieval)
-  //   overdue →  3 d (rapidly decaying, ~45% retrieval)
-  fsrsStatsByChapter: syntheticFlashcardStats.map((item, idx) => ({
+  fsrsStatsByChapter: syntheticFlashcardStats.map((item) => ({
     chapterId: item.chapterId,
     totalCards: item.total,
     dueCards: item.due,
     reviewedCards: item.reviewed,
     avgRetention: item.retention,
-    avgStability: [21, 5, 3][idx] ?? null,
     lastReviewedAt: item.lastReviewedAt,
   })),
   readerStatsByChapter: syntheticReaderStats.map((item) => ({
@@ -309,6 +308,7 @@ export const syntheticReviewCards = syntheticFsrsQueue.map((card, index) => ({
   intervalDays: index === 0 ? 9 : 2,
   isLeech: index === 0,
   isSuspended: false,
+  retrievability: index === 0 ? 0.42 : 0.61,
   predictions: {
     again: { interval: "5m", days: 0 },
     hard: { interval: "1d", days: 1 },

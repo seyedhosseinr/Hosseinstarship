@@ -1,0 +1,318 @@
+'use client'
+
+import { useMemo } from 'react'
+import Link from 'next/link'
+import { Check, Play } from 'lucide-react'
+import {
+  KnowledgeSphere,
+  buildKnowledgeSphereData,
+} from '@/components/dashboard/knowledge-sphere'
+import type {
+  ChapterKnowledgeInput,
+  McqKnowledgeInput,
+  FlashcardKnowledgeInput,
+  ReaderKnowledgeInput,
+} from '@/components/dashboard/knowledge-sphere'
+
+interface FSRSCard {
+  id: string
+  topic: string
+  chapter: string
+  dueLabel: string
+  retention: number
+  yield: number
+  isOverdue: boolean
+  href?: string
+}
+
+interface ChapterStat {
+  chapter: string
+  accuracy: number
+  href?: string
+}
+
+interface HeatmapDay {
+  date: string
+  count: number
+}
+
+interface ActivityItem {
+  id: string
+  timeAgo: string
+  action: string
+  detail: string
+}
+
+interface StudyCockpitPanelsProps {
+  sphereChapters: ChapterKnowledgeInput[]
+  sphereMcqStats: McqKnowledgeInput[]
+  sphereFlashcardStats: FlashcardKnowledgeInput[]
+  sphereReaderStats: ReaderKnowledgeInput[]
+  fsrsQueue: FSRSCard[]
+  chapterStats: ChapterStat[]
+  heatmapDays: HeatmapDay[]
+  activityFeed: ActivityItem[]
+  onStartReview?: () => void
+}
+
+const FALLBACK_PANEL_PROPS: Omit<StudyCockpitPanelsProps, 'onStartReview'> & {
+  onStartReview?: () => void
+} = {
+  sphereChapters: [],
+  sphereMcqStats: [],
+  sphereFlashcardStats: [],
+  sphereReaderStats: [],
+  fsrsQueue: [],
+  chapterStats: [],
+  heatmapDays: [],
+  activityFeed: [],
+  onStartReview: undefined,
+}
+
+function YieldDots({ value }: { value: number }) {
+  const clamped = Math.max(0, Math.min(5, value))
+
+  return (
+    <div className="flex gap-0.5" dir="ltr" aria-label={`بازده ${clamped} از 5`}>
+      {Array.from({ length: 5 }, (_, index) => (
+        <span
+          key={index}
+          className={`h-2 w-2 rounded-full ${index < clamped ? 'bg-[var(--accent)]' : 'border border-[var(--text-muted)] bg-transparent'}`}
+        />
+      ))}
+    </div>
+  )
+}
+
+function DueChip({ label, isOverdue }: { label: string; isOverdue: boolean }) {
+  const className = isOverdue
+    ? 'bg-red-100 text-red-700'
+    : label === 'امروز' || label === 'سررسید'
+      ? 'bg-amber-100 text-amber-700'
+      : 'bg-[var(--ring-bg)] text-[var(--text-secondary)]'
+
+  return <span className={`rounded px-2 py-0.5 text-xs font-medium ${className}`}>{label}</span>
+}
+
+function FsrsQueuePanel({ cards, onStartReview }: { cards: FSRSCard[]; onStartReview?: () => void }) {
+  const empty = cards.length === 0
+
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+      <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">صف مرور FSRS</h3>
+
+      {empty ? (
+        <div className="flex min-h-[220px] flex-col items-center justify-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--ring-bg)]">
+            <Check className="h-6 w-6 text-[var(--accent)]" />
+          </div>
+          <p className="text-sm text-[var(--text-muted)]">صف مرور فعلا خالی است.</p>
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {cards.map((card) => {
+            const row = (
+              <>
+                <YieldDots value={card.yield} />
+                <div className="min-w-0 flex-1">
+                  <div dir="ltr" className="truncate text-sm text-[var(--text-primary)]">{card.topic}</div>
+                  <div className="text-xs text-[var(--text-muted)]">{card.chapter}</div>
+                </div>
+                <DueChip label={card.dueLabel} isOverdue={card.isOverdue} />
+                <span dir="ltr" className="w-11 text-left text-sm font-mono text-[var(--text-secondary)]">{card.retention}%</span>
+              </>
+            )
+
+            return card.href ? (
+              <Link
+                key={card.id}
+                href={card.href}
+                className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 transition hover:bg-[var(--bg-card-hover)]"
+              >
+                {row}
+              </Link>
+            ) : (
+              <div key={card.id} className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2">
+                {row}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <button
+        onClick={onStartReview}
+        disabled={empty}
+        className={`mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium ${
+          empty ? 'cursor-not-allowed bg-[var(--ring-bg)] text-[var(--text-muted)]' : 'text-white hover:opacity-90'
+        }`}
+        style={empty ? undefined : { background: 'var(--accent)' }}
+      >
+        <Play className="h-4 w-4" />
+        <span>شروع مرور</span>
+      </button>
+    </div>
+  )
+}
+
+function McqChart({ stats }: { stats: ChapterStat[] }) {
+  const sorted = [...stats].sort((a, b) => b.accuracy - a.accuracy)
+
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+      <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">عملکرد MCQ</h3>
+      <div className="space-y-3">
+        {sorted.length === 0 ? (
+          <div className="text-sm text-[var(--text-muted)]">داده‌ای برای نمایش وجود ندارد.</div>
+        ) : (
+          sorted.map((item) => {
+            const row = (
+              <>
+                <div className="mb-1 flex items-center justify-between gap-3 text-xs">
+                  <span className="text-[var(--text-secondary)]">{item.chapter}</span>
+                  <span dir="ltr" className="font-mono text-[var(--text-primary)]">{item.accuracy}%</span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-[var(--ring-bg)]">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.max(0, Math.min(100, item.accuracy))}%`,
+                      background: item.accuracy >= 70 ? 'var(--accent)' : 'var(--accent-red)',
+                    }}
+                  />
+                </div>
+              </>
+            )
+
+            return item.href ? (
+              <Link key={item.chapter} href={item.href} className="block rounded-lg p-1 transition hover:bg-[var(--bg-card-hover)]">
+                {row}
+              </Link>
+            ) : (
+              <div key={item.chapter}>{row}</div>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
+
+function StudyHeatmap({ days }: { days: HeatmapDay[] }) {
+  const weeks = Array.from({ length: 5 }, (_, index) => days.slice(index * 7, (index + 1) * 7))
+  const labels = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج']
+
+  const cellClass = (count: number) => {
+    if (count === 0) return 'bg-[var(--ring-bg)]'
+    if (count <= 2) return 'bg-teal-100'
+    if (count <= 4) return 'bg-teal-300'
+    return 'bg-teal-500'
+  }
+
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+      <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">نقشه فعالیت</h3>
+      <div className="grid grid-cols-7 gap-1 mb-1">
+        {labels.map((label) => (
+          <div key={label} className="flex min-h-[20px] items-center justify-center text-[10px] text-[var(--text-muted)]">
+            {label}
+          </div>
+        ))}
+      </div>
+      <div className="space-y-1">
+        {weeks.map((week, weekIndex) => (
+          <div key={weekIndex} className="grid grid-cols-7 gap-1">
+            {week.map((day, dayIndex) => (
+              <div key={`${weekIndex}-${dayIndex}`} className={`min-h-[32px] rounded-md ${cellClass(day.count)}`} title={`${day.date}: ${day.count}`} />
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 flex items-center justify-end gap-1 text-[10px] text-[var(--text-muted)]">
+        <span>کم</span>
+        <div className="h-3 w-3 rounded-sm bg-[var(--ring-bg)]" />
+        <div className="h-3 w-3 rounded-sm bg-teal-100" />
+        <div className="h-3 w-3 rounded-sm bg-teal-300" />
+        <div className="h-3 w-3 rounded-sm bg-teal-500" />
+        <span>زیاد</span>
+      </div>
+    </div>
+  )
+}
+
+function ActivityFeed({ items }: { items: ActivityItem[] }) {
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4">
+      <h3 className="mb-3 text-sm font-semibold text-[var(--text-primary)]">فعالیت اخیر</h3>
+      <div className="space-y-0">
+        {items.length === 0 ? (
+          <div className="text-sm text-[var(--text-muted)]">فعالیتی ثبت نشده است.</div>
+        ) : (
+          items.map((item, index) => (
+            <div key={item.id} className="flex gap-3 py-2">
+              <div className="flex flex-col items-center">
+                <div className="h-2 w-2 rounded-full bg-[var(--accent)]" />
+                {index < items.length - 1 ? <div className="mt-1 w-0.5 flex-1 bg-[var(--accent)]" /> : null}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="mb-0.5 text-xs text-[var(--text-muted)]">{item.timeAgo}</div>
+                <div className="text-sm text-[var(--text-primary)]">{item.action}</div>
+                <div dir="ltr" className="mt-0.5 text-xs font-mono text-[var(--text-secondary)]">{item.detail}</div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function StudyCockpitPanels(props: Partial<StudyCockpitPanelsProps> = {}) {
+  const {
+    sphereChapters,
+    sphereMcqStats,
+    sphereFlashcardStats,
+    sphereReaderStats,
+    fsrsQueue,
+    chapterStats,
+    heatmapDays,
+    activityFeed,
+    onStartReview,
+  } = { ...FALLBACK_PANEL_PROPS, ...props }
+
+  const sphereData = useMemo(
+    () =>
+      buildKnowledgeSphereData({
+        chapters: sphereChapters,
+        mcqStats: sphereMcqStats,
+        flashcardStats: sphereFlashcardStats,
+        readerStats: sphereReaderStats,
+        includeTopicNodes: false,
+        includeUnknownNodes: true,
+        routes: {
+          openReader: (node) => `/library/chapter/${node.chapterId}`,
+          startMcq: (node) => `/qbank?chapter=${node.chapterId}`,
+          reviewFlashcards: (node) => `/flashcards/review?chapter=${node.chapterId}`,
+          reviewWrongMcqs: (node) => `/qbank/wrong?chapter=${node.chapterId}`,
+        },
+      }),
+    [sphereChapters, sphereMcqStats, sphereFlashcardStats, sphereReaderStats],
+  )
+
+  return (
+    <div className="space-y-4" dir="rtl">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <FsrsQueuePanel cards={fsrsQueue} onStartReview={onStartReview} />
+        <KnowledgeSphere data={sphereData} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <McqChart stats={chapterStats} />
+        <StudyHeatmap days={heatmapDays} />
+        <ActivityFeed items={activityFeed} />
+      </div>
+    </div>
+  )
+}
+
+export default StudyCockpitPanels

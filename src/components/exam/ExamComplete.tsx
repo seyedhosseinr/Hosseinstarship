@@ -121,7 +121,7 @@ export default function ExamComplete({
           <HBtn
             icon={<Home style={{ width: 13, height: 13 }} />}
             label={"\u062E\u0627\u0646\u0647"}
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/dashboard")}
           />
         </div>
       </header>

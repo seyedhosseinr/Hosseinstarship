@@ -11,15 +11,21 @@ import type {
   McqKnowledgeInput,
   FlashcardKnowledgeInput,
   ReaderKnowledgeInput,
+  KnowledgeSphereData,
 } from '@/components/dashboard/knowledge-sphere'
+import { DashboardWidgetBoundary } from './DashboardWidgetBoundary'
 
 interface FSRSCard {
   id: string
   topic: string
   chapter: string
   dueLabel: string
-  retention: number
-  yield: number
+  /** Real FSRS retrievability in percent (0–100), or null if unavailable. */
+  retention: number | null
+  hasRetentionData: boolean
+  /** No real FSRS yield metric exists; always null. */
+  yield: number | null
+  hasYieldData: boolean
   isOverdue: boolean
   href?: string
 }
@@ -110,9 +116,15 @@ function qbankHref(chapterId: string | number | null | undefined) {
   return hrefWithQuery('/qbank', { chapter: chapterFilterValue(chapterId) })
 }
 
-function YieldDots({ value }: { value: number }) {
+function YieldDots({ value, hasData }: { value: number | null; hasData: boolean }) {
+  if (!hasData || value === null) {
+    return (
+      <span className="text-[10px] text-[var(--text-muted)] leading-none" title="بازدهی FSRS ثبت نشده">
+        بازدهی ثبت نشده
+      </span>
+    )
+  }
   const clamped = Math.max(0, Math.min(5, value))
-
   return (
     <div className="flex gap-0.5" dir="ltr" aria-label={`بازده ${clamped} از 5`}>
       {Array.from({ length: 5 }, (_, index) => (
@@ -153,13 +165,21 @@ function FsrsQueuePanel({ cards, onStartReview }: { cards: FSRSCard[]; onStartRe
         <div className="space-y-1">
           {cards.map((card) => (
             <a key={card.id} href={card.href ?? '/flashcards/review'} className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2 transition hover:bg-[var(--bg-card-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]">
-              <YieldDots value={card.yield} />
+              <YieldDots value={card.yield} hasData={card.hasYieldData} />
               <div className="min-w-0 flex-1">
                 <div dir="ltr" className="truncate text-sm text-[var(--text-primary)]">{card.topic}</div>
                 <div className="text-xs text-[var(--text-muted)]">{card.chapter}</div>
               </div>
               <DueChip label={card.dueLabel} isOverdue={card.isOverdue} />
-              <span dir="ltr" className="w-11 text-left text-sm font-mono text-[var(--text-secondary)]">{card.retention}%</span>
+              {card.hasRetentionData && card.retention !== null ? (
+                <span dir="ltr" className="w-16 shrink-0 text-left text-sm font-mono text-[var(--text-secondary)]">
+                  {card.retention}%
+                </span>
+              ) : (
+                <span className="w-16 shrink-0 text-left text-[10px] text-[var(--text-muted)]" title="داده FSRS موجود نیست">
+                  داده FSRS موجود نیست
+                </span>
+              )}
             </a>
           ))}
         </div>
@@ -320,13 +340,13 @@ export function StudyCockpitPanels(props: Partial<StudyCockpitPanelsProps> = {})
     onStartReview,
   } = { ...FALLBACK_PANEL_PROPS, ...props }
 
-  const sphereData = useMemo(
-    () =>
-      buildKnowledgeSphereData({
-        chapters: sphereChapters,
-        mcqStats: sphereMcqStats,
-        flashcardStats: sphereFlashcardStats,
-        readerStats: sphereReaderStats,
+  const sphereData = useMemo<KnowledgeSphereData>(() => {
+    try {
+      return buildKnowledgeSphereData({
+        chapters: sphereChapters ?? [],
+        mcqStats: sphereMcqStats ?? [],
+        flashcardStats: sphereFlashcardStats ?? [],
+        readerStats: sphereReaderStats ?? [],
         includeTopicNodes: false,
         includeUnknownNodes: true,
         routes: {
@@ -335,21 +355,34 @@ export function StudyCockpitPanels(props: Partial<StudyCockpitPanelsProps> = {})
           reviewFlashcards: (node) => hrefWithQuery('/flashcards/review', { chapter: extractChapterNo(node.chapterId)?.toString() ?? chapterFilterValue(node.chapterId) }),
           reviewWrongMcqs: (node) => hrefWithQuery('/qbank', { chapter: chapterFilterValue(node.chapterId), mode: 'wrong' }),
         },
-      }),
-    [sphereChapters, sphereMcqStats, sphereFlashcardStats, sphereReaderStats],
-  )
+      })
+    } catch (err) {
+      console.error('[Dashboard] KnowledgeSphere build error:', err instanceof Error ? err.message : err)
+      return buildKnowledgeSphereData({ chapters: [] })
+    }
+  }, [sphereChapters, sphereMcqStats, sphereFlashcardStats, sphereReaderStats])
 
   return (
     <div className="space-y-4" dir="rtl">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <FsrsQueuePanel cards={fsrsQueue} onStartReview={onStartReview} />
-        <KnowledgeSphere data={sphereData} />
+        <DashboardWidgetBoundary name="FsrsQueuePanel">
+          <FsrsQueuePanel cards={fsrsQueue} onStartReview={onStartReview} />
+        </DashboardWidgetBoundary>
+        <DashboardWidgetBoundary name="KnowledgeSphere">
+          <KnowledgeSphere data={sphereData} />
+        </DashboardWidgetBoundary>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <McqChart stats={chapterStats} />
-        <StudyHeatmap days={heatmapDays} />
-        <ActivityFeed items={activityFeed} />
+        <DashboardWidgetBoundary name="McqChart">
+          <McqChart stats={chapterStats} />
+        </DashboardWidgetBoundary>
+        <DashboardWidgetBoundary name="StudyHeatmap">
+          <StudyHeatmap days={heatmapDays} />
+        </DashboardWidgetBoundary>
+        <DashboardWidgetBoundary name="ActivityFeed">
+          <ActivityFeed items={activityFeed} />
+        </DashboardWidgetBoundary>
       </div>
     </div>
   )

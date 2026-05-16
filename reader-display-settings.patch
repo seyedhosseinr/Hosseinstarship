@@ -1,0 +1,859 @@
+diff --git a/src/components/library-v2/ChapterReaderV2.tsx b/src/components/library-v2/ChapterReaderV2.tsx
+index 5032fa3..62cf0ea 100644
+--- a/src/components/library-v2/ChapterReaderV2.tsx
++++ b/src/components/library-v2/ChapterReaderV2.tsx
+@@ -12,12 +12,10 @@ import {
+   EyeOff,
+   Maximize2,
+   Minimize2,
+-  Minus,
+   MoreHorizontal,
+   NotebookPen,
+   PanelLeft,
+   Pen,
+-  Plus,
+   StickyNote,
+   Trash2,
+   Undo2,
+@@ -28,7 +26,7 @@ import type { ChapterStatus } from "@/lib/library/progress";
+ import type { ReaderAnnotation, ReaderSelectionPayload } from "@/hooks/useReaderAnnotations";
+ import { useReaderAnnotations } from "@/hooks/useReaderAnnotations";
+ import { useAutoHighlight } from "@/hooks/useAutoHighlight";
+-import { useReaderSettings } from "@/hooks/useReaderSettings";
++import { getReaderTypefaceCss, useReaderSettings } from "@/hooks/useReaderSettings";
+ import { useReaderPenSelection } from "@/hooks/useReaderPenSelection";
+ import { usePalmBeforePenGuard } from "@/hooks/usePalmBeforePenGuard";
+ import { useReaderSelectionWatcher } from "@/hooks/useReaderSelectionWatcher";
+@@ -50,6 +48,7 @@ import { MeasureColumn } from "./MeasureColumn";
+ import { SegmentRenderer } from "./SegmentRenderer";
+ import { StatusBadge } from "./StatusBadge";
+ import { ReaderReferenceRail } from "./ReaderReferenceRail";
++import { ReaderDisplaySettings } from "./ReaderDisplaySettings";
+ import { MediaRefProvider } from "@/components/starship-media/MediaRefProvider";
+ 
+ const SelectionPopup = dynamic(
+@@ -141,9 +140,9 @@ export function ChapterReaderV2({
+   const [penTool, setPenTool] = useState<DrawTool>("pen");
+   const drawingLayerRef = useRef<DrawingLayerHandle>(null);
+ 
+-  // ── Reader AA controls ──
++  // ── Reading display controls ──
+   const { settings: readerSettings, update: updateReaderSettings } = useReaderSettings();
+-  const [fontSizeOpen, setFontSizeOpen] = useState(false);
++  const [readerSettingsOpen, setReaderSettingsOpen] = useState(false);
+   const toolbarRef = useRef<HTMLDivElement>(null);
+ 
+   // ── Toolbar visibility: manual collapse + scroll-aware auto-hide ──
+@@ -194,15 +193,15 @@ export function ChapterReaderV2({
+ 
+   const toolbarCollapsed = toolbarPinnedCollapsed || !toolbarVisibleByScroll;
+ 
+-  // Close font-size popover on Escape (capture phase) or pointerdown outside toolbar
++  // Close reading settings popover on Escape or pointerdown outside toolbar/panel.
+   useEffect(() => {
+-    if (!fontSizeOpen) return;
++    if (!readerSettingsOpen) return;
+     const onKey = (e: KeyboardEvent) => {
+-      if (e.key === "Escape") { e.stopPropagation(); setFontSizeOpen(false); }
++      if (e.key === "Escape") { e.stopPropagation(); setReaderSettingsOpen(false); }
+     };
+     const onPointerDown = (e: PointerEvent) => {
+       if (toolbarRef.current && !toolbarRef.current.contains(e.target as Node)) {
+-        setFontSizeOpen(false);
++        setReaderSettingsOpen(false);
+       }
+     };
+     document.addEventListener("keydown", onKey, true);
+@@ -211,7 +210,7 @@ export function ChapterReaderV2({
+       document.removeEventListener("keydown", onKey, true);
+       document.removeEventListener("pointerdown", onPointerDown);
+     };
+-  }, [fontSizeOpen]);
++  }, [readerSettingsOpen]);
+ 
+   const { annotations, addAnnotation, removeAnnotation, annotationCountByFrameId } =
+     useReaderAnnotations(`ch-${chapter.chapterNo}`, chapter.chapterNo);
+@@ -446,21 +445,21 @@ export function ChapterReaderV2({
+                 <Pen className="h-4 w-4" />
+               </button>
+ 
+-              {/* AA — text size control */}
++              {/* Reading display settings */}
+               <button
+                 type="button"
+-                onClick={() => setFontSizeOpen((v) => !v)}
+-                title="Text size"
+-                aria-label="Text size"
+-                aria-pressed={fontSizeOpen}
++                onClick={() => setReaderSettingsOpen((v) => !v)}
++                title="تنظیمات خواندن"
++                aria-label="تنظیمات خواندن"
++                aria-pressed={readerSettingsOpen}
+                 className={cn(
+                   "inline-flex h-9 items-center justify-center rounded-full px-2.5 transition-colors",
+-                  fontSizeOpen
++                  readerSettingsOpen
+                     ? "bg-lib-accent-soft text-lib-accent"
+                     : "text-lib-text-secondary hover:bg-lib-hover",
+                 )}
+               >
+-                <span className="select-none text-[11px] font-bold leading-none tracking-tight">AA</span>
++                <span className="select-none text-[11px] font-bold leading-none tracking-tight">Aa</span>
+               </button>
+ 
+               <div className="mx-1 h-5 w-px bg-lib-border/55" />
+@@ -476,89 +475,13 @@ export function ChapterReaderV2({
+               </button>
+             </div>
+ 
+-            {/* ── Font-size popover pill — visible when AA button is active ── */}
+-            {fontSizeOpen && (
+-              <div className="pointer-events-auto flex items-center rounded-full border border-lib-border/55 bg-lib-glass px-0.5 py-1 shadow-[0_4px_24px_-8px_color-mix(in_oklab,hsl(var(--foreground))_18%,transparent)] backdrop-blur-xl">
+-                {/* Decrease */}
+-                <button
+-                  type="button"
+-                  onClick={() => updateReaderSettings({ fontSize: Math.max(13, readerSettings.fontSize - 1) })}
+-                  disabled={readerSettings.fontSize <= 13}
+-                  aria-label="Smaller text"
+-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover disabled:cursor-not-allowed disabled:opacity-30"
+-                >
+-                  <Minus className="h-3.5 w-3.5" />
+-                </button>
+-
+-                {/* AA label */}
+-                <div className="flex min-w-[56px] select-none flex-col items-center gap-[3px] px-1.5">
+-                  <div className="flex items-end gap-0.5 leading-none">
+-                    <span className="text-[9px] font-bold text-lib-text-secondary">A</span>
+-                    <span className="text-[13px] font-bold text-lib-text">A</span>
+-                  </div>
+-                  <div className="font-mono text-[10px] tabular-nums text-lib-text-muted">
+-                    {readerSettings.fontSize}px
+-                  </div>
+-                </div>
+-
+-                {/* Increase */}
+-                <button
+-                  type="button"
+-                  onClick={() => updateReaderSettings({ fontSize: Math.min(24, readerSettings.fontSize + 1) })}
+-                  disabled={readerSettings.fontSize >= 24}
+-                  aria-label="Larger text"
+-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover disabled:cursor-not-allowed disabled:opacity-30"
+-                >
+-                  <Plus className="h-3.5 w-3.5" />
+-                </button>
+-
+-                <div className="mx-1 h-4 w-px bg-lib-border/55" />
+-
+-                <button
+-                  type="button"
+-                  onClick={() => updateReaderSettings({ lineHeight: Math.max(1.4, Number((readerSettings.lineHeight - 0.1).toFixed(1))) })}
+-                  aria-label="Tighter line spacing"
+-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover disabled:cursor-not-allowed disabled:opacity-30"
+-                  disabled={readerSettings.lineHeight <= 1.4}
+-                >
+-                  <Minus className="h-3.5 w-3.5" />
+-                </button>
+-                <span className="min-w-[48px] text-center text-[10px] font-medium text-lib-text-muted">
+-                  Line {readerSettings.lineHeight.toFixed(1)}
+-                </span>
+-                <button
+-                  type="button"
+-                  onClick={() => updateReaderSettings({ lineHeight: Math.min(2.2, Number((readerSettings.lineHeight + 0.1).toFixed(1))) })}
+-                  aria-label="Looser line spacing"
+-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover disabled:cursor-not-allowed disabled:opacity-30"
+-                  disabled={readerSettings.lineHeight >= 2.2}
+-                >
+-                  <Plus className="h-3.5 w-3.5" />
+-                </button>
+-
+-                <div className="mx-1 h-4 w-px bg-lib-border/55" />
+-
+-                <button
+-                  type="button"
+-                  onClick={() => updateReaderSettings({ maxWidth: Math.max(540, readerSettings.maxWidth - 60) })}
+-                  aria-label="Narrower line width"
+-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover disabled:cursor-not-allowed disabled:opacity-30"
+-                  disabled={readerSettings.maxWidth <= 540}
+-                >
+-                  <Minus className="h-3.5 w-3.5" />
+-                </button>
+-                <span className="min-w-[52px] text-center text-[10px] font-medium text-lib-text-muted">
+-                  Width {readerSettings.maxWidth}
+-                </span>
+-                <button
+-                  type="button"
+-                  onClick={() => updateReaderSettings({ maxWidth: Math.min(900, readerSettings.maxWidth + 60) })}
+-                  aria-label="Wider line width"
+-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover disabled:cursor-not-allowed disabled:opacity-30"
+-                  disabled={readerSettings.maxWidth >= 900}
+-                >
+-                  <Plus className="h-3.5 w-3.5" />
+-                </button>
++            {/* ── Reading settings panel ── */}
++            {readerSettingsOpen && (
++              <div className="pointer-events-auto fixed inset-x-0 top-16 z-50 flex justify-center px-3">
++                <ReaderDisplaySettings
++                  settings={readerSettings}
++                  onChange={updateReaderSettings}
++                />
+               </div>
+             )}
+ 
+@@ -756,6 +679,7 @@ export function ChapterReaderV2({
+                 "--reader-font-scale": String(readerSettings.fontSize / 17),
+                 "--reader-line-height": String(readerSettings.lineHeight),
+                 "--reader-prose-w": `${readerSettings.maxWidth}px`,
++                fontFamily: getReaderTypefaceCss(readerSettings.typeface),
+               } as React.CSSProperties}
+             >
+               <MediaRefProvider chapterNo={chapter.chapterNo}>
+diff --git a/src/components/library-v2/NotePageV2.tsx b/src/components/library-v2/NotePageV2.tsx
+index 30c58da..5223260 100644
+--- a/src/components/library-v2/NotePageV2.tsx
++++ b/src/components/library-v2/NotePageV2.tsx
+@@ -15,12 +15,10 @@ import {
+   Layers,
+   Maximize2,
+   Minimize2,
+-  Minus,
+   MoreHorizontal,
+   NotebookPen,
+   PanelLeft,
+   PencilLine,
+-  Plus,
+   StickyNote,
+   Target,
+   Zap,
+@@ -37,7 +35,7 @@ import { useAutoHighlight } from "@/hooks/useAutoHighlight";
+ import { useReaderPenSelection } from "@/hooks/useReaderPenSelection";
+ import { usePalmBeforePenGuard } from "@/hooks/usePalmBeforePenGuard";
+ import { useReaderSelectionWatcher } from "@/hooks/useReaderSelectionWatcher";
+-import { useReaderSettings } from "@/hooks/useReaderSettings";
++import { getReaderTypefaceCss, useReaderSettings } from "@/hooks/useReaderSettings";
+ import { useMissedQuestionIds } from "@/hooks/useMissedQuestionIds";
+ import { useStatusMachine } from "@/hooks/useStatusMachine";
+ import { useFocusMode } from "@/hooks/useFocusMode";
+@@ -76,6 +74,7 @@ import { ReaderHighlightLayer } from "./ReaderHighlightLayer";
+ import { NoteMarkerLayer } from "./NoteMarkerLayer";
+ import { SegmentRenderer } from "./SegmentRenderer";
+ import { StatusBadge } from "./StatusBadge";
++import { ReaderDisplaySettings } from "./ReaderDisplaySettings";
+ import { MediaRefProvider } from "@/components/starship-media/MediaRefProvider";
+ 
+ const QuickCardEditor = dynamic(
+@@ -132,6 +131,7 @@ export function NotePageV2({
+ }: NotePageV2Props) {
+   const shellRef = useRef<HTMLDivElement>(null);
+   const scrollRef = useRef<HTMLDivElement>(null);
++  const toolbarRef = useRef<HTMLDivElement>(null);
+ 
+   // NotePageV2 has no pen/draw mode — always-on pen-selection is safe.
+   useReaderPenSelection({
+@@ -159,6 +159,7 @@ export function NotePageV2({
+   const [activeTab, setActiveTab] = useState<StudyTab>("note");
+   const [highlightsVisible, setHighlightsVisible] = useState(true);
+   const [filterTrayOpen, setFilterTrayOpen] = useState(false);
++  const [readerSettingsOpen, setReaderSettingsOpen] = useState(false);
+   const [topBarCollapsed, setTopBarCollapsed] = useState(false);
+   const [isEditorOpen, setIsEditorOpen] = useState(false);
+   const [editorInitial, setEditorInitial] = useState({ front: "", back: "" });
+@@ -213,6 +214,24 @@ export function NotePageV2({
+     };
+   }, []);
+ 
++  useEffect(() => {
++    if (!readerSettingsOpen) return;
++    const onKey = (e: KeyboardEvent) => {
++      if (e.key === "Escape") { e.stopPropagation(); setReaderSettingsOpen(false); }
++    };
++    const onPointerDown = (e: PointerEvent) => {
++      if (toolbarRef.current && !toolbarRef.current.contains(e.target as Node)) {
++        setReaderSettingsOpen(false);
++      }
++    };
++    document.addEventListener("keydown", onKey, true);
++    document.addEventListener("pointerdown", onPointerDown);
++    return () => {
++      document.removeEventListener("keydown", onKey, true);
++      document.removeEventListener("pointerdown", onPointerDown);
++    };
++  }, [readerSettingsOpen]);
++
+   const { annotations, addAnnotation, removeAnnotation, annotationCountByFrameId } =
+     useReaderAnnotations(note.meta.docId, note.meta.chapterNo);
+ 
+@@ -436,6 +455,7 @@ export function NotePageV2({
+             • Manual collapse → small pill, persists in localStorage.
+             • Scroll auto-hide → bar fades on scroll-down, returns on scroll-up. */}
+       <div
++        ref={toolbarRef}
+         className={cn(
+           "pointer-events-none fixed inset-x-0 z-40 flex justify-center px-3",
+           "transition-[top,opacity,transform] duration-300 ease-out",
+@@ -495,7 +515,10 @@ export function NotePageV2({
+             {activeTab === "note" && (
+               <button
+                 type="button"
+-                onClick={() => setFilterTrayOpen((v) => !v)}
++                onClick={() => {
++                  setReaderSettingsOpen(false);
++                  setFilterTrayOpen((v) => !v);
++                }}
+                 title="Reading filters"
+                 className={cn(
+                   "relative inline-flex h-9 w-9 items-center justify-center rounded-full transition-colors",
+@@ -513,6 +536,27 @@ export function NotePageV2({
+               </button>
+             )}
+ 
++            {activeTab === "note" && (
++              <button
++                type="button"
++                onClick={() => {
++                  setFilterTrayOpen(false);
++                  setReaderSettingsOpen((v) => !v);
++                }}
++                title="تنظیمات خواندن"
++                aria-label="تنظیمات خواندن"
++                aria-pressed={readerSettingsOpen}
++                className={cn(
++                  "inline-flex h-9 items-center justify-center rounded-full px-2.5 transition-colors",
++                  readerSettingsOpen
++                    ? "bg-lib-accent-soft text-lib-accent"
++                    : "text-lib-text-secondary hover:bg-lib-hover",
++                )}
++              >
++                <span className="select-none text-[11px] font-bold leading-none tracking-tight">Aa</span>
++              </button>
++            )}
++
+             <div className="mx-1 h-5 w-px bg-lib-border/55" />
+ 
+             <button
+@@ -574,6 +618,15 @@ export function NotePageV2({
+             </button>
+           </div>
+         )}
++
++        {readerSettingsOpen && activeTab === "note" && !topBarCollapsed && (
++          <div className="pointer-events-auto fixed inset-x-0 top-16 z-50 flex justify-center px-3">
++            <ReaderDisplaySettings
++              settings={readerLayers}
++              onChange={updateLayer}
++            />
++          </div>
++        )}
+       </div>
+ 
+       {/* Filter tray — floating dropdown under top bar (overlay) */}
+@@ -641,71 +694,7 @@ export function NotePageV2({
+               </button>
+             )}
+ 
+-            <div className="ml-auto flex items-center gap-1 rounded-lib-sm border border-lib-border bg-lib-surface px-1">
+-              <button
+-                type="button"
+-                onClick={() => updateLayer({ fontSize: Math.max(13, readerLayers.fontSize - 1) })}
+-                className="flex h-8 w-8 items-center justify-center rounded text-lib-text-secondary hover:bg-lib-hover"
+-                aria-label="Smaller text"
+-              >
+-                <Minus className="h-3 w-3" />
+-              </button>
+-              <span className="min-w-[24px] text-center text-xs tabular-nums text-lib-text-muted">
+-                {readerLayers.fontSize}
+-              </span>
+-              <button
+-                type="button"
+-                onClick={() => updateLayer({ fontSize: Math.min(24, readerLayers.fontSize + 1) })}
+-                className="flex h-8 w-8 items-center justify-center rounded text-lib-text-secondary hover:bg-lib-hover"
+-                aria-label="Larger text"
+-              >
+-                <Plus className="h-3 w-3" />
+-              </button>
+-            </div>
+-
+-            <div className="flex items-center gap-1 rounded-lib-sm border border-lib-border bg-lib-surface px-1">
+-              <button
+-                type="button"
+-                onClick={() => updateLayer({ lineHeight: Math.max(1.4, Number((readerLayers.lineHeight - 0.1).toFixed(1))) })}
+-                className="flex h-8 w-8 items-center justify-center rounded text-lib-text-secondary hover:bg-lib-hover"
+-                aria-label="Tighter line spacing"
+-              >
+-                <Minus className="h-3 w-3" />
+-              </button>
+-              <span className="min-w-[52px] text-center text-xs tabular-nums text-lib-text-muted">
+-                Line {readerLayers.lineHeight.toFixed(1)}
+-              </span>
+-              <button
+-                type="button"
+-                onClick={() => updateLayer({ lineHeight: Math.min(2.2, Number((readerLayers.lineHeight + 0.1).toFixed(1))) })}
+-                className="flex h-8 w-8 items-center justify-center rounded text-lib-text-secondary hover:bg-lib-hover"
+-                aria-label="Looser line spacing"
+-              >
+-                <Plus className="h-3 w-3" />
+-              </button>
+-            </div>
+ 
+-            <div className="flex items-center gap-1 rounded-lib-sm border border-lib-border bg-lib-surface px-1">
+-              <button
+-                type="button"
+-                onClick={() => updateLayer({ maxWidth: Math.max(540, readerLayers.maxWidth - 60) })}
+-                className="flex h-8 w-8 items-center justify-center rounded text-lib-text-secondary hover:bg-lib-hover"
+-                aria-label="Narrower line width"
+-              >
+-                <Minus className="h-3 w-3" />
+-              </button>
+-              <span className="min-w-[60px] text-center text-xs tabular-nums text-lib-text-muted">
+-                Width {readerLayers.maxWidth}
+-              </span>
+-              <button
+-                type="button"
+-                onClick={() => updateLayer({ maxWidth: Math.min(900, readerLayers.maxWidth + 60) })}
+-                className="flex h-8 w-8 items-center justify-center rounded text-lib-text-secondary hover:bg-lib-hover"
+-                aria-label="Wider line width"
+-              >
+-                <Plus className="h-3 w-3" />
+-              </button>
+-            </div>
+           </div>
+         </div>
+       )}
+@@ -823,6 +812,7 @@ export function NotePageV2({
+                   "--reader-font-scale": String(readerLayers.fontSize / 17),
+                   "--reader-line-height": String(readerLayers.lineHeight),
+                   "--reader-prose-w": `${readerLayers.maxWidth}px`,
++                  fontFamily: getReaderTypefaceCss(readerLayers.typeface),
+                 } as React.CSSProperties}
+                 onClick={handleReaderClick}
+               >
+diff --git a/src/components/library-v2/ReaderDisplaySettings.tsx b/src/components/library-v2/ReaderDisplaySettings.tsx
+new file mode 100644
+index 0000000..3e419c9
+--- /dev/null
++++ b/src/components/library-v2/ReaderDisplaySettings.tsx
+@@ -0,0 +1,228 @@
++"use client";
++
++import type { ReactNode } from "react";
++import { Check, Minus, Monitor, Moon, Plus, Sun, Type } from "lucide-react";
++import { useTheme } from "next-themes";
++import { cn } from "@/lib/utils";
++import type { ReaderSettings, ReaderTypeface } from "@/hooks/useReaderSettings";
++
++type ThemeChoice = "light" | "dark" | "system";
++
++type ReaderDisplaySettingsProps = {
++  settings: ReaderSettings;
++  onChange: (patch: Partial<ReaderSettings>) => void;
++  className?: string;
++};
++
++const THEME_OPTIONS: Array<{ value: ThemeChoice; label: string; icon: typeof Sun }> = [
++  { value: "light", label: "روشن", icon: Sun },
++  { value: "dark", label: "تاریک", icon: Moon },
++  { value: "system", label: "خودکار", icon: Monitor },
++];
++
++const TYPEFACE_OPTIONS: Array<{ value: ReaderTypeface; label: string; hint: string }> = [
++  { value: "vazirmatn", label: "Vazirmatn", hint: "پیشنهادی فارسی" },
++  { value: "system", label: "System", hint: "هماهنگ با دستگاه" },
++  { value: "open-dyslexic", label: "OpenDyslexic", hint: "با fallback امن" },
++];
++
++const LINE_WIDTH_STEPS = [540, 660, 720, 840, 900] as const;
++
++function stepValue(current: number, steps: readonly number[], direction: -1 | 1) {
++  const sorted = [...steps].sort((a, b) => a - b);
++  if (direction < 0) {
++    for (let i = sorted.length - 1; i >= 0; i -= 1) {
++      if (sorted[i] < current) return sorted[i];
++    }
++    return sorted[0];
++  }
++
++  for (const step of sorted) {
++    if (step > current) return step;
++  }
++  return sorted[sorted.length - 1];
++}
++
++function widthLabel(width: number) {
++  if (width <= 560) return "باریک";
++  if (width <= 680) return "نسبتاً باریک";
++  if (width <= 760) return "متوسط";
++  if (width <= 860) return "عریض";
++  return "خیلی عریض";
++}
++
++function typefaceLabel(typeface: ReaderTypeface) {
++  return TYPEFACE_OPTIONS.find((item) => item.value === typeface)?.label ?? "Vazirmatn";
++}
++
++function cycleTypeface(current: ReaderTypeface) {
++  const index = TYPEFACE_OPTIONS.findIndex((item) => item.value === current);
++  return TYPEFACE_OPTIONS[(index + 1) % TYPEFACE_OPTIONS.length].value;
++}
++
++function Stepper({
++  label,
++  value,
++  valueLabel,
++  icon,
++  minusLabel,
++  plusLabel,
++  canDecrease,
++  canIncrease,
++  onDecrease,
++  onIncrease,
++}: {
++  label: string;
++  value: string;
++  valueLabel?: string;
++  icon: ReactNode;
++  minusLabel: string;
++  plusLabel: string;
++  canDecrease: boolean;
++  canIncrease: boolean;
++  onDecrease: () => void;
++  onIncrease: () => void;
++}) {
++  return (
++    <div className="flex h-[55px] items-center gap-3 border-t border-lib-border/55 px-4 first:border-t-0">
++      <div className="flex h-9 w-9 shrink-0 items-center justify-center text-lib-text-muted">
++        {icon}
++      </div>
++      <div className="min-w-0 flex-1">
++        <div className="flex items-center gap-2 text-sm font-medium text-lib-text">
++          <span>{label}</span>
++          <span className="text-xs tabular-nums text-lib-text-muted">{value}</span>
++        </div>
++        {valueLabel && <div className="mt-0.5 text-[11px] text-lib-text-muted">{valueLabel}</div>}
++      </div>
++      <div className="flex overflow-hidden rounded-[10px] bg-lib-hover/80 ring-1 ring-lib-border/45">
++        <button
++          type="button"
++          onClick={onDecrease}
++          disabled={!canDecrease}
++          aria-label={minusLabel}
++          className="flex h-9 w-12 items-center justify-center text-lib-text-secondary transition hover:bg-lib-surface disabled:cursor-not-allowed disabled:opacity-35"
++        >
++          <Minus className="h-4 w-4" />
++        </button>
++        <div className="h-9 w-px bg-lib-border/55" />
++        <button
++          type="button"
++          onClick={onIncrease}
++          disabled={!canIncrease}
++          aria-label={plusLabel}
++          className="flex h-9 w-12 items-center justify-center text-lib-text-secondary transition hover:bg-lib-surface disabled:cursor-not-allowed disabled:opacity-35"
++        >
++          <Plus className="h-4 w-4" />
++        </button>
++      </div>
++    </div>
++  );
++}
++
++export function ReaderDisplaySettings({ settings, onChange, className }: ReaderDisplaySettingsProps) {
++  const { theme, setTheme } = useTheme();
++  const selectedTheme = (theme ?? "system") as ThemeChoice;
++
++  return (
++    <section
++      dir="rtl"
++      aria-label="تنظیمات خواندن"
++      className={cn(
++        "w-[min(405px,calc(100vw-1.5rem))] overflow-hidden rounded-[18px] border border-lib-border/70 bg-lib-surface/98 p-3 text-lib-text shadow-[0_18px_55px_-28px_rgba(0,0,0,0.45)] backdrop-blur-xl",
++        className,
++      )}
++    >
++      <div className="px-1 pb-2 text-[13px] font-semibold text-lib-text-muted">حالت نمایش</div>
++      <div className="grid grid-cols-3 gap-2 pb-4">
++        {THEME_OPTIONS.map((option) => {
++          const Icon = option.icon;
++          const active = selectedTheme === option.value;
++          return (
++            <button
++              key={option.value}
++              type="button"
++              onClick={() => setTheme(option.value)}
++              aria-pressed={active}
++              className={cn(
++                "relative flex h-[82px] flex-col items-center justify-center gap-2 rounded-[12px] border bg-lib-bg text-sm transition",
++                active
++                  ? "border-lib-accent bg-lib-accent-soft text-lib-accent shadow-[0_0_0_1px_color-mix(in_oklab,hsl(var(--primary))_36%,transparent)]"
++                  : "border-lib-border/60 text-lib-text-secondary hover:bg-lib-hover",
++              )}
++            >
++              <Icon className="h-7 w-7" />
++              <span>{option.label}</span>
++              {active && (
++                <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full bg-lib-accent text-lib-accent-fg">
++                  <Check className="h-3 w-3" />
++                </span>
++              )}
++            </button>
++          );
++        })}
++      </div>
++
++      <div className="px-1 pb-2 text-[13px] font-semibold text-lib-text-muted">سبک متن</div>
++      <div className="overflow-hidden rounded-[12px] border border-lib-border/60 bg-lib-bg/80">
++        <button
++          type="button"
++          onClick={() => onChange({ typeface: cycleTypeface(settings.typeface) })}
++          className="flex h-[58px] w-full items-center gap-3 px-4 text-right transition hover:bg-lib-hover"
++          aria-label="تغییر فونت خواندن"
++        >
++          <div className="flex h-9 w-9 shrink-0 items-center justify-center text-lib-text-muted">
++            <Type className="h-5 w-5" />
++          </div>
++          <div className="min-w-0 flex-1">
++            <div className="text-sm font-medium text-lib-text">فونت</div>
++            <div className="mt-0.5 text-[11px] text-lib-text-muted">
++              {TYPEFACE_OPTIONS.find((item) => item.value === settings.typeface)?.hint}
++            </div>
++          </div>
++          <div className="flex items-center gap-2 text-sm text-lib-text-secondary" dir="ltr">
++            <span>{typefaceLabel(settings.typeface)}</span>
++            <span className="text-lg text-lib-text-muted">›</span>
++          </div>
++        </button>
++
++        <Stepper
++          label="سایز متن"
++          value={`${settings.fontSize}px`}
++          icon={<span className="text-[23px] font-semibold leading-none">T</span>}
++          minusLabel="کوچک‌تر کردن متن"
++          plusLabel="بزرگ‌تر کردن متن"
++          canDecrease={settings.fontSize > 13}
++          canIncrease={settings.fontSize < 24}
++          onDecrease={() => onChange({ fontSize: settings.fontSize - 1 })}
++          onIncrease={() => onChange({ fontSize: settings.fontSize + 1 })}
++        />
++
++        <Stepper
++          label="فاصله خطوط"
++          value={settings.lineHeight.toFixed(1)}
++          icon={<span className="text-[22px] font-light leading-none">≡</span>}
++          minusLabel="کم کردن فاصله خطوط"
++          plusLabel="زیاد کردن فاصله خطوط"
++          canDecrease={settings.lineHeight > 1.4}
++          canIncrease={settings.lineHeight < 2.2}
++          onDecrease={() => onChange({ lineHeight: Number((settings.lineHeight - 0.1).toFixed(1)) })}
++          onIncrease={() => onChange({ lineHeight: Number((settings.lineHeight + 0.1).toFixed(1)) })}
++        />
++
++        <Stepper
++          label="عرض متن"
++          value={widthLabel(settings.maxWidth)}
++          valueLabel={`${settings.maxWidth}px`}
++          icon={<span className="text-[22px] leading-none">↔</span>}
++          minusLabel="کم کردن عرض متن"
++          plusLabel="زیاد کردن عرض متن"
++          canDecrease={settings.maxWidth > LINE_WIDTH_STEPS[0]}
++          canIncrease={settings.maxWidth < LINE_WIDTH_STEPS[LINE_WIDTH_STEPS.length - 1]}
++          onDecrease={() => onChange({ maxWidth: stepValue(settings.maxWidth, LINE_WIDTH_STEPS, -1) })}
++          onIncrease={() => onChange({ maxWidth: stepValue(settings.maxWidth, LINE_WIDTH_STEPS, 1) })}
++        />
++      </div>
++    </section>
++  );
++}
+diff --git a/src/hooks/useReaderSettings.ts b/src/hooks/useReaderSettings.ts
+index bedfcaa..529ea8f 100644
+--- a/src/hooks/useReaderSettings.ts
++++ b/src/hooks/useReaderSettings.ts
+@@ -1,78 +1,114 @@
+-"use client";
+-
+-import { useCallback, useEffect, useState } from "react";
+-
+-export type ReaderSettings = {
+-  fontSize: number; // px, 13–24
+-  lineHeight: number; // multiplier, 1.4–2.2
+-  maxWidth: number; // px, 540–900
+-  showHighYield: boolean;
+-  showKeyExam: boolean;
+-  showMissedQuestions: boolean;
+-};
+-
+-const STORAGE_KEY = "starship:reader-settings";
+-
+-const DEFAULTS: ReaderSettings = {
+-  fontSize: 17,
+-  lineHeight: 1.8,
+-  maxWidth: 720,
+-  showHighYield: true,
+-  showKeyExam: true,
+-  showMissedQuestions: false,
+-};
+-
+-function load(): ReaderSettings {
+-  if (typeof window === "undefined") return DEFAULTS;
+-  try {
+-    const raw = localStorage.getItem(STORAGE_KEY);
+-    if (!raw) return DEFAULTS;
+-    return { ...DEFAULTS, ...JSON.parse(raw) };
+-  } catch {
+-    return DEFAULTS;
+-  }
+-}
+-
+-function save(settings: ReaderSettings) {
+-  if (typeof window === "undefined") return;
+-  try {
+-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+-  } catch { /* ignore */ }
+-}
+-
+-export function useReaderSettings() {
+-  const [settings, setSettings] = useState<ReaderSettings>(DEFAULTS);
+-
+-  useEffect(() => {
+-    setSettings(load());
+-  }, []);
+-
+-  const update = useCallback((patch: Partial<ReaderSettings>) => {
+-    setSettings((prev) => {
+-      const next = { ...prev, ...patch };
+-      save(next);
+-      return next;
+-    });
+-  }, []);
+-
+-  const increaseFontSize = useCallback(() => {
+-    update({ fontSize: Math.min(24, settings.fontSize + 1) });
+-  }, [settings.fontSize, update]);
+-
+-  const decreaseFontSize = useCallback(() => {
+-    update({ fontSize: Math.max(13, settings.fontSize - 1) });
+-  }, [settings.fontSize, update]);
+-
+-  const resetDefaults = useCallback(() => {
+-    setSettings(DEFAULTS);
+-    save(DEFAULTS);
+-  }, []);
+-
+-  return {
+-    settings,
+-    update,
+-    increaseFontSize,
+-    decreaseFontSize,
+-    resetDefaults,
+-  };
+-}
++"use client";
++
++import { useCallback, useEffect, useState } from "react";
++
++export type ReaderTypeface = "vazirmatn" | "system" | "open-dyslexic";
++
++export type ReaderSettings = {
++  fontSize: number; // px, 13–24
++  lineHeight: number; // multiplier, 1.4–2.2
++  maxWidth: number; // px, 540–900
++  typeface: ReaderTypeface;
++  showHighYield: boolean;
++  showKeyExam: boolean;
++  showMissedQuestions: boolean;
++};
++
++const STORAGE_KEY = "starship:reader-settings";
++
++const DEFAULTS: ReaderSettings = {
++  fontSize: 17,
++  lineHeight: 1.8,
++  maxWidth: 720,
++  typeface: "vazirmatn",
++  showHighYield: true,
++  showKeyExam: true,
++  showMissedQuestions: false,
++};
++
++const TYPEFACES = new Set<ReaderTypeface>(["vazirmatn", "system", "open-dyslexic"]);
++
++function clampNumber(value: unknown, min: number, max: number, fallback: number) {
++  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
++  return Math.min(max, Math.max(min, value));
++}
++
++function normalize(settings: Partial<ReaderSettings>): ReaderSettings {
++  return {
++    ...DEFAULTS,
++    ...settings,
++    fontSize: clampNumber(settings.fontSize, 13, 24, DEFAULTS.fontSize),
++    lineHeight: clampNumber(settings.lineHeight, 1.4, 2.2, DEFAULTS.lineHeight),
++    maxWidth: clampNumber(settings.maxWidth, 540, 900, DEFAULTS.maxWidth),
++    typeface: TYPEFACES.has(settings.typeface as ReaderTypeface)
++      ? (settings.typeface as ReaderTypeface)
++      : DEFAULTS.typeface,
++  };
++}
++
++export function getReaderTypefaceCss(typeface: ReaderTypeface) {
++  switch (typeface) {
++    case "system":
++      return `"SF Pro Text", "Segoe UI", Tahoma, var(--font-vazir), "Vazirmatn", sans-serif`;
++    case "open-dyslexic":
++      return `"OpenDyslexic", "OpenDyslexic3", "Atkinson Hyperlegible", var(--font-vazir), "Vazirmatn", Tahoma, sans-serif`;
++    case "vazirmatn":
++    default:
++      return `var(--font-vazir), "Vazirmatn", Tahoma, "SF Pro Text", -apple-system, sans-serif`;
++  }
++}
++
++function load(): ReaderSettings {
++  if (typeof window === "undefined") return DEFAULTS;
++  try {
++    const raw = localStorage.getItem(STORAGE_KEY);
++    if (!raw) return DEFAULTS;
++    return normalize(JSON.parse(raw));
++  } catch {
++    return DEFAULTS;
++  }
++}
++
++function save(settings: ReaderSettings) {
++  if (typeof window === "undefined") return;
++  try {
++    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
++  } catch { /* ignore */ }
++}
++
++export function useReaderSettings() {
++  const [settings, setSettings] = useState<ReaderSettings>(DEFAULTS);
++
++  useEffect(() => {
++    setSettings(load());
++  }, []);
++
++  const update = useCallback((patch: Partial<ReaderSettings>) => {
++    setSettings((prev) => {
++      const next = normalize({ ...prev, ...patch });
++      save(next);
++      return next;
++    });
++  }, []);
++
++  const increaseFontSize = useCallback(() => {
++    update({ fontSize: Math.min(24, settings.fontSize + 1) });
++  }, [settings.fontSize, update]);
++
++  const decreaseFontSize = useCallback(() => {
++    update({ fontSize: Math.max(13, settings.fontSize - 1) });
++  }, [settings.fontSize, update]);
++
++  const resetDefaults = useCallback(() => {
++    setSettings(DEFAULTS);
++    save(DEFAULTS);
++  }, []);
++
++  return {
++    settings,
++    update,
++    increaseFontSize,
++    decreaseFontSize,
++    resetDefaults,
++  };
++}

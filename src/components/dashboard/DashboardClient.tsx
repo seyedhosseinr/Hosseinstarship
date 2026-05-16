@@ -22,6 +22,8 @@ type ReviewCard = {
   dueAt: number | null
   intervalDays: number
   isLeech: boolean
+  /** Real FSRS retrievability probability (0–1). Null for new/unreviewed cards. */
+  retrievability: number | null
 }
 
 function stripHtml(value: string) {
@@ -170,13 +172,18 @@ export default function DashboardClient() {
     fetch('/api/flashcards/review?limit=4', { cache: 'no-store' })
       .then((response) => response.json().catch(() => null))
       .then((json) => {
-        if (!cancelled && Array.isArray(json?.cards)) {
+        if (cancelled) return
+        if (Array.isArray(json?.cards)) {
           setReviewCards(json.cards)
+          console.info('[Dashboard] flashcard fetch ok, cards:', json.cards.length)
+        } else {
+          console.info('[Dashboard] flashcard fetch returned no cards array')
         }
       })
-      .catch(() => {
+      .catch((err) => {
         if (!cancelled) {
           setReviewCards([])
+          console.error('[Dashboard] flashcard fetch failed:', err instanceof Error ? err.message : err)
         }
       })
 
@@ -186,21 +193,43 @@ export default function DashboardClient() {
   }, [dashboard.dueToday])
 
   useEffect(() => {
+    try {
+      const isStandalone =
+        (typeof window !== 'undefined' && (window.navigator as { standalone?: boolean }).standalone === true) ||
+        (typeof window !== 'undefined' && window.matchMedia?.('(display-mode: standalone)').matches)
+
+      const hasSwController =
+        typeof navigator !== 'undefined' && !!navigator.serviceWorker?.controller
+
+      console.info('[Dashboard] boot', {
+        isStandalonePWA: isStandalone,
+        serviceWorkerActive: hasSwController,
+      })
+    } catch {
+      // diagnostics must never crash the app
+    }
+  }, [])
+
+  useEffect(() => {
     let cancelled = false
 
-    if (!navigator.storage?.estimate) {
-      return
-    }
+    try {
+      if (typeof navigator === 'undefined' || !navigator.storage?.estimate) {
+        return
+      }
 
-    navigator.storage.estimate()
-      .then((estimate) => {
-        if (!cancelled && estimate) {
-          const used = Math.round(((estimate.usage ?? 0) / 1024 / 1024) * 10) / 10
-          const total = Math.max(1, Math.round(((estimate.quota ?? 134_217_728) / 1024 / 1024) * 10) / 10)
-          setStorage({ used, total })
-        }
-      })
-      .catch(() => {})
+      navigator.storage.estimate()
+        .then((estimate) => {
+          if (!cancelled && estimate) {
+            const used = Math.round(((estimate.usage ?? 0) / 1024 / 1024) * 10) / 10
+            const total = Math.max(1, Math.round(((estimate.quota ?? 134_217_728) / 1024 / 1024) * 10) / 10)
+            setStorage({ used, total })
+          }
+        })
+        .catch(() => {})
+    } catch {
+      // navigator.storage unavailable in this context
+    }
 
     return () => {
       cancelled = true
@@ -229,24 +258,24 @@ export default function DashboardClient() {
   const qbankStats = dashboard.serverStats.qbankStats
   const fsrsStats = dashboard.fsrsStats
   const plannerStats = dashboard.plannerDetailedStats
-  const chapterPerformance = dashboard.serverStats.chapterPerformance ?? []
-  const detailedWeakAreas = dashboard.serverStats.detailedWeakAreas ?? []
-  const weeklyActivity = dashboard.serverStats.weeklyActivity ?? []
-  const activityFeedRows = dashboard.serverStats.activityFeed ?? []
-  const weaknessRows = dashboard.serverStats.strengthsAndWeaknesses?.weaknesses ?? []
+  const plannerAvailable = dashboard.serverStats.plannerStats.available === true
+  const plannerKpiValueText = plannerAvailable ? null : "داده پلنر موجود نیست"
+  const studyStreakDays = plannerAvailable
+    ? (plannerStats?.studyStreak ?? dashboard.streak)
+    : dashboard.streak
   const targetChapterNo = useMemo(
     () =>
       extractChapterNo(
-        detailedWeakAreas[0]?.key,
-        chapterPerformance[0]?.chapterId,
-        chapterPerformance[0]?.chapterTitle,
+        dashboard.serverStats.detailedWeakAreas[0]?.key,
+        dashboard.serverStats.chapterPerformance[0]?.chapterId,
+        dashboard.serverStats.chapterPerformance[0]?.chapterTitle,
       ),
-    [chapterPerformance, detailedWeakAreas],
+    [dashboard.serverStats.chapterPerformance, dashboard.serverStats.detailedWeakAreas],
   )
 
   const sphereChapters = useMemo<ChapterKnowledgeInput[]>(
     () =>
-      chapterPerformance
+      dashboard.serverStats.chapterPerformance
         .filter((item) => item.chapterId)
         .map((item, index) => ({
           chapterId: item.chapterId,
@@ -254,12 +283,12 @@ export default function DashboardClient() {
           titleEn: item.chapterTitle ?? undefined,
           order: extractChapterNo(item.chapterId, item.chapterTitle) ?? index + 1,
         })),
-    [chapterPerformance],
+    [dashboard.serverStats.chapterPerformance],
   )
 
   const sphereMcqStats = useMemo<McqKnowledgeInput[]>(
     () =>
-      chapterPerformance
+      dashboard.serverStats.chapterPerformance
         .filter((item) => item.chapterId && item.total > 0)
         .map((item) => ({
           chapterId: item.chapterId,
@@ -267,7 +296,7 @@ export default function DashboardClient() {
           correct: item.correct,
           wrong: Math.max(0, item.total - item.correct),
         })),
-    [chapterPerformance],
+    [dashboard.serverStats.chapterPerformance],
   )
 
   const sphereFlashcardStats = useMemo<FlashcardKnowledgeInput[]>(
@@ -300,16 +329,16 @@ export default function DashboardClient() {
   )
 
   const mcqThisWeek = useMemo(
-    () => weeklyActivity.reduce((sum, item) => sum + item.count, 0),
-    [weeklyActivity],
+    () => dashboard.serverStats.weeklyActivity.reduce((sum, item) => sum + item.count, 0),
+    [dashboard.serverStats.weeklyActivity],
   )
 
   const focusTopic = useMemo(
     () =>
-      detailedWeakAreas[0]?.label
-      || weaknessRows[0]?.key
+      dashboard.serverStats.detailedWeakAreas[0]?.label
+      || dashboard.serverStats.strengthsAndWeaknesses.weaknesses[0]?.key
       || 'مرور کارت‌های سررسید',
-    [detailedWeakAreas, weaknessRows],
+    [dashboard.serverStats.detailedWeakAreas, dashboard.serverStats.strengthsAndWeaknesses.weaknesses],
   )
 
   const fsrsQueue = useMemo(() => {
@@ -317,13 +346,21 @@ export default function DashboardClient() {
       return reviewCards.map((card) => {
         const chapterNo = extractChapterNo(card.chapterNo, card.chapterTitle)
 
+        const rawR = card.retrievability
+        const hasRetentionData = rawR !== null && Number.isFinite(rawR)
+        const retentionPercent = hasRetentionData
+          ? Math.max(0, Math.min(100, Math.round((rawR as number) * 100)))
+          : null
+
         return {
           id: card.id,
           topic: stripHtml(card.frontHtml) || 'Flashcard',
           chapter: card.chapterTitle ?? (chapterNo != null ? `فصل ${chapterNo}` : 'عمومی'),
           dueLabel: dueInLabel(card.dueAt),
-          retention: Math.max(20, Math.min(99, 100 - Math.round(card.intervalDays * 4.5))),
-          yield: card.isLeech ? 5 : Math.max(1, Math.min(5, 5 - Math.floor(card.intervalDays / 8))),
+          retention: retentionPercent,
+          hasRetentionData,
+          yield: null,
+          hasYieldData: false,
           isOverdue: !!card.dueAt && card.dueAt < Date.now(),
           href: buildHref('/flashcards/review', { chapter: chapterNo != null ? String(chapterNo) : null }),
         }
@@ -334,14 +371,18 @@ export default function DashboardClient() {
       return []
     }
 
+    const rate = fsrsStats.retentionRate
+    const hasRate = Number.isFinite(rate) && rate > 0
     return [
       {
         id: 'fsrs-summary',
         topic: 'Due FSRS Queue',
         chapter: 'همه فصل‌ها',
         dueLabel: fsrsStats.overdue > 0 ? 'سررسید' : 'امروز',
-        retention: Math.max(20, Math.min(99, Math.round(fsrsStats.retentionRate || 0))),
-        yield: fsrsStats.leechCount > 0 ? 5 : 4,
+        retention: hasRate ? Math.max(0, Math.min(100, Math.round(rate))) : null,
+        hasRetentionData: hasRate,
+        yield: null,
+        hasYieldData: false,
         isOverdue: fsrsStats.overdue > 0,
         href: '/flashcards/review',
       },
@@ -349,7 +390,7 @@ export default function DashboardClient() {
   }, [dashboard.dueToday, fsrsStats, reviewCards])
 
   const chapterStats = useMemo(() => {
-    const rows = chapterPerformance
+    const rows = dashboard.serverStats.chapterPerformance
       .slice(0, 4)
       .map((item) => ({
         chapter: item.chapterTitle || item.chapterId,
@@ -367,16 +408,16 @@ export default function DashboardClient() {
     }
 
     return []
-  }, [chapterPerformance, qbankStats])
+  }, [dashboard.serverStats.chapterPerformance, qbankStats])
 
   const heatmapDays = useMemo(
-    () => buildHeatmapDays(dashboard.monthlyActivity, weeklyActivity),
-    [dashboard.monthlyActivity, weeklyActivity],
+    () => buildHeatmapDays(dashboard.monthlyActivity, dashboard.serverStats.weeklyActivity),
+    [dashboard.monthlyActivity, dashboard.serverStats.weeklyActivity],
   )
 
   const activityFeed = useMemo(
     () =>
-      activityFeedRows.slice(0, 6).map((item) => ({
+      dashboard.serverStats.activityFeed.slice(0, 6).map((item) => ({
         id: item.id,
         type: item.type,
         timeAgo: formatRelativeLabel(item.timestamp),
@@ -397,17 +438,21 @@ export default function DashboardClient() {
             ? undefined
             : 'مسیر قابل اتکا برای این رویداد هنوز در دسترس نیست.',
       })),
-    [activityFeedRows],
+    [dashboard.serverStats.activityFeed],
   )
 
-  const syncState = dashboard.loading
+  const syncState: 'syncing' | 'offline' | 'synced' = dashboard.loading
     ? 'syncing'
-    : typeof navigator !== 'undefined' && !navigator.onLine
-      ? 'offline'
-      : 'synced'
+    : (() => {
+        try {
+          return typeof navigator !== 'undefined' && navigator.onLine === false ? 'offline' : 'synced'
+        } catch {
+          return 'synced'
+        }
+      })()
 
   const storagePercent = Math.round((storage.used / Math.max(storage.total, 1)) * 100)
-  const daysUntilBoard = plannerStats?.daysToExam ?? 0
+  const daysUntilBoard = plannerAvailable ? (plannerStats?.daysToExam ?? 0) : 0
   const weekNumber = daysUntilBoard > 0 ? Math.max(1, 24 - Math.ceil(daysUntilBoard / 7)) : 1
 
   const handleNavChange = (id: string) => {
@@ -442,7 +487,8 @@ export default function DashboardClient() {
       dueCardsCount={dashboard.dueToday}
       mcqThisWeek={mcqThisWeek}
       overallAccuracy={Math.round(qbankStats.accuracy || 0)}
-      studyStreakDays={plannerStats?.studyStreak ?? dashboard.streak}
+      studyStreakDays={studyStreakDays}
+      plannerKpiValueText={plannerKpiValueText}
       weekNumber={weekNumber}
       totalWeeks={24}
       daysUntilBoard={daysUntilBoard}

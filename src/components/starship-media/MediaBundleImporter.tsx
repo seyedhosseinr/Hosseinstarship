@@ -204,7 +204,7 @@ export function MediaBundleImporter() {
             {submitting ? "Importing…" : "Import bundle"}
           </button>
           <span className="text-[11px] text-lib-text-muted">
-            Assets are stored in Vercel-safe DB-backed media storage.
+            Files write to <code>public/media/campbell/&lt;chapter&gt;/</code>.
           </span>
         </div>
       </form>

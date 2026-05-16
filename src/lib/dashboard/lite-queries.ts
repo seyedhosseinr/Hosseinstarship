@@ -7,15 +7,13 @@ import {
   examSessions,
   flashcards,
   flashcardReviews,
-  planStatus,
   questionAttempts,
   questions,
-  studyPlannerSettings,
-  studyPlans,
   studyTasks,
   taskStatus,
 } from "@/db/schema";
 import { getLibraryDashboardData } from "@/lib/library/queries";
+import { getPlannerDashboardSlice } from "@/lib/planner/planner-dashboard-slice";
 
 type ChapterPerformanceRow = {
   chapterId: string;
@@ -43,14 +41,7 @@ type FsrsStatsByChapterRow = {
   totalCards: number;
   dueCards: number;
   reviewedCards: number;
-  /**
-   * FSRS-5 retrievability R(t,S) averaged across reviewed cards using actual elapsed
-   * time since last review.  Formula: R = (1 + 19/81 × t/S)^(-0.5) × 100
-   * Range 0–100.  NULL when no card has been reviewed yet.
-   */
   avgRetention: number | null;
-  /** Average FSRS stability in days for reviewed cards in this chapter (NULL if none). */
-  avgStability: number | null;
   lastReviewedAt: string | null;
 };
 
@@ -173,22 +164,6 @@ export function buildMonthlyActivityRows(
   return Array.from(byDate.values());
 }
 
-/**
- * Compute a scientifically calibrated readiness score for medical board preparation.
- *
- * Weights rationale (total 100 %):
- *   Coverage  30 % — every topic must be seen before exam day
- *   Accuracy  30 % — MCQ performance is the most direct exam proxy
- *   Retention 25 % — actual FSRS-5 retrievability (R̄) across all reviewed cards;
- *                    this is the probability of correct recall right now
- *   Maturity  15 % — fraction of cards with interval ≥ 21 days (long-term consolidation)
- *
- * Penalty: −2 points per identified weak chapter area (capped to avoid negative scores).
- *
- * @param avgRetrievability  Weighted-average FSRS-5 R(t,S) across chapters (0–100).
- *                           Pass 0 when no cards have been reviewed yet.
- * @param matureCards        Count of cards in "review" state with scheduled_days ≥ 21.
- */
 function buildHostedReadiness(input: {
   totalIncluded: number;
   totalRead: number;
@@ -196,45 +171,21 @@ function buildHostedReadiness(input: {
   flashcardsTotal: number;
   dueToday: number;
   weakAreaCount: number;
-  /** Actual FSRS-5 retrievability average (0-100). 0 means no data yet. */
-  avgRetrievability: number;
-  /** Cards consolidated into long-term memory (interval >= 21 days). */
-  matureCards: number;
 }) {
   const coverage =
-    input.totalIncluded > 0
-      ? Math.round((input.totalRead / input.totalIncluded) * 100)
-      : 0;
-
-  // Retention = true FSRS-5 retrievability (probability of recall right now).
-  // Falls back to a coarser "not-yet-due" ratio when no retrievability data exists.
+    input.totalIncluded > 0 ? Math.round((input.totalRead / input.totalIncluded) * 100) : 0;
   const retention =
-    input.avgRetrievability > 0
-      ? Math.round(input.avgRetrievability)
-      : input.flashcardsTotal > 0
-        ? Math.max(0, Math.round(((input.flashcardsTotal - input.dueToday) / input.flashcardsTotal) * 100))
-        : 0;
-
-  // Maturity = fraction of cards truly consolidated into long-term memory (≥21-day interval).
-  // A rising maturity score proves sustained review over weeks, not just cramming.
-  const maturity =
     input.flashcardsTotal > 0
-      ? Math.round((input.matureCards / input.flashcardsTotal) * 100)
+      ? Math.max(0, Math.round(((input.flashcardsTotal - input.dueToday) / input.flashcardsTotal) * 100))
       : 0;
-
+  const consistency = input.totalRead > 0 ? Math.min(100, 25 + input.totalRead) : 0;
   const weakAreas = Math.max(0, 100 - Math.min(60, input.weakAreaCount * 12));
 
   const score = Math.max(
     0,
     Math.min(
       100,
-      Math.round(
-        coverage   * 0.30 +
-        input.accuracy * 0.30 +
-        retention  * 0.25 +
-        maturity   * 0.15 -
-        input.weakAreaCount * 2,
-      ),
+      Math.round(coverage * 0.35 + input.accuracy * 0.35 + retention * 0.15 + consistency * 0.15 - input.weakAreaCount * 3),
     ),
   );
 
@@ -252,9 +203,7 @@ function buildHostedReadiness(input: {
       coverage,
       accuracy: input.accuracy,
       retention,
-      // "consistency" slot repurposed: maturity is a better long-term study indicator
-      // than the old linear chapter-count proxy.
-      consistency: maturity,
+      consistency,
       weakAreas,
     },
     trend: "stable" as const,
@@ -365,33 +314,12 @@ async function getFsrsStatsByChapterLite(): Promise<FsrsStatsByChapterRow[]> {
       reviewedCards: sql<number>`
         COUNT(*) FILTER (WHERE ${flashcards.fsrsReps} > 0)
       `,
-      /**
-       * FSRS-5 retrievability: R(t,S) = (1 + 19/81 × t/S)^(-0.5) × 100
-       * where t = actual elapsed days since last review (not a fixed 1-day proxy).
-       * Cards with no review (stability = 0) are excluded from the average.
-       */
       avgRetention: sql<number | null>`
         AVG(
-          CASE
-            WHEN ${flashcards.fsrsStability} > 0
-              AND ${flashcards.fsrsLastReview} IS NOT NULL
-            THEN POWER(
-              1.0 + (19.0 / 81.0)
-                * GREATEST(0.0,
-                    (${now}::float8 - CAST(${flashcards.fsrsLastReview} AS float8))
-                    / 86400000.0)
-                / ${flashcards.fsrsStability},
-              -0.5
-            ) * 100.0
-            WHEN ${flashcards.fsrsStability} > 0
-            THEN 100.0
-            ELSE NULL
-          END
+          CASE WHEN ${flashcards.fsrsStability} > 0
+          THEN EXP(-1.0 / ${flashcards.fsrsStability}) * 100
+          ELSE NULL END
         )
-      `,
-      /** Average stability in days for reviewed cards (NULLIF excludes unreviewed). */
-      avgStability: sql<number | null>`
-        AVG(NULLIF(${flashcards.fsrsStability}, 0))
       `,
       lastReviewedAt: sql<string | null>`
         MAX(${flashcards.fsrsLastReview})::text
@@ -412,8 +340,7 @@ async function getFsrsStatsByChapterLite(): Promise<FsrsStatsByChapterRow[]> {
     totalCards: Number(row.totalCards) || 0,
     dueCards: Number(row.dueCards) || 0,
     reviewedCards: Number(row.reviewedCards) || 0,
-    avgRetention: row.avgRetention == null ? null : Math.min(100, Math.max(0, Number(row.avgRetention))),
-    avgStability: row.avgStability == null ? null : Math.max(0, Number(row.avgStability)),
+    avgRetention: row.avgRetention == null ? null : Number(row.avgRetention),
     lastReviewedAt: row.lastReviewedAt,
   }));
 }
@@ -522,7 +449,7 @@ async function getActivityFeedLite(): Promise<ActivityFeedRow[]> {
       id: row.id,
       type: "card_review" as const,
       entityLabel: row.entityLabel,
-      detail: "Ù…Ø±ÙˆØ± Ø´Ø¯",
+      detail: "مرور شد",
       delta: row.delta,
       timestamp: String(row.timestamp ?? ""),
     })),
@@ -538,7 +465,7 @@ async function getActivityFeedLite(): Promise<ActivityFeedRow[]> {
       id: row.id,
       type: "chapter_read" as const,
       entityLabel: row.entityLabel,
-      detail: "Ø®ÙˆØ§Ù†Ø¯Ù‡ Ø´Ø¯",
+      detail: "خوانده شد",
       delta: row.delta,
       timestamp: String(row.timestamp ?? ""),
     })),
@@ -572,174 +499,6 @@ async function getChapterPerformanceLite(): Promise<ChapterPerformanceRow[]> {
       accuracy: row.total > 0 ? Math.round(((row.correct ?? 0) / row.total) * 100) : 0,
     }))
     .sort((a, b) => a.accuracy - b.accuracy);
-}
-
-const PLANNER_STATS_EMPTY = {
-  examDate: null as string | null,
-  daysToExam: null as number | null,
-  totalTasks: 0,
-  completedTasks: 0,
-  todayTasks: 0,
-  completedToday: 0,
-  overdueTasks: 0,
-  studyStreak: 0,
-  dailyGoalMinutes: 120,
-  tasksToday: [] as Array<{
-    id: string;
-    title: string;
-    taskType: string;
-    status: string;
-    estimatedMinutes: number;
-    priority: number;
-    scheduledFor: string | null;
-  }>,
-  tasksOverdue: [] as Array<{
-    id: string;
-    title: string;
-    taskType: string;
-    status: string;
-    estimatedMinutes: number;
-    priority: number;
-    scheduledFor: string | null;
-  }>,
-  activePlan: null as null | {
-    id: string;
-    title: string | null;
-    status: string;
-    startDate: string | null;
-    endDate: string | null;
-    totalTasks: number;
-    completedTasks: number;
-    progressPercent: number;
-  },
-};
-
-async function getPlannerLiteStats(): Promise<typeof PLANNER_STATS_EMPTY> {
-  try {
-    const db = await getDb();
-    const today = new Date().toISOString().slice(0, 10);
-
-    const [activePlanRows, todayTaskRows, settingsRows, tasksTodayRows, tasksOverdueRows] = await Promise.all([
-      db
-        .select({
-          id: studyPlans.id,
-          title: studyPlans.title,
-          status: studyPlans.status,
-          startDate: studyPlans.startDate,
-          endDate: studyPlans.endDate,
-          examDate: studyPlans.examDate,
-          totalTasks: studyPlans.totalTasks,
-          completedTasks: studyPlans.completedTasks,
-        })
-        .from(studyPlans)
-        .where(eq(studyPlans.status, planStatus.active))
-        .orderBy(desc(studyPlans.createdAt))
-        .limit(1),
-      db
-        .select({
-          todayTasks: count(studyTasks.id),
-          completedToday: sql<number>`SUM(CASE WHEN ${studyTasks.status} = ${taskStatus.completed} THEN 1 ELSE 0 END)`,
-          overdueTasks: sql<number>`SUM(CASE WHEN ${studyTasks.status} = ${taskStatus.overdue} THEN 1 ELSE 0 END)`,
-        })
-        .from(studyTasks)
-        .where(eq(studyTasks.scheduledFor, today))
-        .limit(1),
-      db
-        .select({
-          studyStreak: studyPlannerSettings.streakCurrent,
-          dailyGoalMinutes: studyPlannerSettings.dailyGoalMinutes,
-        })
-        .from(studyPlannerSettings)
-        .limit(1),
-      db
-        .select({
-          id: studyTasks.id,
-          title: studyTasks.title,
-          taskType: studyTasks.taskType,
-          status: studyTasks.status,
-          estimatedMinutes: studyTasks.estimatedMinutes,
-          priority: studyTasks.priority,
-          scheduledFor: studyTasks.scheduledFor,
-        })
-        .from(studyTasks)
-        .where(eq(studyTasks.scheduledFor, today))
-        .orderBy(desc(studyTasks.priority))
-        .limit(10),
-      db
-        .select({
-          id: studyTasks.id,
-          title: studyTasks.title,
-          taskType: studyTasks.taskType,
-          status: studyTasks.status,
-          estimatedMinutes: studyTasks.estimatedMinutes,
-          priority: studyTasks.priority,
-          scheduledFor: studyTasks.scheduledFor,
-        })
-        .from(studyTasks)
-        .where(eq(studyTasks.status, taskStatus.overdue))
-        .orderBy(desc(studyTasks.priority))
-        .limit(10),
-    ]);
-
-    const plan = activePlanRows[0];
-    const todayRow = todayTaskRows[0];
-    const settings = settingsRows[0];
-
-    let daysToExam: number | null = null;
-    if (plan?.examDate) {
-      const examMs = new Date(plan.examDate).getTime();
-      const nowMs = new Date(today).getTime();
-      daysToExam = Math.max(0, Math.ceil((examMs - nowMs) / 86_400_000));
-    }
-
-    return {
-      examDate: plan?.examDate ?? null,
-      daysToExam,
-      totalTasks: plan?.totalTasks ?? 0,
-      completedTasks: plan?.completedTasks ?? 0,
-      todayTasks: todayRow?.todayTasks ?? 0,
-      completedToday: todayRow?.completedToday ?? 0,
-      overdueTasks: todayRow?.overdueTasks ?? 0,
-      studyStreak: settings?.studyStreak ?? 0,
-      dailyGoalMinutes: settings?.dailyGoalMinutes ?? 120,
-      tasksToday: tasksTodayRows.map((task) => ({
-        id: String(task.id),
-        title: task.title,
-        taskType: task.taskType,
-        status: task.status,
-        estimatedMinutes: task.estimatedMinutes ?? 0,
-        priority: task.priority ?? 0,
-        scheduledFor: task.scheduledFor,
-      })),
-      tasksOverdue: tasksOverdueRows.map((task) => ({
-        id: String(task.id),
-        title: task.title,
-        taskType: task.taskType,
-        status: task.status,
-        estimatedMinutes: task.estimatedMinutes ?? 0,
-        priority: task.priority ?? 0,
-        scheduledFor: task.scheduledFor,
-      })),
-      activePlan: plan
-        ? {
-            id: String(plan.id),
-            title: plan.title ?? null,
-            status: String(plan.status),
-            startDate: plan.startDate ?? null,
-            endDate: plan.endDate ?? null,
-            totalTasks: plan.totalTasks ?? 0,
-            completedTasks: plan.completedTasks ?? 0,
-            progressPercent:
-              plan.totalTasks && plan.totalTasks > 0
-                ? Math.round(((plan.completedTasks ?? 0) / plan.totalTasks) * 100)
-                : 0,
-          }
-        : null,
-    };
-  } catch (err) {
-    console.error("[getPlannerLiteStats] DB query failed:", err);
-    return PLANNER_STATS_EMPTY;
-  }
 }
 
 async function getWeeklyActivityLite(): Promise<WeeklyActivityRow[]> {
@@ -1017,7 +776,7 @@ async function getTrapQuestionsLite() {
 }
 
 export async function getHostedDashboardLiteData() {
-  const [libraryData, qbankStats, flashcardStats, fsrsStatsByChapter, readerStatsByChapter, activityFeed, chapterPerformance, weeklyActivity, plannerStats, monthlyActivity, domainMastery, recentExams, trapQuestions] = await Promise.all([
+  const [libraryData, qbankStats, flashcardStats, fsrsStatsByChapter, readerStatsByChapter, activityFeed, chapterPerformance, weeklyActivity, plannerSlice, monthlyActivity, domainMastery, recentExams, trapQuestions] = await Promise.all([
     getLibraryDashboardData(),
     getQbankLiteStats(),
     getFlashcardLiteStats(),
@@ -1026,25 +785,12 @@ export async function getHostedDashboardLiteData() {
     getActivityFeedLite(),
     getChapterPerformanceLite(),
     getWeeklyActivityLite(),
-    getPlannerLiteStats(),
+    getPlannerDashboardSlice(),
     getMonthlyActivityLite({ days: 35 }),
     getDomainMasteryLite(),
     getRecentExamsLite(),
     getTrapQuestionsLite(),
   ]);
-
-  // Compute weighted-average FSRS-5 retrievability across all chapters.
-  // Weight each chapter by its reviewed-card count so larger chapters dominate.
-  const totalReviewedCards = fsrsStatsByChapter.reduce(
-    (sum, c) => sum + (c.reviewedCards || 0), 0,
-  );
-  const avgRetrievability =
-    totalReviewedCards > 0
-      ? fsrsStatsByChapter.reduce((sum, c) => {
-          if (c.avgRetention == null || c.reviewedCards === 0) return sum;
-          return sum + c.avgRetention * c.reviewedCards;
-        }, 0) / totalReviewedCards
-      : 0;
 
   const readinessScore = buildHostedReadiness({
     totalIncluded: libraryData.totalIncluded,
@@ -1053,8 +799,6 @@ export async function getHostedDashboardLiteData() {
     flashcardsTotal: flashcardStats.total,
     dueToday: flashcardStats.dueToday,
     weakAreaCount: libraryData.weakChapters.length,
-    avgRetrievability: Math.round(avgRetrievability * 10) / 10,
-    matureCards: flashcardStats.matureCards,
   });
 
   const todayKey = new Date().toISOString().slice(0, 10);
@@ -1066,7 +810,7 @@ export async function getHostedDashboardLiteData() {
     .map((row, index) => ({
       id: `weak-${row.chapterId}-${index}`,
       title: row.chapterTitle || row.chapterId,
-      subtitle: "ØªÙ…Ø±Ú©Ø² Ù¾ÛŒØ´Ù†Ù‡Ø§Ø¯ÛŒ Ø§Ù…Ø±ÙˆØ²",
+      subtitle: "تمرکز پیشنهادی امروز",
       accuracy: row.accuracy,
       duration: "15m",
       mcqCount: row.total,
@@ -1103,7 +847,7 @@ export async function getHostedDashboardLiteData() {
     segmentsTotal: flashcardStats.total,
     accuracyTrend: "stable" as const,
     studyTrend: "stable" as const,
-    daysToExam: plannerStats.daysToExam,
+    daysToExam: plannerSlice.available ? plannerSlice.daysToExam : null,
     predictedScore: null,
     readinessLevel:
       readinessScore.level === "ready" ? "ready" :
@@ -1123,14 +867,22 @@ export async function getHostedDashboardLiteData() {
     fsrsStatsByChapter,
     readerStatsByChapter,
     planner: {
-      totalTasks: plannerStats.totalTasks,
-      completedTasks: plannerStats.completedTasks,
-      completedPlanTasks: plannerStats.completedTasks,
-      overdueTasks: plannerStats.overdueTasks,
-      todayTasks: plannerStats.todayTasks,
-      completionRate: plannerStats.totalTasks > 0
-        ? Math.round((plannerStats.completedTasks / plannerStats.totalTasks) * 100)
-        : 0,
+      available: plannerSlice.available,
+      reason: plannerSlice.reason,
+      totalTasks: plannerSlice.available ? plannerSlice.totalTasks : 0,
+      completedTasks: plannerSlice.available ? plannerSlice.completedTasks : 0,
+      completedPlanTasks: plannerSlice.available ? plannerSlice.completedTasks : 0,
+      overdueTasks: plannerSlice.available ? plannerSlice.overdueTasks : 0,
+      todayTasks: plannerSlice.available ? plannerSlice.todayTasks : 0,
+      weekTaskCount: plannerSlice.available ? plannerSlice.weekTasks.length : 0,
+      completionRate:
+        plannerSlice.available && plannerSlice.totalTasks > 0
+          ? Math.round((plannerSlice.completedTasks / plannerSlice.totalTasks) * 100)
+          : 0,
+      tasksToday: plannerSlice.tasksToday,
+      tasksOverdue: plannerSlice.tasksOverdue,
+      weekTasks: plannerSlice.weekTasks,
+      activePlan: plannerSlice.available ? plannerSlice.activePlan : null,
     },
     recentExams,
     studyTimeToday,
@@ -1188,17 +940,20 @@ export async function getHostedDashboardLiteData() {
       newCards: flashcardStats.newCards,
     },
     plannerDetailedStats: {
-      todayTasks: plannerStats.todayTasks,
-      completedToday: plannerStats.completedToday,
-      overdueTasks: plannerStats.overdueTasks,
-      upcomingTasks: [],
-      dailyGoalMinutes: plannerStats.dailyGoalMinutes,
-      dailyGoalProgress: plannerStats.dailyGoalMinutes > 0 && plannerStats.todayTasks > 0
-        ? Math.min(100, Math.round((plannerStats.completedToday / plannerStats.todayTasks) * 100))
-        : 0,
-      examDate: plannerStats.examDate,
-      daysToExam: plannerStats.daysToExam,
-      studyStreak: plannerStats.studyStreak,
+      available: plannerSlice.available,
+      reason: plannerSlice.reason,
+      todayTasks: plannerSlice.todayTasks,
+      completedToday: plannerSlice.completedToday,
+      overdueTasks: plannerSlice.overdueTasks,
+      upcomingTasks: plannerSlice.upcomingTasks,
+      dailyGoalMinutes: plannerSlice.dailyGoalMinutes,
+      dailyGoalProgress:
+        plannerSlice.available && plannerSlice.dailyGoalMinutes > 0 && plannerSlice.todayTasks > 0
+          ? Math.min(100, Math.round((plannerSlice.completedToday / plannerSlice.todayTasks) * 100))
+          : 0,
+      examDate: plannerSlice.examDate,
+      daysToExam: plannerSlice.daysToExam,
+      studyStreak: plannerSlice.studyStreak,
     },
     monthlyActivity,
     dashboardSnapshot: {
@@ -1223,27 +978,30 @@ export async function getHostedDashboardLiteData() {
         newCards: flashcardStats.newCards,
       },
       plannerStats: {
-        todayTasks: plannerStats.todayTasks,
-        completedToday: plannerStats.completedToday,
-        overdueTasks: plannerStats.overdueTasks,
-        upcomingTasks: [],
-        dailyGoalMinutes: plannerStats.dailyGoalMinutes,
-        dailyGoalProgress: plannerStats.dailyGoalMinutes > 0 && plannerStats.todayTasks > 0
-          ? Math.min(100, Math.round((plannerStats.completedToday / plannerStats.todayTasks) * 100))
-          : 0,
-        examDate: plannerStats.examDate,
-        daysToExam: plannerStats.daysToExam,
-        studyStreak: plannerStats.studyStreak,
+        available: plannerSlice.available,
+        reason: plannerSlice.reason,
+        todayTasks: plannerSlice.todayTasks,
+        completedToday: plannerSlice.completedToday,
+        overdueTasks: plannerSlice.overdueTasks,
+        upcomingTasks: plannerSlice.upcomingTasks,
+        dailyGoalMinutes: plannerSlice.dailyGoalMinutes,
+        dailyGoalProgress:
+          plannerSlice.available && plannerSlice.dailyGoalMinutes > 0 && plannerSlice.todayTasks > 0
+            ? Math.min(100, Math.round((plannerSlice.completedToday / plannerSlice.todayTasks) * 100))
+            : 0,
+        examDate: plannerSlice.examDate,
+        daysToExam: plannerSlice.daysToExam,
+        studyStreak: plannerSlice.studyStreak,
       },
       monthlyActivity,
     },
     tasks: {
-      today: plannerStats.tasksToday,
-      overdue: plannerStats.tasksOverdue,
+      today: plannerSlice.tasksToday,
+      overdue: plannerSlice.tasksOverdue,
     },
-    todayTasks: plannerStats.tasksToday,
-    overdueTasks: plannerStats.tasksOverdue,
-    activePlan: plannerStats.activePlan,
+    todayTasks: plannerSlice.tasksToday,
+    overdueTasks: plannerSlice.tasksOverdue,
+    activePlan: plannerSlice.available ? plannerSlice.activePlan : null,
   };
 }
 

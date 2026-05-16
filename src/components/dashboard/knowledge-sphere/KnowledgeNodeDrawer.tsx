@@ -18,7 +18,13 @@ const STATUS_LABELS: Record<KnowledgeNodeStatus, string> = {
   unknown: "داده ناکافی",
 };
 
-const nf = new Intl.NumberFormat("fa-IR");
+function nfFormat(value: number): string {
+  try {
+    return new Intl.NumberFormat("fa-IR").format(value);
+  } catch {
+    return String(value);
+  }
+}
 
 export function KnowledgeNodeDrawer({ node, onClose }: KnowledgeNodeDrawerProps) {
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -112,15 +118,15 @@ export function KnowledgeNodeDrawer({ node, onClose }: KnowledgeNodeDrawerProps)
             <Metric label="Priority" value={formatPercent(node.metrics.priorityScore)} />
             <Metric label="MCQ accuracy" value={formatNullablePercent(node.metrics.mcqAccuracy)} />
             <Metric label="MCQ score" value={formatNullablePercent(node.metrics.mcqScore)} />
-            <Metric label="اشتباهات MCQ" value={nf.format(node.metrics.wrongMcqCount)} />
+            <Metric label="اشتباهات MCQ" value={nfFormat(node.metrics.wrongMcqCount)} />
             <Metric label="Flashcard score" value={formatNullablePercent(node.metrics.flashcardScore)} />
             <Metric label="Retention واقعی" value={formatNullablePercent(node.metrics.flashcardRetention)} />
             <Metric label="Retrievability" value={formatNullablePercent(node.metrics.flashcardRetrievability)} />
-            <Metric label="فلش‌کارت موعددار" value={nf.format(node.metrics.dueFlashcardCount)} />
+            <Metric label="فلش‌کارت موعددار" value={nfFormat(node.metrics.dueFlashcardCount)} />
             <Metric label="پوشش Reader" value={formatPercent(node.metrics.readerCoverage)} />
             <Metric
               label="زمان پیشنهادی"
-              value={node.metrics.estimatedReviewMinutes ? `${nf.format(node.metrics.estimatedReviewMinutes)} دقیقه` : "—"}
+              value={node.metrics.estimatedReviewMinutes ? `${nfFormat(node.metrics.estimatedReviewMinutes)} دقیقه` : "—"}
             />
             <Metric label="آخرین مطالعه" value={formatLastStudied(node.metrics.daysSinceLastStudy)} />
           </div>
@@ -143,7 +149,7 @@ export function KnowledgeNodeDrawer({ node, onClose }: KnowledgeNodeDrawerProps)
             >
               {recommendedAction.label}
               {typeof recommendedAction.count === "number" && recommendedAction.count > 0
-                ? ` (${nf.format(recommendedAction.count)})`
+                ? ` (${nfFormat(recommendedAction.count)})`
                 : ""}
             </a>
           </div>
@@ -167,7 +173,7 @@ export function KnowledgeNodeDrawer({ node, onClose }: KnowledgeNodeDrawerProps)
               <span>{action.label}</span>
               {typeof action.count === "number" ? (
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-900 dark:text-slate-300">
-                  {nf.format(action.count)}
+                  {nfFormat(action.count)}
                 </span>
               ) : null}
             </a>
@@ -188,7 +194,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 function formatPercent(value: number): string {
-  return `${nf.format(Math.round(value))}٪`;
+  return `${nfFormat(Math.round(value))}٪`;
 }
 
 function formatNullablePercent(value: number | null): string {
@@ -199,7 +205,7 @@ function formatLastStudied(days: number | null): string {
   if (days === null) return "—";
   if (days === 0) return "امروز";
   if (days === 1) return "دیروز";
-  return `${nf.format(days)} روز پیش`;
+  return `${nfFormat(days)} روز پیش`;
 }
 
 function trapFocusWithinDialog(event: KeyboardEvent<HTMLElement>, dialog: HTMLDivElement | null) {

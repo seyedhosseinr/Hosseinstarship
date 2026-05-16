@@ -58,7 +58,7 @@ export function FrameHeader({
       {!isCallout && showHighYieldMarker && frame.highYield && (
         <span
           dir="ltr"
-          className="inline-flex items-center gap-1 rounded-[999px] border border-amber-500/20 bg-amber-500/[0.06] px-2 py-[2px] text-[9.5px] font-[700] leading-[1.45] uppercase tracking-[0.08em] text-amber-700 dark:text-amber-300"
+          className="inline-flex items-center gap-1 rounded-[999px] border border-amber-400/50 bg-amber-100/80 px-2 py-[2px] text-[9.5px] font-[700] leading-[1.45] uppercase tracking-[0.08em] text-amber-900 dark:border-amber-400/30 dark:bg-amber-900/40 dark:text-amber-100"
           aria-label="High yield"
         >
           <Sparkles className="h-2.5 w-2.5" aria-hidden="true" />

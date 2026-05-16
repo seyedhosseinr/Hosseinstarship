@@ -42,12 +42,12 @@ export const CALLOUT_FOR_KIND: Partial<Record<FrameKind, Tone>> = {
   },
   high_yield: {
     label: KIND_LABELS.high_yield,
-    accent: "border-s-amber-500/80 dark:border-s-amber-400/80",
-    bg: "bg-amber-50/55 dark:bg-amber-950/20",
+    accent: "border-s-amber-500 dark:border-s-amber-400",
+    bg: "bg-amber-50 dark:bg-amber-950/20",
     badgeBg:
-      "border-amber-500/20 bg-amber-500/[0.07] dark:border-amber-400/20 dark:bg-amber-400/[0.07]",
-    text: "text-amber-700 dark:text-amber-300",
-    dot: "bg-amber-500/85 dark:bg-amber-400/85",
+      "border-amber-500/40 bg-amber-100 dark:border-amber-400/30 dark:bg-amber-900/40",
+    text: "text-amber-950 dark:text-amber-100",
+    dot: "bg-amber-500 dark:bg-amber-400",
   },
   keypoint: {
     label: KIND_LABELS.keypoint,

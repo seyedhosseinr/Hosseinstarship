@@ -12,7 +12,10 @@ import {
   type MediaRefRenderScope,
 } from "./MediaRefContext";
 import { MediaLightbox } from "./MediaLightbox";
-import { useMediaRegistry } from "./useMediaRegistry";
+import {
+  fetchMediaRegistryForChapter,
+  useMediaRegistry,
+} from "./useMediaRegistry";
 
 interface MediaRefProviderProps {
   /**
@@ -80,6 +83,7 @@ export function MediaRefProvider({
   const [payload, setPayload] = React.useState<MediaRefOpenPayload | null>(
     null,
   );
+  const hasAssetOverride = assets !== undefined;
 
   // Keep a ref to the latest registry so the dispatch closure stays
   // stable across registry refetches (no anchor re-render storms).
@@ -91,16 +95,31 @@ export function MediaRefProvider({
   const dispatch = React.useMemo<MediaRefDispatch>(
     () => ({
       open: ({ ref, chapterNo: cn, segmentId }) => {
-        const asset = resolveMediaAsset(
-          ref,
-          { chapterNo: cn, segmentId },
-          registryRef.current,
-        );
-        setPayload({ ref, chapterNo: cn, segmentId, asset });
-        setOpen(true);
+        const openWithRegistry = (registry: readonly MediaAsset[]) => {
+          const asset = resolveMediaAsset(
+            ref,
+            { chapterNo: cn, segmentId },
+            registry,
+          );
+          setPayload({ ref, chapterNo: cn, segmentId, asset });
+          setOpen(true);
+        };
+
+        const current = registryRef.current;
+        if (current.length > 0 || cn === null || hasAssetOverride) {
+          openWithRegistry(current);
+          return;
+        }
+
+        void fetchMediaRegistryForChapter(cn)
+          .then((next) => {
+            registryRef.current = next;
+            openWithRegistry(next);
+          })
+          .catch(() => openWithRegistry(current));
       },
     }),
-    [],
+    [hasAssetOverride],
   );
 
   if (!resolvedEnabled) {
@@ -110,7 +129,12 @@ export function MediaRefProvider({
   return (
     <MediaRefDispatchContext.Provider value={dispatch}>
       {children}
-      <MediaLightbox open={open} onOpenChange={setOpen} payload={payload} />
+      <MediaLightbox
+        open={open}
+        onOpenChange={setOpen}
+        payload={payload}
+        assets={registry}
+      />
     </MediaRefDispatchContext.Provider>
   );
 }

@@ -49,6 +49,7 @@
 
 import React, { type CSSProperties, type ReactNode } from "react";
 import { MediaLeaf } from "@/components/starship-media/MediaLeaf";
+import { detectMediaRefs } from "@/lib/starship-media/detectMediaRefs";
 
 /**
  * @deprecated Annotations are no longer painted inline. This shape is
@@ -80,6 +81,29 @@ const BIDI_ISOLATE: CSSProperties = {
   unicodeBidi: "isolate",
 } as CSSProperties;
 
+// Matches a Latin *phrase*: one or more consecutive Latin words separated
+// by single spaces, captured as a single token.  Grouping words together
+// is critical — if each word is its own span the RTL bidi algorithm
+// treats the spaces between spans as neutral/RTL characters and reverses
+// the word order (e.g. "staging cancer prostate" instead of
+// "prostate cancer staging").
+// Digits are excluded from the leading char so "Figure 1" is never
+// consumed — figure refs stay inside the MediaLeaf path.
+// {0,15} caps the greedy run at 16 words to avoid matching entire
+// English-only paragraphs as one monolithic block.
+const LATIN_PHRASE_RE =
+  /[A-Za-z][A-Za-z0-9\-'.]*(?:[ ][A-Za-z][A-Za-z0-9\-'.]*){0,15}/g;
+
+// LTR inline-block: the phrase is treated as a single atomic unit in the
+// parent RTL line, direction ltr keeps the words in the right order
+// inside, and unicode-bidi isolate prevents the span's content from
+// affecting the surrounding Persian bidi resolution.
+const LATIN_SPAN_STYLE: CSSProperties = {
+  direction: "ltr",
+  unicodeBidi: "isolate",
+  display: "inline-block",
+} as CSSProperties;
+
 /**
  * Wrap a raw text leaf in a <MediaLeaf>. The leaf is invisible in the
  * common case (no <MediaRefProvider> upstream) — it returns the bare
@@ -94,7 +118,51 @@ function pushTextLeaf(parts: ReactNode[], raw: string, key: string) {
   if (raw === "") return;
   const cleaned = stripOrphanMarkers(raw);
   if (cleaned === "") return;
-  parts.push(<MediaLeaf key={key} text={cleaned} />);
+
+  // Media references must stay in a single leaf so the detector can see
+  // the keyword and number together ("Fig." + "164.1"). The Latin phrase
+  // splitter below would otherwise isolate the keyword and leave MediaLeaf
+  // with only the numeric suffix.
+  if (detectMediaRefs(cleaned).length > 0) {
+    parts.push(<MediaLeaf key={key} text={cleaned} />);
+    return;
+  }
+
+  // Fast path: no Latin at all (pure Persian / Arabic / numerals).
+  // Avoids running the phrase regex on every token.
+  if (!/[A-Za-z]/.test(cleaned)) {
+    parts.push(<MediaLeaf key={key} text={cleaned} />);
+    return;
+  }
+
+  // Split the text into Latin phrases and non-Latin segments.
+  // Each phrase becomes a single LTR inline-block span so its words
+  // cannot be reordered by the parent paragraph's RTL bidi algorithm.
+  const re = new RegExp(LATIN_PHRASE_RE.source, "g");
+  const nodes: ReactNode[] = [];
+  let cursor = 0;
+  let i = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(cleaned)) !== null) {
+    if (m.index > cursor) {
+      nodes.push(
+        <MediaLeaf key={`${key}-${i++}`} text={cleaned.slice(cursor, m.index)} />,
+      );
+    }
+    nodes.push(
+      <span key={`${key}-${i++}`} data-reader-latin="" style={LATIN_SPAN_STYLE}>
+        {m[0]}
+      </span>,
+    );
+    cursor = m.index + m[0].length;
+  }
+  if (cursor < cleaned.length) {
+    nodes.push(
+      <MediaLeaf key={`${key}-${i++}`} text={cleaned.slice(cursor)} />,
+    );
+  }
+
+  parts.push(<React.Fragment key={key}>{nodes}</React.Fragment>);
 }
 
 function renderTokens(

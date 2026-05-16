@@ -39,7 +39,7 @@ export function FeatureUnavailablePage({ title, description }: FeatureUnavailabl
                   </Link>
                 </Button>
                 <Button asChild variant="ghost" className="rounded-2xl">
-                  <Link href="/">
+                  <Link href="/dashboard">
                     <ArrowLeft className="ml-2 h-4 w-4" />
                     بازگشت به داشبورد
                   </Link>

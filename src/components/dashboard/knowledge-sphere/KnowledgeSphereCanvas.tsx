@@ -297,5 +297,9 @@ function shortLabel(label: string): string {
 }
 
 function toFaDigits(value: number): string {
-  return new Intl.NumberFormat("fa-IR").format(Math.round(value));
+  try {
+    return new Intl.NumberFormat("fa-IR").format(Math.round(value));
+  } catch {
+    return String(Math.round(value));
+  }
 }

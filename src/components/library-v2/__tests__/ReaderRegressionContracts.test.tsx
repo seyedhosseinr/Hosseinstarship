@@ -5,9 +5,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it } from "vitest";
 
-import { FrameCardV2 } from "../FrameCardV2";
 import { SegmentRenderer } from "../SegmentRenderer";
+import { MediaRefProvider } from "@/components/starship-media/MediaRefProvider";
 import type { FrameViewModel, SectionViewModel } from "@/lib/contract/note-viewer.types";
+import type { MediaAsset } from "@/lib/starship-media/types";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -29,57 +30,105 @@ function readSource(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
 
+function buildSection(frame: FrameViewModel): SectionViewModel {
+  return {
+    id: "section-contract-1",
+    title: "Contract section",
+    hook: null,
+    closingKeypoint: null,
+    frames: [frame],
+  };
+}
+
+function buildAsset(overrides: Partial<MediaAsset> = {}): MediaAsset {
+  return {
+    id: "asset-contract-1",
+    mediaId: "campbell-164-fig-164-4",
+    chapterNumber: 164,
+    segmentId: null,
+    refId: "figure:164-4",
+    figureLabel: "Fig. 164-4",
+    kind: "figure",
+    filename: "ch164_fig_164_4.png",
+    storagePath: "/media/campbell/164/ch164_fig_164_4.png",
+    sourcePage: null,
+    caption: "Imported contract image.",
+    tags: null,
+    highYield: false,
+    createdAt: 0,
+    updatedAt: 0,
+    ...overrides,
+  };
+}
+
 describe("reader regression DOM contracts", () => {
-  it("renders visible reference marker UI and inline clickable media anchors in FrameCardV2", () => {
+  it("renders visible reference marker UI and inline clickable media anchors in the real SegmentRenderer path", () => {
     const html = renderToStaticMarkup(
-      <FrameCardV2
-        frame={buildFrame({
-          id: "media-reference-frame",
-          body: "Review Figure 164.4 before choosing the next test.",
-          content: "Review Figure 164.4 before choosing the next test.",
-          linkedQuestions: [
-            {
-              questionId: "q-1",
-              stem: "Which workup is next?",
-              relationType: "primary",
-            },
-          ],
-        })}
-      />,
+      <MediaRefProvider enabled chapterNo={164} assets={[]}>
+        <SegmentRenderer
+          chapterNo={164}
+          segmentId="ch164-contract-seg"
+          sections={[
+            buildSection(
+              buildFrame({
+                id: "media-reference-frame",
+                body: "Review Figure 164.4 before choosing the next test.",
+                content: "Review Figure 164.4 before choosing the next test.",
+                linkedQuestions: [
+                  {
+                    questionId: "q-1",
+                    stem: "Which workup is next?",
+                    relationType: "primary",
+                  },
+                ],
+              }),
+            ),
+          ]}
+        />
+      </MediaRefProvider>,
     );
 
     expect(html).toContain('data-frame-id="media-reference-frame"');
     expect(html).toContain('data-anchor-surface="canonical"');
     expect(html).toContain('data-reader-reference-rail="true"');
     expect(html).toContain('data-reader-rail-marker="true"');
-    expect(html).toContain('aria-label="1 source reference"');
+    expect(html).toContain('aria-label="1 source references"');
     expect(html).toContain("<button");
-    expect(html).toContain('data-reader-media-anchor="true"');
+    expect(html).toContain('data-media-ref-anchor="true"');
+    expect(html).toContain('data-media-ref-id="figure:164.4"');
     expect(html).toContain("Figure 164.4");
     expect(html).toContain('type="button"');
   });
 
-  it("opens the reference rail and media fallback from the rendered controls", () => {
+  it("opens the reference rail and matched media lightbox from the rendered controls", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
 
     act(() => {
       root.render(
-        <FrameCardV2
-          frame={buildFrame({
-            id: "interactive-contract-frame",
-            body: "Compare Fig. 164-4 with the source stem.",
-            content: "Compare Fig. 164-4 with the source stem.",
-            linkedQuestions: [
-              {
-                questionId: "q-1",
-                stem: "Which workup is next?",
-                relationType: "primary",
-              },
-            ],
-          })}
-        />,
+        <MediaRefProvider enabled chapterNo={164} assets={[buildAsset()]}>
+          <SegmentRenderer
+            chapterNo={164}
+            segmentId="ch164-contract-seg"
+            sections={[
+              buildSection(
+                buildFrame({
+                  id: "interactive-contract-frame",
+                  body: "Compare Fig. 164-4 with the source stem.",
+                  content: "Compare Fig. 164-4 with the source stem.",
+                  linkedQuestions: [
+                    {
+                      questionId: "q-1",
+                      stem: "Which workup is next?",
+                      relationType: "primary",
+                    },
+                  ],
+                }),
+              ),
+            ]}
+          />
+        </MediaRefProvider>,
       );
     });
 
@@ -94,15 +143,17 @@ describe("reader regression DOM contracts", () => {
     });
     expect(rail!.open).toBe(true);
 
-    const mediaAnchor = container.querySelector<HTMLButtonElement>("[data-reader-media-anchor]");
+    const mediaAnchor = container.querySelector<HTMLButtonElement>("[data-media-ref-anchor]");
     expect(mediaAnchor).not.toBeNull();
     expect(mediaAnchor!.textContent).toBe("Fig. 164-4");
 
     act(() => {
       mediaAnchor!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
-    expect(container.querySelector("[data-reader-media-fallback]")).not.toBeNull();
-    expect(container.textContent).toContain("This image/media reference is not imported yet.");
+    expect(document.body.textContent).toContain("Imported asset");
+    expect(document.body.textContent).not.toContain("Image not imported yet");
+    expect(document.querySelector<HTMLImageElement>('[data-testid="media-image"]')?.getAttribute("src"))
+      .toBe("/media/campbell/164/ch164_fig_164_4.png");
 
     act(() => {
       root.unmount();

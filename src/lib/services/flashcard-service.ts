@@ -64,6 +64,8 @@ export interface ManagedFlashcardCard {
   intervalDays: number;
   isLeech: boolean;
   isSuspended: boolean;
+  /** Real FSRS retrievability probability (0–1). Null for new/unreviewed cards. */
+  retrievability: number | null;
   predictions: {
     again: { interval: string; days: number };
     hard: { interval: string; days: number };
@@ -124,6 +126,7 @@ async function ensureDeckRecord(name: string, chapterNo?: number | null) {
 
 function toManagedReviewCard(card: Awaited<ReturnType<typeof listFlashcards>>[number]) {
   const engine = createFsrsEngine("medical");
+  const now = new Date();
   const reviewCard: Card = {
     due: new Date(card.fsrsDue ?? Date.now()),
     stability: card.fsrsStability,
@@ -136,7 +139,19 @@ function toManagedReviewCard(card: Awaited<ReturnType<typeof listFlashcards>>[nu
     state: stateFromString(card.fsrsState),
     last_review: card.fsrsLastReview ? new Date(card.fsrsLastReview) : undefined,
   };
-  const predictions = engine.getPredictions(reviewCard);
+  const predictions = engine.getPredictions(reviewCard, now);
+
+  // Compute real FSRS retrievability. New/unreviewed cards (reps===0 or state==="new")
+  // have no decay history, so we expose null rather than the misleading value of 1.
+  let retrievability: number | null = null;
+  if (card.fsrsState !== "new" && card.fsrsReps > 0) {
+    try {
+      const r = engine.getRetrievability(reviewCard, now);
+      retrievability = Number.isFinite(r) && r >= 0 && r <= 1 ? r : null;
+    } catch {
+      retrievability = null;
+    }
+  }
 
   return {
     id: card.id,
@@ -155,6 +170,7 @@ function toManagedReviewCard(card: Awaited<ReturnType<typeof listFlashcards>>[nu
     intervalDays: card.fsrsScheduledDays,
     isLeech: card.isLeech,
     isSuspended: card.isSuspended,
+    retrievability,
     predictions,
   };
 }

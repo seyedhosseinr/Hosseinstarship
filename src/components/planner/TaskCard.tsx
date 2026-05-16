@@ -1,5 +1,7 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react"
+import { createElement } from "react"
 /**
  * TaskCard — UWorld-style study task card with full action set.
  *
@@ -149,7 +151,7 @@ export function TaskCard({
       toast.error("این تسک دیگر وجود ندارد");
       onMutate?.();
     } else if (res.error.code === "INVALID_STATE") {
-      toast.error("وضعیت تسک تغییر کرده — لیست بروزرسانی شد");
+      toast.error("این عمل در وضعیت فعلی تسک مجاز نیست");
       onMutate?.();
     } else {
       toast.error(res.error.message);
@@ -189,11 +191,11 @@ export function TaskCard({
   function handleStart() {
     startTransition(async () => {
       if (isLocalFirstEnabled()) {
-        try { await lfStart(task.id); toast.success("شروع شد"); onMutate?.(); return; } catch { /* fall through */ }
+        try { await lfStart(task.id); toast.success("تسک شروع شد"); onMutate?.(); return; } catch { /* fall through */ }
       }
       const res = await startTaskAction(task.id);
       if (res.ok) {
-        toast.success("شروع شد");
+        toast.success("تسک شروع شد");
         onMutate?.();
       } else {
         handleMutationError(res);
@@ -204,11 +206,11 @@ export function TaskCard({
   function handleSnooze(days: number) {
     startTransition(async () => {
       if (isLocalFirstEnabled()) {
-        try { await lfSnooze(task.id, days); toast.success(days === 1 ? "به فردا منتقل شد" : `${n(days)} روز به تعویق افتاد`); onMutate?.(); return; } catch { /* fall through */ }
+        try { await lfSnooze(task.id, days); toast.success(days === 1 ? "یک روز به تعویق افتاد" : `${n(days)} روز به تعویق افتاد`); onMutate?.(); return; } catch { /* fall through */ }
       }
       const res = await snoozeTaskAction(task.id, days);
       if (res.ok) {
-        toast.success(days === 1 ? "به فردا منتقل شد" : `${n(days)} روز به تعویق افتاد`);
+        toast.success(days === 1 ? "یک روز به تعویق افتاد" : `${n(days)} روز به تعویق افتاد`);
         onMutate?.();
       } else {
         handleMutationError(res);
@@ -279,7 +281,7 @@ export function TaskCard({
         `}
       >
         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} />
-        <Icon size={12} strokeWidth={1.75} className="shrink-0 text-muted-foreground/70" />
+        {createElement(Icon as LucideIcon, { size: 12, strokeWidth: 1.75, className: "shrink-0 text-muted-foreground/70" })}
         <span className="flex-1 truncate">{task.title}</span>
         {task.priority > 0 && (
           <AlertTriangle size={10} className="shrink-0 text-destructive/80" />
@@ -298,7 +300,7 @@ export function TaskCard({
           <button
             onClick={handleNavigateToContent}
             className="shrink-0 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/[0.06] hover:text-foreground group-hover:opacity-100"
-            title="مشاهده محتوا"
+            title="باز کردن محتوا"
           >
             <ExternalLink size={10} strokeWidth={1.75} />
           </button>
@@ -346,7 +348,7 @@ export function TaskCard({
           {/* Left — Icon + Check */}
           <div className="flex flex-col items-center gap-1.5 pt-0.5">
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/60 text-muted-foreground">
-              <Icon size={14} strokeWidth={1.75} />
+              {createElement(Icon as LucideIcon, { size: 14, strokeWidth: 1.75 })}
             </div>
             {(isActionable || isActive) && (
               <button
@@ -417,11 +419,11 @@ export function TaskCard({
                     onClick={handleNavigateToContent}
                     className="inline-flex items-center gap-1 text-foreground/80 underline-offset-2 transition-colors hover:text-foreground hover:underline"
                   >
-                    {task.linkedExamSession.title ?? "آزمون"}
+                    {task.linkedExamSession.title ?? "آزمون بدون عنوان"}
                     <ExternalLink size={10} strokeWidth={1.75} />
                   </button>
                 ) : (
-                  <span>{task.linkedExamSession.title ?? "آزمون"}</span>
+                  <span>{task.linkedExamSession.title ?? "آزمون بدون عنوان"}</span>
                 )
               )}
               {contentRoute && !task.linkedChapter && !task.linkedExamSession && (
@@ -429,7 +431,7 @@ export function TaskCard({
                   onClick={handleNavigateToContent}
                   className="inline-flex items-center gap-1 text-foreground/80 underline-offset-2 transition-colors hover:text-foreground hover:underline"
                 >
-                  مشاهده
+                  باز کردن محتوا
                   <ExternalLink size={10} strokeWidth={1.75} />
                 </button>
               )}
@@ -518,7 +520,7 @@ export function TaskCard({
                   onClick={() => handleSnooze(1)}
                   disabled={isPending}
                   className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-foreground/[0.05] hover:text-foreground"
-                  title="تعویق به فردا"
+                  title="تعویق یک روز"
                 >
                   <AlarmClock size={13} strokeWidth={1.75} />
                 </button>
@@ -548,7 +550,7 @@ export function TaskCard({
                   <button
                     onClick={() => setShowActions(!showActions)}
                     className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-colors hover:bg-foreground/[0.05] hover:text-foreground group-hover:opacity-100"
-                    title="عملیات بیشتر"
+                    title="اقدامات بیشتر"
                   >
                     <MoreHorizontal size={13} strokeWidth={1.75} />
                   </button>
@@ -574,21 +576,21 @@ export function TaskCard({
                                 className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-right text-foreground/90 transition-colors hover:bg-foreground/[0.04]"
                               >
                                 <AlarmClock size={12} strokeWidth={1.75} className="text-muted-foreground/70" />
-                                تعویق ۱ روز
+                                یک روز
                               </button>
                               <button
                                 onClick={() => handleSnooze(2)}
                                 className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-right text-foreground/90 transition-colors hover:bg-foreground/[0.04]"
                               >
                                 <AlarmClock size={12} strokeWidth={1.75} className="text-muted-foreground/70" />
-                                تعویق ۲ روز
+                                دو روز
                               </button>
                               <button
                                 onClick={() => handleSnooze(7)}
                                 className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-right text-foreground/90 transition-colors hover:bg-foreground/[0.04]"
                               >
                                 <AlarmClock size={12} strokeWidth={1.75} className="text-muted-foreground/70" />
-                                تعویق ۱ هفته
+                                یک هفته
                               </button>
                             </>
                           ) : null}

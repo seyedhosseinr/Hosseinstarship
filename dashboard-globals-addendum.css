@@ -1,0 +1,40 @@
+
+/* ── Dashboard replacement compatibility tokens ───────────────────── */
+@layer base {
+  :root {
+    --chart-1: 186 90% 38%;
+    --chart-2: 142 71% 45%;
+    --chart-3: 36 92% 50%;
+    --chart-4: 0 72% 51%;
+    --chart-5: 250 70% 60%;
+  }
+
+  .dark {
+    --chart-1: 187 63% 48%;
+    --chart-2: 142 71% 55%;
+    --chart-3: 38 92% 58%;
+    --chart-4: 0 72% 59%;
+    --chart-5: 250 70% 70%;
+  }
+}
+
+@layer utilities {
+  .ltr {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bg-sidebar { background-color: hsl(var(--sidebar-bg)); }
+  .text-sidebar-foreground { color: hsl(var(--sidebar-fg)); }
+  .text-sidebar-foreground\/80 { color: hsl(var(--sidebar-fg) / 0.8); }
+  .text-sidebar-foreground\/75 { color: hsl(var(--sidebar-fg) / 0.75); }
+  .border-sidebar-border { border-color: hsl(var(--border)); }
+  .bg-sidebar-accent { background-color: hsl(var(--sidebar-hover)); }
+  .text-sidebar-accent-foreground { color: hsl(var(--sidebar-fg)); }
+  .hover\:bg-sidebar-accent\/60:hover { background-color: hsl(var(--sidebar-hover) / 0.6); }
+  .hover\:text-sidebar-foreground:hover { color: hsl(var(--sidebar-fg)); }
+}

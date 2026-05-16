@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
@@ -216,6 +216,10 @@ export function ChapterReaderV2({
   const penTool = activePenTool;
   const drawingLayerRef = useRef<DrawingLayerHandle>(null);
 
+  const toggleEraser = useCallback(
+    () => selectAnnotationTool("eraser"),
+    [selectAnnotationTool],
+  );
   const undoStroke = useCallback(() => drawingLayerRef.current?.undo(), []);
   const clearDrawing = useCallback(() => drawingLayerRef.current?.clear(), []);
 
@@ -225,6 +229,8 @@ export function ChapterReaderV2({
   const toolbarRef = useRef<HTMLDivElement>(null);
 
   // ── Toolbar visibility: manual collapse + scroll-aware auto-hide ──
+  // Hides on scroll-down past 120px, reveals on scroll-up. Manual toggle
+  // pins the bar in collapsed state and persists across sessions.
   const [toolbarPinnedCollapsed, setToolbarPinnedCollapsed] = useState(false);
   const [toolbarVisibleByScroll, setToolbarVisibleByScroll] = useState(true);
 
@@ -440,7 +446,12 @@ export function ChapterReaderV2({
         }
       />
 
-      {/* ══ Floating top bar — collapsible + scroll-aware auto-hide ══ */}
+      {/* ══ Floating top bar — collapsible + scroll-aware auto-hide ══
+          Two layers of hide:
+            • Pinned collapse (manual button → persists in localStorage)
+            • Scroll auto-hide (down → fade out, up → fade back in)
+          The collapsed state is a tiny floating dot; clicking re-expands.
+          When pen mode is active a drawing palette pill appears below. */}
       <div
         ref={toolbarRef}
         className={cn(
@@ -601,7 +612,7 @@ export function ChapterReaderV2({
               </button>
             </div>
 
-            {/* ── Reader display settings panel ── */}
+            {/* ── Reader display settings panel — visible when AA button is active ── */}
             {fontSizeOpen && (
               <ReaderDisplaySettings
                 settings={readerSettings}
@@ -632,7 +643,7 @@ export function ChapterReaderV2({
 
                 <div className="mx-1.5 h-4 w-px bg-lib-border/55" />
 
-                {/* Line widths — hidden for highlighter/eraser */}
+                {/* Line widths — hidden for highlighter (fixed width) */}
                 {annotationTool !== "highlighter" && annotationTool !== "eraser" && DRAW_WIDTHS.map((w) => (
                   <button
                     key={w.value}
@@ -679,7 +690,9 @@ export function ChapterReaderV2({
 
       {/* ══ GoodNotes-style side tool rail ══
           Visible when toolbarStyle is "rail" or "both".
-          Fixed vertical pill on the left side, vertically centered. */}
+          Fixed vertical pill on the left side, vertically centered.
+          Tap a tool to activate; tap again to return to cursor.
+          Color sub-picker slides in when a draw tool is active. */}
       {(readerSettings.toolbarStyle === "rail" || readerSettings.toolbarStyle === "both") && (
         <div
           className={cn(
@@ -830,8 +843,11 @@ export function ChapterReaderV2({
       <ReaderStage ref={scrollRef} bgTheme={readerSettings.bgTheme} spineOpen={panels.spine}>
         <MeasureColumn>
 
-          {/* ══ Hero chapter header ══ */}
+          {/* ══ Hero chapter header — premium reading entry ══
+              Massive title, gradient backdrop ribbon, stat tiles row.
+              Replaces the previous compressed metadata strip. */}
           <header className="relative mb-12 mt-20 ipad-portrait:mb-16 ipad-portrait:mt-24" data-chapter-hero>
+            {/* Soft gradient halo behind the title — only visible in light/dark mix */}
             <div
               aria-hidden="true"
               className="pointer-events-none absolute -inset-x-8 -top-10 -z-10 h-56 opacity-60"
@@ -843,6 +859,7 @@ export function ChapterReaderV2({
               }}
             />
 
+            {/* Eyebrow ribbon — colored chips for vol/part/ch */}
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="inline-flex items-center rounded-full bg-lib-accent-soft px-2.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-lib-accent ring-1 ring-inset ring-lib-accent/15">
                 Vol&nbsp;{chapter.volumeNo}
@@ -856,6 +873,7 @@ export function ChapterReaderV2({
               <StatusBadge status={status} className="ms-auto" />
             </div>
 
+            {/* Massive title — display weight, optical tracking, balanced wrap */}
             <h1
               className="mt-5 text-[36px] font-semibold leading-[1.08] tracking-[-0.018em] text-lib-text text-wrap-balance ipad-portrait:text-[48px] ipad-landscape:text-[44px]"
               style={{ fontFeatureSettings: '"calt" 1, "ss01" 1, "kern" 1' }}
@@ -863,6 +881,7 @@ export function ChapterReaderV2({
               {chapter.title}
             </h1>
 
+            {/* Stat tiles — page range, question count, flashcard count */}
             <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
               {chapter.pageRange && (
                 <div className="rounded-lib-md border border-lib-border/45 bg-lib-surface/65 px-3.5 py-2.5 backdrop-blur-sm">
@@ -922,6 +941,12 @@ export function ChapterReaderV2({
                 "--reader-font-size": `${readerSettings.fontSize}px`,
                 "--reader-font-scale": String(readerSettings.fontSize / 17),
                 "--reader-line-height": String(readerSettings.lineHeight),
+                /* Inner prose width follows the user's chosen column max.
+                   Sentinel: maxWidth ≥ 1800 → "Full". Cascade 100% so
+                   FrameBody paragraphs (max-w-[var(--reader-prose-w,70ch)])
+                   stretch to the full reading column instead of being
+                   centered inside it — which in RTL otherwise reads as
+                   "stuck to the right" with dead space on the left. */
                 "--reader-prose-w":
                   readerSettings.maxWidth >= 1800
                     ? "100%"
@@ -975,7 +1000,7 @@ export function ChapterReaderV2({
         </MeasureColumn>
       </ReaderStage>
 
-      {/* ══ Thin reading-progress bar ══ */}
+      {/* ══ Thin reading-progress bar at the very top of the viewport (AMBOSS/Readwise style) ══ */}
       <div
         aria-hidden="true"
         className="pointer-events-none fixed inset-x-0 top-0 z-50 h-[3px] bg-lib-border/30"
@@ -986,7 +1011,7 @@ export function ChapterReaderV2({
         />
       </div>
 
-      {/* ══ Progress pill ══ */}
+      {/* ══ Progress pill — bottom-right, compact ══ */}
       <div className="pointer-events-none fixed bottom-5 right-4 z-30">
         <div className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-lib-border/50 bg-lib-glass/80 px-2.5 py-1 text-[10px] text-lib-text-muted shadow-md backdrop-blur-xl">
           <span className="tabular-nums font-semibold">{progressLabel}</span>
@@ -1022,7 +1047,9 @@ export function ChapterReaderV2({
         onDelete={removeAnnotation}
       />
 
-      {/* ══ Drawing canvas overlay ══ */}
+      {/* ══ Drawing canvas overlay ══
+          Transparent fixed canvas — pointer-events only active when penMode is on.
+          Strokes are persisted per-chapter in localStorage. */}
       <DrawingLayer
         ref={drawingLayerRef}
         isActive={penMode}
@@ -1046,6 +1073,9 @@ export function ChapterReaderV2({
 
       <PencilDebugOverlay mode={penMode ? "draw" : "select"} />
 
+      {/* On-text highlight + underline rendering via CSS Custom Highlight,
+          with overlay fallback. Reads stored offsets, falls back to
+          quote-search for legacy rows. */}
       <ReaderHighlightLayer
         annotations={annotations}
         contentSelector={READER_CONTENT_SELECTOR}
@@ -1061,6 +1091,7 @@ export function ChapterReaderV2({
         visible={highlightsVisible}
       />
 
+      {/* Reference navigation rail - slim right-gutter minimap */}
       <ReaderReferenceRail
         notes={notes}
         scrollRef={scrollRef}
@@ -1070,3 +1101,4 @@ export function ChapterReaderV2({
     </LibraryShell>
   );
 }
+

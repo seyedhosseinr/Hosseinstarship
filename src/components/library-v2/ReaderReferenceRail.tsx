@@ -46,17 +46,17 @@ const KIND_CFG: Record<
   RailMarkerKind,
   { color: string; label: string; icon: string }
 > = {
-  section:             { color: "#94A3B8", label: "بخش",             icon: "≡"  },
-  keypoint:            { color: "#4D9375", label: "نکته کلیدی",      icon: "★"  },
-  "high-yield":        { color: "#C8923D", label: "پربازده",         icon: "⚡" },
-  pearl:               { color: "#3B93A0", label: "نکته بالینی",     icon: "◈"  },
-  warning:             { color: "#BF5050", label: "هشدار",           icon: "⚠"  },
-  algorithm:           { color: "#7760C4", label: "الگوریتم",        icon: "⊡"  },
-  "clinical-decision": { color: "#3A9E8F", label: "تصمیم بالینی",    icon: "◉"  },
-  "question-link":     { color: "#4A87C4", label: "منبع سؤال",       icon: "?"  },
-  threshold:           { color: "#C4784A", label: "آستانه بالینی",   icon: "▲"  },
-  differential:        { color: "#5C72C4", label: "تشخیص افتراقی",  icon: "±"  },
-  complication:        { color: "#B05070", label: "عارضه",           icon: "!"  },
+  section:             { color: "#94A3B8", label: "بخش",              icon: "≡"  },
+  keypoint:            { color: "#4D9375", label: "نکته کلیدی",       icon: "★"  },
+  "high-yield":        { color: "#C8923D", label: "پربازده",          icon: "⚡" },
+  pearl:               { color: "#3B93A0", label: "نکته بالینی",      icon: "◈"  },
+  warning:             { color: "#BF5050", label: "هشدار",            icon: "⚠"  },
+  algorithm:           { color: "#7760C4", label: "الگوریتم",         icon: "⊡"  },
+  "clinical-decision": { color: "#3A9E8F", label: "تصمیم بالینی",     icon: "◉"  },
+  "question-link":     { color: "#4A87C4", label: "منبع سؤال",        icon: "?"  },
+  threshold:           { color: "#C4784A", label: "آستانه بالینی",    icon: "▲"  },
+  differential:        { color: "#5C72C4", label: "تشخیص افتراقی",   icon: "±"  },
+  complication:        { color: "#B05070", label: "عارضه",            icon: "!"  },
 };
 
 /* ─── Build markers from note data ───────────────────────── */
@@ -162,6 +162,7 @@ function PreviewCard({
       )}
       style={{ top: `${marker.percent}%` }}
     >
+      {/* Kind badge */}
       <div className="mb-2 flex items-center gap-1.5">
         <span
           className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold text-white"
@@ -174,16 +175,19 @@ function PreviewCard({
         </span>
       </div>
 
+      {/* Title */}
       <p className="line-clamp-2 text-[12.5px] font-semibold leading-snug text-lib-text">
         {marker.title}
       </p>
 
+      {/* Snippet */}
       {marker.snippet && (
         <p className="mt-1.5 line-clamp-3 text-[11px] leading-relaxed text-lib-text-secondary">
           {marker.snippet}
         </p>
       )}
 
+      {/* Actions */}
       <div className="mt-2.5 flex items-center gap-1.5">
         <button
           type="button"
@@ -305,6 +309,7 @@ export function ReaderReferenceRail({
     return best?.id ?? null;
   }, [markers, scrollPct]);
 
+  // preview state — separate hover (mouse) and pinned (touch)
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   const touchDismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -325,6 +330,7 @@ export function ReaderReferenceRail({
       if (e.pointerType === "touch" || e.pointerType === "pen") {
         e.preventDefault();
         if (m.kind === "section") {
+          // Section: jump directly on touch
           const target =
             m.targetAttr === "id"
               ? document.getElementById(m.targetId)
@@ -337,6 +343,7 @@ export function ReaderReferenceRail({
           setPinnedId(null);
           return;
         }
+        // Non-section: toggle preview card
         setPinnedId((prev) => (prev === m.id ? null : m.id));
         if (touchDismissTimer.current) clearTimeout(touchDismissTimer.current);
         touchDismissTimer.current = setTimeout(() => setPinnedId(null), 4000);
@@ -373,8 +380,10 @@ export function ReaderReferenceRail({
       aria-hidden="true"
       className={cn(
         "pointer-events-none fixed right-3 z-20",
+        // Show from md (768px) — covers iPad portrait
         "top-16 bottom-20",
         "hidden md:block",
+        // 28px wide: 4px track + invisible touch padding on each side
         "w-7",
         "transition-opacity duration-200",
         annotationsPanelOpen || spineOpen ? "opacity-0 pointer-events-none" : "opacity-100",
@@ -412,6 +421,7 @@ export function ReaderReferenceRail({
               key={m.id}
               type="button"
               aria-label={`${cfg.label}: ${m.title}`}
+              /* Large invisible touch target (44×44) centred on the dot */
               className={cn(
                 "absolute -left-[18px] -translate-y-1/2",
                 "flex h-[44px] w-[44px] items-center justify-center",
@@ -428,7 +438,9 @@ export function ReaderReferenceRail({
               onFocus={() => setHoveredId(m.id)}
               onBlur={() => setHoveredId((id) => (id === m.id ? null : id))}
             >
+              {/* Visible tick — all markers are horizontal lines */}
               {isSection ? (
+                /* Section: wide dim dash */
                 <span
                   className={cn(
                     "block rounded-[1px] transition-all duration-200",
@@ -439,6 +451,7 @@ export function ReaderReferenceRail({
                   )}
                 />
               ) : (
+                /* Content marker: short colored tick */
                 <span
                   className={cn(
                     "block rounded-[1px] transition-all duration-150",

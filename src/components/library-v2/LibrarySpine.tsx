@@ -161,10 +161,10 @@ export function LibrarySpine({ tree, microNav, isOpen, tocContent, onClose }: Li
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — dark on mobile (overlay), invisible on md+ (push layout) */}
       <div
         onClick={onClose}
-        className="fixed inset-0 z-[134] bg-black/30 backdrop-blur-[2px] animate-in fade-in duration-200"
+        className="fixed inset-0 z-[134] bg-black/30 backdrop-blur-[2px] md:bg-transparent md:backdrop-blur-none animate-in fade-in duration-200"
         aria-hidden="true"
       />
 

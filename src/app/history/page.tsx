@@ -56,7 +56,7 @@ export default async function Page() {
       <div className="mx-auto max-w-6xl space-y-8">
         <header className="rounded-[32px] border border-border/40 bg-card/70 px-8 py-8 shadow-sm backdrop-blur-xl dark:bg-card/40">
           <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-            <Link href="/" className="inline-flex items-center gap-2 transition hover:text-foreground">
+            <Link href="/dashboard" className="inline-flex items-center gap-2 transition hover:text-foreground">
               <ArrowLeft className="h-4 w-4" />
               Dashboard
             </Link>

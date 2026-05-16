@@ -9,7 +9,6 @@ import { FrameHeader } from "./FrameHeader";
 import { FrameRichContent } from "./FrameRichContent";
 import { MarginTail, PearlTail } from "./FrameTails";
 import { LinkedQuestionsFooter } from "./LinkedQuestionsFooter";
-import { MediaFallbackDialog } from "./MediaFallbackDialog";
 import { ReferenceRailMarker } from "./ReferenceRailMarker";
 import { CALLOUT_FOR_KIND, PLAIN_EYEBROW, proseStyle, resolveKind } from "./frameStyles";
 import type { FrameCardV2Props } from "./frameTypes";
@@ -31,8 +30,6 @@ function FrameCardV2Impl({
   const isCallout = Boolean(tone);
   const eyebrow = isCallout ? undefined : PLAIN_EYEBROW[kind];
   const linkedQuestions = Array.isArray(frame.linkedQuestions) ? frame.linkedQuestions : [];
-  const mediaReaderEnabled = process.env.NEXT_PUBLIC_STARSHIP_MEDIA_READER !== "false";
-  const [selectedMediaRef, setSelectedMediaRef] = React.useState<string | null>(null);
 
   const titleNode = React.useMemo(
     () => (frame.title ? renderInlineRich(frame.title) : null),
@@ -118,18 +115,15 @@ function FrameCardV2Impl({
           isParentCallout={isCallout}
           annotations={annotations}
           highlightsVisible={highlightsVisible}
-          onMediaRefClick={mediaReaderEnabled ? setSelectedMediaRef : undefined}
         />
 
         <PearlTail
           variant={isCallout ? "inline" : "card"}
           pearl={frame.clinicalPearl}
-          onMediaRefClick={mediaReaderEnabled ? setSelectedMediaRef : undefined}
         />
 
         <MarginTail
           note={frame.marginNote}
-          onMediaRefClick={mediaReaderEnabled ? setSelectedMediaRef : undefined}
         />
 
         {!isCallout && <FrameFlagBadges frame={frame} />}
@@ -140,13 +134,6 @@ function FrameCardV2Impl({
           frameId={frame.id}
         />
       </div>
-
-      {selectedMediaRef && (
-        <MediaFallbackDialog
-          label={selectedMediaRef}
-          onClose={() => setSelectedMediaRef(null)}
-        />
-      )}
     </section>
   );
 }

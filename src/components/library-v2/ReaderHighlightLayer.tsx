@@ -5,8 +5,8 @@ import { useEffect, useRef, type RefObject } from "react";
 import type { ReaderAnnotation } from "@/hooks/useReaderAnnotations";
 import { resolveAnchorRangeByFrameId } from "@/lib/local-first/anchorResolver";
 import {
-  DEFAULT_READER_HIGHLIGHT_COLOR,
   READER_HIGHLIGHT_COLORS,
+  DEFAULT_READER_HIGHLIGHT_COLOR,
 } from "@/lib/readerHighlightPalette";
 
 /**
@@ -91,23 +91,6 @@ const UL_PREFIX = "rdr-ul-";
 const LEGACY_UL_NAME = "rdr-ul";
 const STYLE_SHEET_ID = "rdr-highlight-layer-styles";
 
-/**
- * Canonical highlight palette — Readwise inspired
- * زرد Readwise به عنوان رنگ پیش‌فرض Reader استفاده می‌شود.
- */
-const PALETTE_MAP: ReadonlyMap<string, string> = new Map([
-  ["FFEB3B", "#FFEB3B"], // زرد اصلی Readwise
-  ["A5D6A7", "#A5D6A7"], // سبز ملایم
-  ["81D4FA", "#81D4FA"], // آبی روشن
-  ["F8BBD0", "#F8BBD0"], // صورتی ملایم
-  ["FFCC80", "#FFCC80"], // نارنجی ملایم
-  ["default", "#FFEB3B"],
-]);
-
-function applyStyles(element: HTMLElement, styles: Record<string, string>): void {
-  Object.assign(element.style, styles);
-}
-
 const HIGHLIGHT_VISUAL_INSET_RATIO = 0.08;
 const HIGHLIGHT_VISUAL_MIN_INSET = 0.75;
 const HIGHLIGHT_VISUAL_MAX_INSET = 2.5;
@@ -115,26 +98,34 @@ const HIGHLIGHT_VISUAL_MIN_HEIGHT = 8;
 const HIGHLIGHT_DEFAULT_THICKNESS = 2.5;
 const HIGHLIGHT_MAX_LINE_OVERFLOW = 6;
 
+// ---------------------------------------------------------------------------
+// Palette — single source of truth: readerHighlightPalette.ts
+// ---------------------------------------------------------------------------
+
 interface PaletteEntry {
-  storage: string;
-  background: string;
-  underline: string;
+  storage: string;   // full hex e.g. "#FFE566"
+  background: string; // translucent rgba for CSS highlight background
+  underline: string;  // solid hex for underline text-decoration
 }
 
-const PALETTE_ENTRIES = new Map<string, PaletteEntry>(
-  READER_HIGHLIGHT_COLORS.map((color) => [
-    color.storage.replace(/^#/, "").toUpperCase(),
-    {
-      storage: color.storage,
-      background: color.background,
-      underline: color.underline,
-    },
+const PALETTE_MAP = new Map<string, PaletteEntry>(
+  READER_HIGHLIGHT_COLORS.map((c) => [
+    c.storage.replace(/^#/, "").toUpperCase(),
+    { storage: c.storage, background: c.background, underline: c.underline },
   ]),
 );
 
 const DEFAULT_HEX_KEY = DEFAULT_READER_HIGHLIGHT_COLOR.replace(/^#/, "").toUpperCase();
 
-function createCompactHighlightVisual(backgroundColor: string): HTMLSpanElement {
+// ---------------------------------------------------------------------------
+
+function applyStyles(element: HTMLElement, styles: Record<string, string>): void {
+  Object.assign(element.style, styles);
+}
+
+function createCompactHighlightVisual(
+  backgroundColor: string,
+): HTMLSpanElement {
   const visual = document.createElement("span");
 
   applyStyles(visual, {
@@ -254,11 +245,10 @@ function updateHighlightStyles(ulThickness: number): void {
   const t = `${ulThickness}px`;
   const rules: string[] = [];
 
-  for (const [key, entry] of PALETTE_ENTRIES) {
+  for (const [key, entry] of PALETTE_MAP) {
     rules.push(
       `::highlight(${HL_PREFIX}${key}) { background-color: ${entry.background}; color: inherit; }`,
     );
-
     rules.push(
       `::highlight(${UL_PREFIX}${key}) { text-decoration-line: underline; text-decoration-style: solid; text-decoration-thickness: ${t}; text-decoration-color: ${entry.underline}; text-underline-offset: 0.3em; text-decoration-skip-ink: none; color: inherit; }`,
     );
@@ -307,13 +297,13 @@ function hexFromColor(color: string | null | undefined): string {
   if (!color) return DEFAULT_HEX_KEY;
 
   const normalized = color.replace(/^#/, "").toUpperCase();
-  return PALETTE_ENTRIES.has(normalized) ? normalized : DEFAULT_HEX_KEY;
+  return PALETTE_MAP.has(normalized) ? normalized : DEFAULT_HEX_KEY;
 }
 
 function entryFromHexKey(hex: string): PaletteEntry {
   return (
-    PALETTE_ENTRIES.get(hex) ??
-    PALETTE_ENTRIES.get(DEFAULT_HEX_KEY) ?? {
+    PALETTE_MAP.get(hex) ??
+    PALETTE_MAP.get(DEFAULT_HEX_KEY) ?? {
       storage: DEFAULT_READER_HIGHLIGHT_COLOR,
       background: READER_HIGHLIGHT_COLORS[0].background,
       underline: READER_HIGHLIGHT_COLORS[0].underline,
@@ -685,120 +675,6 @@ function paintOverlayRects(params: {
   overlay: HTMLDivElement;
   buckets: Map<string, Bucket>;
   supportsCustomHighlight: boolean;
-}): void {
-  const { overlay, buckets, supportsCustomHighlight } = params;
-  const overlayEl = overlay as HighlightOverlayElement;
-
-  if (overlayEl._delegatedClickHandler) {
-    overlay.removeEventListener("click", overlayEl._delegatedClickHandler);
-    overlayEl._delegatedClickHandler = undefined;
-  }
-
-  overlay.replaceChildren();
-
-  const baseRect = overlay.getBoundingClientRect();
-  const fragment = document.createDocumentFragment();
-
-  const hitMap = new Map<
-    string,
-    {
-      annotationId: string;
-      kind: PaintKind;
-      range: Range;
-    }
-  >();
-
-  let hitIndex = 0;
-
-  for (const bucket of buckets.values()) {
-    for (const item of bucket.ranges) {
-      const range = item.range.cloneRange();
-      const rects = Array.from(range.getClientRects()).filter(
-        (rect) => rect.width > 0 && rect.height > 0,
-      );
-
-      for (const rect of rects) {
-        const hitId = `${item.id}::${hitIndex++}`;
-        const button = document.createElement("button");
-
-        button.type = "button";
-        button.dataset.readerAnnotationHit = item.id;
-        button.dataset.readerAnnotationHitId = hitId;
-
-        button.setAttribute(
-          "aria-label",
-          bucket.kind === "underline" ? "Edit underline" : "Edit highlight",
-        );
-
-        applyStyles(button, {
-          position: "absolute",
-          left: `${rect.left - baseRect.left}px`,
-          top: `${rect.top - baseRect.top}px`,
-          width: `${rect.width}px`,
-          height: `${rect.height}px`,
-          padding: "0",
-          margin: "0",
-          border: "none",
-          borderRadius: "0.125rem",
-          cursor: "pointer",
-          pointerEvents: "auto",
-          background: "transparent",
-          touchAction: "manipulation",
-          outline: "none",
-          WebkitTapHighlightColor: "transparent",
-        });
-
-        if (!supportsCustomHighlight) {
-          if (bucket.kind === "underline") {
-            button.style.borderBottom = `2px solid ${bucket.color ?? "#FFEB3B"}`;
-            button.style.opacity = "0.75";
-          } else {
-            button.style.backgroundColor = bucket.color ?? "#FFEB3B";
-            button.style.opacity = "0.72";
-          }
-        }
-
-        hitMap.set(hitId, {
-          annotationId: item.id,
-          kind: bucket.kind,
-          range,
-        });
-
-        fragment.appendChild(button);
-      }
-    }
-  }
-
-  overlay.appendChild(fragment);
-
-  const handleClick: EventListener = (event) => {
-    const target = (event.target as HTMLElement | null)?.closest<HTMLElement>(
-      "[data-reader-annotation-hit-id]",
-    );
-
-    if (!target) return;
-
-    const hitId = target.dataset.readerAnnotationHitId;
-    if (!hitId) return;
-
-    const meta = hitMap.get(hitId);
-    if (!meta) return;
-
-    event.stopPropagation();
-
-    selectRange(meta.range.cloneRange());
-    dispatchAnnotationClicked(meta.annotationId, meta.kind);
-  };
-
-  overlayEl._delegatedClickHandler = handleClick;
-  overlay.addEventListener("click", handleClick);
-}
-
-function paintOverlayRectsV2(params: {
-  article: HTMLElement;
-  overlay: HTMLDivElement;
-  buckets: Map<string, Bucket>;
-  supportsCustomHighlight: boolean;
   highlightThickness: number;
 }): void {
   const { overlay, buckets, supportsCustomHighlight, highlightThickness } = params;
@@ -826,6 +702,7 @@ function paintOverlayRectsV2(params: {
     }
   >();
 
+  let hitIndex = 0;
   const pendingRects: Array<{
     annotationId: string;
     kind: PaintKind;
@@ -835,6 +712,8 @@ function paintOverlayRectsV2(params: {
   }> = [];
 
   for (const bucket of buckets.values()) {
+    // Resolve the palette entry for this bucket's colour key so the
+    // fallback overlay uses the correct background / underline value.
     const hexKey = bucket.name
       .replace(HL_PREFIX, "")
       .replace(UL_PREFIX, "");
@@ -867,8 +746,6 @@ function paintOverlayRectsV2(params: {
   ).forEach((paintRect) => {
     highlightMetrics.set(paintRect.rect, paintRect);
   });
-
-  let hitIndex = 0;
 
   for (const item of pendingRects) {
     const paintRect =
@@ -946,6 +823,8 @@ function paintOverlayRectsV2(params: {
         visualFragment.appendChild(visual);
       }
     } else if (item.kind === "underline" && !supportsCustomHighlight) {
+      // Position a thin line ~4px below the bottom of the text rect.
+      // box-shadow avoids affecting layout and clears the line-height gap.
       button.style.boxShadow = `0 4px 0 -1px ${item.entry.underline}`;
       button.style.opacity = "0.9";
     }
@@ -1009,6 +888,7 @@ export function ReaderHighlightLayer({
 }: Props): null {
   const overlayRef = useRef<HTMLDivElement | null>(null);
 
+  // Update CSS underline thickness whenever it changes
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (getCssHighlightRegistry()) updateHighlightStyles(underlineThickness);
@@ -1054,7 +934,7 @@ export function ReaderHighlightLayer({
       const overlay = ensureOverlay(article, overlayRef);
 
       if (overlay) {
-        paintOverlayRectsV2({
+        paintOverlayRects({
           article,
           overlay,
           buckets,

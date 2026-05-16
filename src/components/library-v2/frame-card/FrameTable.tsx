@@ -5,10 +5,8 @@ import { FrameBody } from "@/components/note-viewer/FrameBody";
 
 export function FrameTable({
   tableData,
-  onMediaRefClick,
 }: {
   tableData: FrameViewModel["tableData"];
-  onMediaRefClick?: (label: string) => void;
 }) {
   if (!tableData) return null;
 
@@ -29,7 +27,7 @@ export function FrameTable({
                 )}
                 style={{ textAlign: "start" }}
               >
-                <FrameBody body={header} compact onMediaRefClick={onMediaRefClick} />
+                <FrameBody body={header} compact />
               </th>
             ))}
           </tr>
@@ -54,7 +52,7 @@ export function FrameTable({
                     )}
                     style={{ textAlign: "start" }}
                   >
-                    <FrameBody body={value} compact onMediaRefClick={onMediaRefClick} />
+                    <FrameBody body={value} compact />
                   </td>
                 );
               })}

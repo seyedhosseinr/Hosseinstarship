@@ -11,13 +11,17 @@
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
+import { syntheticReviewCards } from "@/components/dashboard/__tests__/dashboard-synthetic-fixture";
+
 const listMock = vi.fn();
 const countMock = vi.fn();
+let reviewCardsMock: unknown[] = [];
+let totalDueMock = 0;
 
 vi.mock("@/lib/services/flashcard-service", () => ({
   listManagedDueFlashcards: (limit: number, chapterNo?: number) => {
     listMock(limit, chapterNo);
-    return Promise.resolve([]);
+    return Promise.resolve(reviewCardsMock.slice(0, limit));
   },
   reviewManagedFlashcard: vi.fn(),
   undoLastManagedReview: vi.fn(),
@@ -26,7 +30,7 @@ vi.mock("@/lib/services/flashcard-service", () => ({
 vi.mock("@/lib/flashcards/queries", () => ({
   countDueFlashcards: (chapterNo?: number | null) => {
     countMock(chapterNo);
-    return Promise.resolve(0);
+    return Promise.resolve(totalDueMock);
   },
 }));
 
@@ -35,6 +39,8 @@ import { GET } from "../route";
 beforeEach(() => {
   listMock.mockClear();
   countMock.mockClear();
+  reviewCardsMock = [];
+  totalDueMock = 0;
 });
 
 async function callGet(url: string) {
@@ -76,5 +82,17 @@ describe("GET /api/flashcards/review chapter scoping", () => {
     await callGet(url);
     expect(listMock).toHaveBeenCalledWith(100, 149);
     expect(countMock).toHaveBeenCalledWith(149);
+  });
+
+  it("returns the synthetic dashboard review queue contract for limit=4", async () => {
+    reviewCardsMock = syntheticReviewCards;
+    totalDueMock = syntheticReviewCards.length;
+
+    const body = await callGet("https://example.test/api/flashcards/review?limit=4");
+
+    expect(listMock).toHaveBeenCalledWith(4, undefined);
+    expect(countMock).toHaveBeenCalledWith(null);
+    expect(body.totalDue).toBe(syntheticReviewCards.length);
+    expect(body.cards).toEqual(syntheticReviewCards);
   });
 });

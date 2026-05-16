@@ -79,7 +79,6 @@ type FrameBodyProps = {
    * reads better out of the box.
    */
   justify?: boolean;
-  onMediaRefClick?: (label: string) => void;
 };
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -131,57 +130,6 @@ const INLINE_TONE_PRIMARY = cn(
   "[&_code]:bg-lib-hover/60 [&_code]:px-1.5 [&_code]:py-[1px]",
   "[&_code]:font-mono [&_code]:text-[0.9em] [&_code]:text-lib-text",
 );
-
-const MEDIA_REF_PATTERN =
-  /\b(?:Figure|Fig\.?|Image)\s+\d+(?:[.-]\d+)?|(?:تصویر|شکل)\s+[۰-۹0-9]+(?:[.-][۰-۹0-9]+)?/giu;
-
-function renderInlineWithMediaRefs(
-  text: string,
-  onMediaRefClick?: (label: string) => void,
-) {
-  if (!onMediaRefClick) return renderInlineRich(text);
-
-  const parts: React.ReactNode[] = [];
-  const appendRich = (value: string) => {
-    const rendered = renderInlineRich(value);
-    parts.push(<React.Fragment key={`media-rich-${key++}`}>{rendered}</React.Fragment>);
-  };
-  let cursor = 0;
-  let key = 0;
-  for (const match of text.matchAll(MEDIA_REF_PATTERN)) {
-    const index = match.index ?? 0;
-    const label = match[0];
-    if (index > cursor) {
-      appendRich(text.slice(cursor, index));
-    }
-    parts.push(
-      <button
-        key={`media-ref-${key++}`}
-        type="button"
-        data-reader-media-anchor="true"
-        data-reader-media-label={label}
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          onMediaRefClick(label);
-        }}
-        className={cn(
-          "inline-flex translate-y-[1px] items-center rounded-[4px] border border-lib-accent/25",
-          "bg-lib-accent-soft px-1.5 py-[1px] text-[0.9em] font-[700] text-lib-accent",
-          "transition hover:border-lib-accent/45 hover:bg-lib-accent-hover focus:outline-none",
-          "focus-visible:ring-2 focus-visible:ring-lib-accent/30",
-        )}
-      >
-        {label}
-      </button>,
-    );
-    cursor = index + label.length;
-  }
-  if (cursor < text.length) {
-    appendRich(text.slice(cursor));
-  }
-  return parts;
-}
 
 /* ═══════════════════════════════════════════════════════════════════
    Table renderer (pipe syntax, markdown-like)
@@ -336,7 +284,6 @@ export function FrameBody({
   compact = false,
   anchorPrimary = true,
   justify = false,
-  onMediaRefClick,
 }: FrameBodyProps) {
   if (!body?.trim()) return null;
 
@@ -372,7 +319,7 @@ export function FrameBody({
            `mx-auto` centers the constrained block within its
            container so wide viewports don't leave dead space on
            one side. */
-        "mx-auto max-w-[var(--reader-prose-w,70ch)] text-[15.5px] leading-[1.68] text-lib-text/92",
+        "mx-auto max-w-[var(--reader-prose-w,70ch)] text-[15.5px] leading-[1.8] text-lib-text/92",
         inlineToneClass,
       );
 
@@ -384,7 +331,7 @@ export function FrameBody({
       )
     : cn(
         /* Same CSS-variable + mx-auto rationale as paragraphClassName. */
-        "mx-auto max-w-[var(--reader-prose-w,70ch)] space-y-[6px] ps-6 text-[15.5px] leading-[1.65] text-lib-text/92",
+        "mx-auto max-w-[var(--reader-prose-w,70ch)] space-y-[6px] ps-6 text-[15.5px] leading-[1.8] text-lib-text/92",
         "marker:text-lib-text-muted/50",
         inlineToneClass,
       );
@@ -414,7 +361,7 @@ export function FrameBody({
         <div className="space-y-2">
           {blocks.map((block, index) => (
             <p key={index} className="whitespace-pre-wrap" style={dimStyle}>
-              {renderInlineWithMediaRefs(block, onMediaRefClick)}
+              {renderInlineRich(block)}
             </p>
           ))}
         </div>
@@ -501,7 +448,7 @@ export function FrameBody({
                       item.depth > 0 ? `${item.depth * 14}px` : undefined,
                   }}
                 >
-                  {renderInlineWithMediaRefs(item.text, onMediaRefClick)}
+                  {renderInlineRich(item.text)}
                 </li>
               ))}
             </ul>
@@ -530,10 +477,7 @@ export function FrameBody({
             >
               {lines.map((line, lineIndex) => (
                 <li key={lineIndex} style={liStyle}>
-                  {renderInlineWithMediaRefs(
-                    line.replace(/^\s*\d+\.\s+/, ""),
-                    onMediaRefClick,
-                  )}
+                  {renderInlineRich(line.replace(/^\s*\d+\.\s+/, ""))}
                 </li>
               ))}
             </ol>
@@ -543,7 +487,7 @@ export function FrameBody({
         // ─── Paragraph (default) ──
         return (
           <p key={index} className={paragraphClassName} style={proseStyle}>
-            {renderInlineWithMediaRefs(lines.join(" "), onMediaRefClick)}
+            {renderInlineRich(lines.join(" "))}
           </p>
         );
       })}

@@ -40,7 +40,7 @@ export default function Error({
             تلاش مجدد
           </button>
           <Link
-            href="/"
+            href="/dashboard"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors text-muted-foreground border border-border hover:bg-muted/50"
           >
             <Home className="h-4 w-4" />

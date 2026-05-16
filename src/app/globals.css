@@ -171,7 +171,7 @@
     --sidebar-hover:        220 13% 18%;
 
     /* ── Reader ────────────────────────────────────── */
-    --reader-bg:            213 11% 14%;
+    --reader-bg:            210 29% 7%;    /* #0C1116 — Readwise Reader background */
     --reader-fg:            217 9% 82%;
     --reader-muted:         220 6% 60%;
     --reader-border:        220 11% 22%;
@@ -669,48 +669,274 @@
   }
 }
 /* ── End Dashboard emergency rescue patch ── */
-/* Outliner clinical workspace recovery */
-.outliner-workspace,
-.outliner-shell {
-  --color-bg: hsl(var(--background));
-  --color-surface: color-mix(in srgb, hsl(var(--card)) 92%, transparent);
-  --color-text-primary: hsl(var(--foreground));
-  --color-text-secondary: hsl(var(--muted-foreground));
-  --color-entry: hsl(var(--primary));
-  --color-focus-ring: hsl(var(--primary));
-}
-.outliner-shell [data-node-id] {
-  scroll-margin: 160px;
-}
-.outliner-chapter-panel,
-.outliner-algorithm-panel {
-  backdrop-filter: blur(18px);
-}
-.outliner-inspector {
-  backdrop-filter: blur(18px);
-}
-.outliner-chapter-panel,
-.outliner-algorithm-panel,
-.outliner-inspector {
-  position: sticky;
-  top: 0.75rem;
-  max-height: calc(100vh - 1.5rem);
-  overflow: auto;
-}
-.outliner-surface-transition {
-  animation: outlinerSurfaceIn 220ms ease-out;
-}
-@keyframes outlinerSurfaceIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   [data-theme="starship-dashboard"]
+   Scoped design tokens for DashboardClient (data-dashboard-root="true").
+   Uses hex values so they work directly in Three.js / canvas contexts.
+   Does NOT affect other pages — only activated when the attribute is present.
+   ───────────────────────────────────────────────────────────────────────────── */
+[data-theme="starship-dashboard"] {
+  /* Surface */
+  --bg:             #F7F8F5;
+  --bg-root:        #F4F2EC;
+  --bg-card:        #FFFFFF;
+  --bg-card-hover:  #F1F4F2;
+
+  /* Text */
+  --text-primary:   #1A1C1C;
+  --text-secondary: #40515E;
+  --text-muted:     #6B7780;
+
+  /* Borders */
+  --border:         #E0E6EB;
+  --border-strong:  #C8D4DC;
+  --ring-bg:        #EEF2F3;
+
+  /* Brand accent scale */
+  --accent:         #0AA6B8;
+  --accent-blue:    #2563EB;
+  --accent-amber:   #D97706;
+  --accent-red:     #DC2626;
+
+  /* shadcn bridge — keeps popovers/dialogs consistent inside dashboard */
+  --background:           #F7F8F5;
+  --foreground:           #1A1C1C;
+  --card:                 #FFFFFF;
+  --card-foreground:      #1A1C1C;
+  --popover:              #FFFFFF;
+  --popover-foreground:   #1A1C1C;
+  --primary:              #0AA6B8;
+  --primary-foreground:   #FFFFFF;
+  --secondary:            #EEF2F3;
+  --secondary-foreground: #1A1C1C;
+  --muted:                #EEF2F3;
+  --muted-foreground:     #6B7780;
+  --destructive:          #DC2626;
+  --destructive-foreground: #FFFFFF;
+  --input:                #E0E6EB;
+  --ring:                 #0AA6B8;
+
+  font-family: 'Vazirmatn', system-ui, sans-serif;
+  direction: rtl;
 }
 
-/* Outliner DAG canvas background + dot-grid — Apple system gray */
-:root {
-  --outliner-canvas-bg:  #f2f2f7;
-  --outliner-dot-color:  rgba(0, 0, 0, 0.10);
+/* Offline frost palette */
+[data-theme="starship-dashboard"][data-mode="offline"] {
+  --bg:         #ECEEF2;
+  --bg-root:    #ECEEF2;
+  --bg-card:    #F4F6FA;
+  --bg-card-hover: #E8EBF0;
+  --border:     #C8D0DC;
+  --border-strong: #8FA3BF;
+  --accent:     #2563EB;
+  --background: #ECEEF2;
+  --card:       #F4F6FA;
+  --primary:    #2563EB;
+  --ring:       #2563EB;
 }
-.dark {
-  --outliner-canvas-bg:  #1c1c1e;
-  --outliner-dot-color:  rgba(255, 255, 255, 0.06);
+
+/* Dark mode */
+[data-theme="starship-dashboard"].dark {
+  --bg:             #18181A;
+  --bg-root:        #18181A;
+  --bg-card:        #222224;
+  --bg-card-hover:  #2A2A2C;
+  --text-primary:   #F5F5F5;
+  --text-secondary: #A1A1A6;
+  --text-muted:     #71717A;
+  --border:         #333336;
+  --border-strong:  #444448;
+  --ring-bg:        #27272A;
+  --accent:         #14B8A6;
+  --accent-blue:    #3B82F6;
+  --accent-amber:   #F59E0B;
+  --accent-red:     #EF4444;
+
+  --background:     #18181A;
+  --foreground:     #F5F5F5;
+  --card:           #222224;
+  --card-foreground: #F5F5F5;
+  --popover:        #222224;
+  --popover-foreground: #F5F5F5;
+  --primary:        #14B8A6;
+  --primary-foreground: #000000;
 }
+
+/* ── Dashboard animation keyframes ── */
+@keyframes sd-fade-slide-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes sd-fade-slide-down {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes sd-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes sd-pulse-dot {
+  0%, 100% { opacity: 1;   transform: scale(1);    }
+  50%       { opacity: 0.5; transform: scale(0.82); }
+}
+@keyframes sd-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Mount animations — scoped under the attribute so no bleed to other pages */
+[data-theme="starship-dashboard"] .animate-mount-topbar  { animation: sd-fade-slide-down 380ms ease-out both; }
+[data-theme="starship-dashboard"] .animate-mount-hero    { animation: sd-fade-slide-up   480ms ease-out 80ms  both; }
+[data-theme="starship-dashboard"] .animate-mount-stat    { animation: sd-fade-slide-up   480ms ease-out both; }
+[data-theme="starship-dashboard"] .animate-mount-stat-1  { animation-delay: 160ms; }
+[data-theme="starship-dashboard"] .animate-mount-stat-2  { animation-delay: 200ms; }
+[data-theme="starship-dashboard"] .animate-mount-stat-3  { animation-delay: 240ms; }
+[data-theme="starship-dashboard"] .animate-mount-stat-4  { animation-delay: 280ms; }
+[data-theme="starship-dashboard"] .animate-mount-fsrs    { animation: sd-fade-slide-up   480ms ease-out both; }
+[data-theme="starship-dashboard"] .animate-mount-fsrs-1  { animation-delay: 320ms; }
+[data-theme="starship-dashboard"] .animate-mount-fsrs-2  { animation-delay: 360ms; }
+[data-theme="starship-dashboard"] .animate-mount-fsrs-3  { animation-delay: 400ms; }
+[data-theme="starship-dashboard"] .animate-mount-fsrs-4  { animation-delay: 440ms; }
+[data-theme="starship-dashboard"] .animate-mount-sphere  { animation: sd-fade-in         600ms ease-out 600ms both; }
+[data-theme="starship-dashboard"] .animate-sync-spin     { animation: sd-spin   1s linear infinite; }
+[data-theme="starship-dashboard"] .animate-pulse-dot     { animation: sd-pulse-dot 1s ease-in-out; }
+
+/* Card hover & button active */
+[data-theme="starship-dashboard"] .card-hover {
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+[data-theme="starship-dashboard"] .card-hover:hover {
+  background-color: var(--bg-card-hover);
+}
+[data-theme="starship-dashboard"] .btn-active:active {
+  transform: scale(0.95);
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  [data-theme="starship-dashboard"] .animate-mount-topbar,
+  [data-theme="starship-dashboard"] .animate-mount-hero,
+  [data-theme="starship-dashboard"] .animate-mount-stat,
+  [data-theme="starship-dashboard"] .animate-mount-stat-1,
+  [data-theme="starship-dashboard"] .animate-mount-stat-2,
+  [data-theme="starship-dashboard"] .animate-mount-stat-3,
+  [data-theme="starship-dashboard"] .animate-mount-stat-4,
+  [data-theme="starship-dashboard"] .animate-mount-fsrs,
+  [data-theme="starship-dashboard"] .animate-mount-fsrs-1,
+  [data-theme="starship-dashboard"] .animate-mount-fsrs-2,
+  [data-theme="starship-dashboard"] .animate-mount-fsrs-3,
+  [data-theme="starship-dashboard"] .animate-mount-fsrs-4,
+  [data-theme="starship-dashboard"] .animate-mount-sphere,
+  [data-theme="starship-dashboard"] .animate-sync-spin,
+  [data-theme="starship-dashboard"] .animate-pulse-dot {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Study Cockpit Design Tokens
+   Scoped under .study-cockpit-root to avoid conflicts with Starship tokens.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Online mode (default) ─────────────────────────── */
+.study-cockpit-root {
+  --bg-root:       #F4F2EC;
+  --bg-card:       #FAFAF7;
+  --bg-card-hover: #F2EFE8;
+  --border:        #E4DDD0;
+  --border-strong: #CFC8BC;
+  --text-primary:  #1C1917;
+  --text-secondary:#6B6560;
+  --text-muted:    #9E9890;
+  --accent:        #0F766E;
+  --accent-amber:  #B45309;
+  --accent-blue:   #1D4ED8;
+  --accent-red:    #B91C1C;
+  --ring-bg:       #EDE8DF;
+}
+
+/* ── Offline mode ──────────────────────────────────── */
+html[data-mode="offline"] .study-cockpit-root {
+  --bg-root:       #ECEEF2;
+  --bg-card:       #F4F6FA;
+  --border:        #C8D0DC;
+  --border-strong: #8FA3BF;
+  --accent:        #2563EB;
+}
+
+/* ── Dark mode ─────────────────────────────────────── */
+.dark .study-cockpit-root {
+  --bg-root:       #18181A;
+  --bg-card:       #222224;
+  --bg-card-hover: #2A2A2C;
+  --border:        #333336;
+  --border-strong: #444448;
+  --text-primary:  #FAFAFA;
+  --text-secondary:#A1A1AA;
+  --text-muted:    #71717A;
+  --accent:        #14B8A6;
+  --accent-amber:  #F59E0B;
+  --accent-blue:   #3B82F6;
+  --accent-red:    #EF4444;
+  --ring-bg:       #27272A;
+}
+
+/* ── Offline + dark ────────────────────────────────── */
+html[data-mode="offline"] .dark .study-cockpit-root,
+.dark html[data-mode="offline"] .study-cockpit-root {
+  --accent: #60A5FA;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Study Cockpit Animation Keyframes
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@keyframes sc-fade-slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes sc-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+@keyframes sc-pulse-green {
+  0%, 100% { fill: #0F766E; opacity: 1; }
+  50%       { fill: #14B8A6; opacity: 0.7; }
+}
+
+.animate-fade-slide-up {
+  animation: sc-fade-slide-up 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: sc-shimmer 1.5s ease-in-out infinite;
+}
+
+.animate-pulse-green {
+  animation: sc-pulse-green 0.6s ease-in-out;
+}
+
+/* ── Idle / hidden tab animation pause ─────────────── */
+.animations-paused * {
+  animation-play-state: paused !important;
+}
+
+/* ── Reduced motion ─────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-slide-up,
+  .animate-shimmer,
+  .animate-pulse-green {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+/* ── End Study Cockpit styles ── */

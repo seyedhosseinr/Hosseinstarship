@@ -1,0 +1,79 @@
+import type { FrameViewModel } from "@/lib/contract/note-viewer.types";
+
+const DUPLICATE_MIN_CHARS = 18;
+
+/**
+ * متون را برای مقایسه‌ی دقیق، از مارک‌داون و اسپیس‌های اضافه پاک‌سازی می‌کند
+ */
+export function normalizeComparableText(text: string | null | undefined): string {
+  if (!text) return "";
+
+  return text
+    .replace(/\*\*|`|~~|_/g, "")
+    .replace(/^\s*-+\s*/, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * تابع داخلی بهینه‌شده: متن هدف (خام) را با متن مرجعی که قبلاً نرمالایز شده مقایسه می‌کند
+ * این کار از اجرای تکراری Regex روی متون طولانی (مثل بدنه) جلوگیری می‌کند.
+ */
+function isDuplicateOfNormalized(
+  rawTarget: string | null | undefined,
+  preNormalizedBase: string,
+): boolean {
+  const target = normalizeComparableText(rawTarget);
+
+  if (!target || !preNormalizedBase) return false;
+  if (target === preNormalizedBase) return true;
+  if (target.length >= DUPLICATE_MIN_CHARS && preNormalizedBase.includes(target)) return true;
+  if (preNormalizedBase.length >= DUPLICATE_MIN_CHARS && target.includes(preNormalizedBase)) return true;
+
+  return false;
+}
+
+/**
+ * مقایسه استاندارد دو متن خام (برای جاهایی که هیچ‌کدام از قبل کش نشده‌اند)
+ */
+export function isDuplicateText(
+  secondary: string | null | undefined,
+  primary: string | null | undefined,
+): boolean {
+  return isDuplicateOfNormalized(secondary, normalizeComparableText(primary));
+}
+
+/**
+ * داده‌های Frame را با حذف تکرارها برای رندر تمیز می‌کند
+ */
+export function normalizeFrameForRender(frame: FrameViewModel): FrameViewModel {
+  const rawBody = frame.content || frame.body;
+
+  // 🚀 پیش‌پردازش متن بدنه: فقط یک بار اجرا می‌شود تا Main Thread بلاک نشود
+  const normalizedBody = normalizeComparableText(rawBody);
+
+  const callouts = frame.v8Display?.callouts?.filter(
+    (callout) => !isDuplicateOfNormalized(callout.text, normalizedBody),
+  );
+
+  const isPearlDuplicateOfCallouts = callouts?.some((callout) =>
+    isDuplicateText(frame.clinicalPearl, callout.text),
+  );
+
+  return {
+    ...frame,
+    summary: isDuplicateOfNormalized(frame.summary, normalizedBody) ? null : frame.summary,
+    clinicalPearl:
+      isDuplicateOfNormalized(frame.clinicalPearl, normalizedBody) || isPearlDuplicateOfCallouts
+        ? null
+        : frame.clinicalPearl,
+    marginNote: isDuplicateOfNormalized(frame.marginNote, normalizedBody) ? null : frame.marginNote,
+    v8Display: frame.v8Display
+      ? {
+          ...frame.v8Display,
+          callouts,
+        }
+      : frame.v8Display,
+  };
+}

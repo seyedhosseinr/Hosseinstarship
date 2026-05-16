@@ -1,5 +1,7 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react"
+import { createElement } from "react"
 import { useState } from "react";
 import { useTheme } from "next-themes";
 import { PageHeader } from "@/components/ui/page-header";
@@ -42,7 +44,7 @@ export default function SettingsPage() {
     try {
       await fetch("/api/auth/logout", { method: "POST", cache: "no-store" });
     } catch {
-      /* continue — clear local state either way */
+      /* continue ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â clear local state either way */
     }
     clearLocalUnlock();
     window.location.replace("/login");
@@ -129,7 +131,7 @@ export default function SettingsPage() {
                     : "border-border/50 hover:border-border opacity-60"
                 }`}
               >
-                <opt.icon className="h-5 w-5" />
+                {createElement(opt.icon as LucideIcon, { className: "h-5 w-5" })}
                 <span className="text-sm font-bold">{opt.label}</span>
               </button>
             ))}

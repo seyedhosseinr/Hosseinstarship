@@ -9,8 +9,7 @@
  * Data sources wired:
  *  - Zustand stores: useGamificationStore (xp/level/streak)
  *  - Shell context counts from the supported server runtime
- *  - Server API /api/planner/today   → planner widget
- *  - Server API /api/dashboard/stats → KPIs, chapter perf, weekly activity, exams
+ *  - Server API /api/dashboard/stats → KPIs, chapter perf, weekly activity, exams, planner slice
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -78,6 +77,9 @@ type RecentExam = {
 };
 
 type PlannerAgg = {
+  available: boolean;
+  reason?: string;
+  weekTaskCount: number;
   totalTasks: number;
   completedTasks: number;
   overdueTasks: number;
@@ -117,10 +119,7 @@ type FsrsStatsByChapter = {
   totalCards: number;
   dueCards: number;
   reviewedCards: number;
-  /** FSRS-5 retrievability R(t,S) averaged with actual elapsed time (0–100). */
   avgRetention: number | null;
-  /** Average FSRS stability in days for reviewed cards in this chapter. */
-  avgStability: number | null;
   lastReviewedAt: string | null;
 };
 
@@ -249,6 +248,8 @@ type FsrsDetailedStats = {
 };
 
 type PlannerDetailedStats = {
+  available: boolean;
+  reason?: string;
   todayTasks: number;
   completedToday: number;
   overdueTasks: number;
@@ -357,6 +358,9 @@ type PlannerTodayInfo = {
   todayTasks: number;
   completedToday: number;
   overdueTasks: number;
+  /** When false, planner aggregates must not be interpreted as real zeros. */
+  available: boolean;
+  reason?: string;
 };
 
 type FeatureLink = {
@@ -379,6 +383,8 @@ const EMPTY_SERVER_STATS: DashboardServerStats = {
   weeklyActivity: [],
   recentExams: [],
   plannerStats: {
+    available: false,
+    weekTaskCount: 0,
     totalTasks: 0,
     completedTasks: 0,
     overdueTasks: 0,
@@ -423,6 +429,7 @@ const EMPTY_PLANNER: PlannerTodayInfo = {
   todayTasks: 0,
   completedToday: 0,
   overdueTasks: 0,
+  available: false,
 };
 
 const EMPTY_COUNTS: DashboardCounts = {
@@ -455,6 +462,8 @@ function normalizePlannerPayload(payload: any): PlannerTodayInfo {
     todayTasks: tasks.length,
     completedToday,
     overdueTasks: overdueTasks.length,
+    available: body.available === true && !!body.plan,
+    reason: typeof body.reason === "string" ? body.reason : undefined,
   };
 }
 
@@ -478,6 +487,9 @@ function normalizeStatsPayload(json: any): DashboardServerStats {
     plannerStats:
       json.planner && typeof json.planner === "object"
         ? {
+            available: json.planner.available === true,
+            reason: typeof json.planner.reason === "string" ? json.planner.reason : undefined,
+            weekTaskCount: Number(json.planner.weekTaskCount) || 0,
             totalTasks: Number(json.planner.totalTasks) || 0,
             completedTasks: Number(json.planner.completedTasks) || 0,
             overdueTasks: Number(json.planner.overdueTasks) || 0,
@@ -503,8 +515,7 @@ function normalizeStatsPayload(json: any): DashboardServerStats {
           totalCards: Number(item.totalCards) || 0,
           dueCards: Number(item.dueCards) || 0,
           reviewedCards: Number(item.reviewedCards) || 0,
-          avgRetention: item.avgRetention == null ? null : Math.min(100, Math.max(0, Number(item.avgRetention))),
-          avgStability: item.avgStability == null ? null : Math.max(0, Number(item.avgStability)),
+          avgRetention: item.avgRetention == null ? null : Number(item.avgRetention),
           lastReviewedAt: item.lastReviewedAt == null ? null : String(item.lastReviewedAt),
         }))
       : [],
@@ -751,6 +762,16 @@ function normalizeStatsPayload(json: any): DashboardServerStats {
     plannerDetailedStats:
       json.plannerDetailedStats && typeof json.plannerDetailedStats === "object"
         ? {
+            available:
+              json.plannerDetailedStats.available === true ||
+              (json.planner && typeof json.planner === "object" && json.planner.available === true),
+            reason:
+              (typeof json.plannerDetailedStats.reason === "string"
+                ? json.plannerDetailedStats.reason
+                : undefined) ??
+              (json.planner && typeof json.planner === "object" && typeof json.planner.reason === "string"
+                ? json.planner.reason
+                : undefined),
             todayTasks: Number(json.plannerDetailedStats.todayTasks) || 0,
             completedToday: Number(json.plannerDetailedStats.completedToday) || 0,
             overdueTasks: Number(json.plannerDetailedStats.overdueTasks) || 0,
@@ -806,17 +827,49 @@ function normalizeStatsPayload(json: any): DashboardServerStats {
               learningCards: 0,
               newCards: 0,
             },
-            plannerStats: json.dashboardSnapshot.plannerStats ?? {
-              todayTasks: 0,
-              completedToday: 0,
-              overdueTasks: 0,
-              upcomingTasks: [],
-              dailyGoalMinutes: 0,
-              dailyGoalProgress: 0,
-              examDate: null,
-              daysToExam: null,
-              studyStreak: 0,
-            },
+            plannerStats: json.dashboardSnapshot.plannerStats && typeof json.dashboardSnapshot.plannerStats === "object"
+              ? {
+                  available:
+                    json.dashboardSnapshot.plannerStats.available === true ||
+                    (json.planner && typeof json.planner === "object" && json.planner.available === true),
+                  reason:
+                    (typeof json.dashboardSnapshot.plannerStats.reason === "string"
+                      ? json.dashboardSnapshot.plannerStats.reason
+                      : undefined) ??
+                    (json.planner && typeof json.planner === "object" && typeof json.planner.reason === "string"
+                      ? json.planner.reason
+                      : undefined),
+                  todayTasks: Number(json.dashboardSnapshot.plannerStats.todayTasks) || 0,
+                  completedToday: Number(json.dashboardSnapshot.plannerStats.completedToday) || 0,
+                  overdueTasks: Number(json.dashboardSnapshot.plannerStats.overdueTasks) || 0,
+                  upcomingTasks: Array.isArray(json.dashboardSnapshot.plannerStats.upcomingTasks)
+                    ? json.dashboardSnapshot.plannerStats.upcomingTasks.map((item: any) => ({
+                        id: String(item.id ?? ""),
+                        title: String(item.title ?? ""),
+                        scheduledFor: String(item.scheduledFor ?? ""),
+                      }))
+                    : [],
+                  dailyGoalMinutes: Number(json.dashboardSnapshot.plannerStats.dailyGoalMinutes) || 0,
+                  dailyGoalProgress: Number(json.dashboardSnapshot.plannerStats.dailyGoalProgress) || 0,
+                  examDate: json.dashboardSnapshot.plannerStats.examDate ?? null,
+                  daysToExam:
+                    json.dashboardSnapshot.plannerStats.daysToExam != null
+                      ? Number(json.dashboardSnapshot.plannerStats.daysToExam)
+                      : null,
+                  studyStreak: Number(json.dashboardSnapshot.plannerStats.studyStreak) || 0,
+                }
+              : {
+                  available: false,
+                  todayTasks: 0,
+                  completedToday: 0,
+                  overdueTasks: 0,
+                  upcomingTasks: [],
+                  dailyGoalMinutes: 0,
+                  dailyGoalProgress: 0,
+                  examDate: null,
+                  daysToExam: null,
+                  studyStreak: 0,
+                },
             monthlyActivity: Array.isArray(json.dashboardSnapshot.monthlyActivity) ? json.dashboardSnapshot.monthlyActivity : [],
           }
         : null,
@@ -925,15 +978,23 @@ export function useDashboardData() {
           if (!cancelled && statsJson) {
             const normalized = normalizeStatsPayload(statsJson);
             setServerStats(normalized);
+            const ps = normalized.plannerStats;
+            setPlanner({
+              hasActivePlan: ps.available === true && !!normalized.activePlanInfo,
+              planTitle: normalized.activePlanInfo?.title ?? null,
+              todayTasks: ps.available ? ps.todayTasks : 0,
+              completedToday: normalized.plannerDetailedStats?.completedToday ?? 0,
+              overdueTasks: ps.available ? ps.overdueTasks : 0,
+              available: ps.available === true,
+              reason: ps.reason,
+            });
             if (isLocalFirstEnabled()) {
               captureDashboardSnapshot(normalized).catch(() => {
                 /* snapshot write is best-effort */
               });
             }
           }
-        }
-
-        if (!cancelled) {
+        } else if (!cancelled) {
           setPlanner(EMPTY_PLANNER);
         }
       } catch {
@@ -1035,7 +1096,7 @@ export function useDashboardData() {
         subtitle: "Planner",
         href: "/planner",
         accent: "#16A34A",
-        count: planner.todayTasks,
+        count: serverStats.plannerStats.available ? serverStats.plannerStats.todayTasks : undefined,
       },
       {
         key: "history",

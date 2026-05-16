@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import {
   isLocalUnlocked,
   markLocalUnlocked,
+  clearLocalUnlock,
 } from "@/lib/auth/local-unlock";
 
 type Status = "checking" | "allow" | "locked-offline";
@@ -20,7 +21,7 @@ type Status = "checking" | "allow" | "locked-offline";
  * fresh offline start the SW may serve cached HTML before any network check.
  *
  * For a browser that WAS previously authenticated (marker present), we trust
- * the marker for offline startup — the server session cookie remains the real
+ * the marker for offline startup â€” the server session cookie remains the real
  * gate the moment the device is online again.
  */
 export default function OfflineAuthGate({
@@ -34,16 +35,10 @@ export default function OfflineAuthGate({
     let cancelled = false;
 
     async function check() {
-      // If already unlocked locally, render immediately; in the background
-      // we still probe the server so a revoked cookie will redirect to login
-      // on the next navigation handled by middleware.
+      // Local unlock is only for true offline boot. When online, confirm the
+      // server-signed cookie before rendering. This prevents a stale
+      // localStorage marker or an old service-worker shell from bypassing login.
       if (isLocalUnlocked()) {
-        if (!cancelled) setStatus("allow");
-        // Opportunistic server probe — not blocking. If server says we're
-        // authenticated, keep the local marker fresh. If it says no AND we
-        // are online, the next server-side nav will hit middleware and
-        // redirect to /login. We deliberately do NOT clear the local marker
-        // here because we may be offline and the probe can fail benignly.
         try {
           const res = await fetch("/api/auth/session", {
             cache: "no-store",
@@ -51,15 +46,29 @@ export default function OfflineAuthGate({
           });
           if (res.ok) {
             const data = (await res.json()) as { authenticated?: boolean };
-            if (data?.authenticated) markLocalUnlocked();
+            if (data?.authenticated) {
+              markLocalUnlocked();
+              if (!cancelled) setStatus("allow");
+              return;
+            }
+          }
+
+          // Online + stale local marker + no valid server session â†’ lock again.
+          if (!cancelled) {
+            clearLocalUnlock();
+            window.location.replace(
+              `/login?from=${encodeURIComponent(window.location.pathname + window.location.search)}`,
+            );
           }
         } catch {
-          /* offline — keep rendering */
+          // Network failed: allow only as the offline/PWA escape hatch for a
+          // browser that had previously logged in successfully.
+          if (!cancelled) setStatus("allow");
         }
         return;
       }
 
-      // No local marker — try the server. If the server confirms a session
+      // No local marker â€” try the server. If the server confirms a session
       // (e.g. user logged in in another tab), adopt it. Otherwise, if we are
       // offline, show the locked-offline state. If online with no session,
       // the middleware has already redirected, but as a belt-and-braces we
@@ -77,14 +86,14 @@ export default function OfflineAuthGate({
             return;
           }
         }
-        // Online + no session → middleware should have redirected. Force it.
+        // Online + no session â†’ middleware should have redirected. Force it.
         if (!cancelled) {
           window.location.replace(
             `/login?from=${encodeURIComponent(window.location.pathname + window.location.search)}`,
           );
         }
       } catch {
-        // Offline + no local marker → show lock screen.
+        // Offline + no local marker â†’ show lock screen.
         if (!cancelled) setStatus("locked-offline");
       }
     }

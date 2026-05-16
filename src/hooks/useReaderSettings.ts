@@ -25,14 +25,14 @@ export type BgThemeConfig = {
 };
 
 export const BG_THEMES: BgThemeConfig[] = [
-  { id: "paper",     label: "کاغذ",       swatch: "#FAF9F7", isDark: false, bgHsl: "40 24% 97%" },
-  { id: "parchment", label: "پارشمن",     swatch: "#F5EDD6", isDark: false, bgHsl: "38 55% 90%" },
-  { id: "warm",      label: "گرم",        swatch: "#FBF4E4", isDark: false, bgHsl: "38 72% 94%" },
-  { id: "cool",      label: "خنک",        swatch: "#FFFFFF", isDark: false, bgHsl: "0 0% 100%" },
-  { id: "night",     label: "شب",         swatch: "#1C1B1A", isDark: true,  bgHsl: "30 4% 11%" },
-  { id: "slate",     label: "تیره آبی",   swatch: "#131C2B", isDark: true,  bgHsl: "220 38% 12%" },
-  { id: "eyecare",   label: "مراقبت چشم", swatch: "#0F1A13", isDark: true,  bgHsl: "135 26% 8%" },
-  { id: "amoled",    label: "مشکی",       swatch: "#080808", isDark: true,  bgHsl: "0 0% 3%" },
+  { id: "paper",     label: "کاغذ",      swatch: "#FAF9F7", isDark: false, bgHsl: "40 24% 97%" },
+  { id: "parchment", label: "پارشمن",    swatch: "#F5EDD6", isDark: false, bgHsl: "38 55% 90%" },
+  { id: "warm",      label: "گرم",       swatch: "#FBF4E4", isDark: false, bgHsl: "38 72% 94%" },
+  { id: "cool",      label: "خنک",       swatch: "#FFFFFF", isDark: false, bgHsl: "0 0% 100%" },
+  { id: "night",     label: "شب",        swatch: "#1C1B1A", isDark: true,  bgHsl: "30 4% 11%" },
+  { id: "slate",     label: "تیره آبی",  swatch: "#131C2B", isDark: true,  bgHsl: "220 38% 12%" },
+  { id: "eyecare",   label: "مراقبت چشم", swatch: "#0F1A13", isDark: true, bgHsl: "135 26% 8%" },
+  { id: "amoled",    label: "مشکی",      swatch: "#080808", isDark: true,  bgHsl: "0 0% 3%" },
 ];
 
 export const READER_FONT_STACKS: Record<ReaderFontFamily, string> = {

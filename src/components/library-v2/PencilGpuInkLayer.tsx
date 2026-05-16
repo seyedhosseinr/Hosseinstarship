@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, type RefObject } from "react";
 
@@ -17,7 +17,7 @@ export function PencilGpuInkLayer({
   isActive,
   scrollRef,
   contentSelector,
-  color = "#f59e0b",
+  color = "#2F3437",
   options,
 }: PencilGpuInkLayerProps) {
   const gpuCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -66,3 +66,4 @@ export function PencilGpuInkLayer({
     </>
   );
 }
+

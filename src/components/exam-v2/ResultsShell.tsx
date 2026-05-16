@@ -71,7 +71,7 @@ export function ResultsShell({
           <BarButton onClick={onRetry} className="gap-1 text-lib-bar-muted">
             <RotateCcw size={13} /> <span className="text-[11px]">جدید</span>
           </BarButton>
-          <BarButton onClick={() => router.push("/")} className="gap-1 text-lib-bar-muted">
+          <BarButton onClick={() => router.push("/dashboard")} className="gap-1 text-lib-bar-muted">
             <Home size={13} /> <span className="text-[11px]">خانه</span>
           </BarButton>
         </div>

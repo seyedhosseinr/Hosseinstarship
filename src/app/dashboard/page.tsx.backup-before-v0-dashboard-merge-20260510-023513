@@ -1,0 +1,5 @@
+import { StudyCockpitDashboard } from "@/components/dashboard/study-cockpit-dashboard";
+
+export default function DashboardPage() {
+  return <StudyCockpitDashboard />;
+}

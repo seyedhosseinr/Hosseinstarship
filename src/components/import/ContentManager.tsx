@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useReducer, useRef, useState, useMemo, useTransition, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -8,7 +8,7 @@ import {
   BookOpen, HelpCircle, Layers, ChevronDown, Clock,
   AlertTriangle, FolderOpen, X, Plus, RefreshCw, Zap,
   Search, CheckSquare, Square, Sparkles, ArrowUpRight,
-  ShieldAlert, ImageIcon,
+  ShieldAlert, ImageIcon, BookMarked,
 } from "lucide-react";
 import Link from "next/link";
 import EdgeImportPanel from "./EdgeImportPanel";
@@ -89,9 +89,9 @@ const C = Object.fromEntries(
   Object.keys(colorLight).map((k) => [k, `var(--cm-${k})`]),
 ) as Record<keyof typeof colorLight, string>;
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/* ═══════════════════════════════════════════════════════════════
    Types & State
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+═══════════════════════════════════════════════════════════════ */
 
 type FileEntry = {
   id: string;
@@ -119,46 +119,46 @@ type CategoryDef = {
 const CATEGORIES: CategoryDef[] = [
   {
     key: "questions",
-    label: "Ø³ÙˆØ§Ù„Ø§Øª (MCQ)",
+    label: "سوالات (MCQ)",
     icon: HelpCircle,
     color: "hsl(var(--primary))",
     colorBg: "hsl(var(--primary) / 0.06)",
     gradient: "linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--primary) / 0.02))",
     accept: ".json",
-    hint: 'ÙØ§ÛŒÙ„ JSON Ø¨Ø§ Ø³Ø§Ø®ØªØ§Ø± { "questions": [...] }',
+    hint: 'فایل JSON با ساختار { "questions": [...] }',
     formats: "JSON",
   },
   {
     key: "flashcards",
-    label: "ÙÙ„Ø´â€ŒÚ©Ø§Ø±Øªâ€ŒÙ‡Ø§",
+    label: "فلش‌کارت‌ها",
     icon: Layers,
     color: "hsl(var(--info))",
     colorBg: "hsl(var(--info) / 0.06)",
     gradient: "linear-gradient(135deg, hsl(var(--info) / 0.08), hsl(var(--info) / 0.02))",
     accept: ".json",
-    hint: 'ÙØ§ÛŒÙ„ JSON Ø¨Ø§ Ø³Ø§Ø®ØªØ§Ø± { "flashcards": [...] }',
+    hint: 'فایل JSON با ساختار { "flashcards": [...] }',
     formats: "JSON",
   },
   {
     key: "notes",
-    label: "Ø¬Ø²ÙˆØ§Øª",
+    label: "جزوات",
     icon: BookOpen,
     color: "hsl(var(--success))",
     colorBg: "hsl(var(--success) / 0.06)",
     gradient: "linear-gradient(135deg, hsl(var(--success) / 0.08), hsl(var(--success) / 0.02))",
     accept: ".html,.htm,.json",
-    hint: "NOTE v7.5 JSON (Ø¨Ù„ÙˆÚ©â€ŒÙ…Ø­ÙˆØ±) ÛŒØ§ HTML Ù…Ø¹Ù†Ø§ÛŒÛŒ (<section>, <h2>, ...)",
+    hint: "NOTE v7.5 JSON (بلوک‌محور) یا HTML معنایی (<section>, <h2>, ...)",
     formats: "HTML / JSON v7.5",
   },
   {
     key: "yield",
-    label: "Ú©Ø§Ø±Øªâ€ŒÙ‡Ø§ÛŒ Yield",
+    label: "کارت‌های Yield",
     icon: Zap,
     color: "hsl(var(--warning))",
     colorBg: "hsl(var(--warning) / 0.06)",
     gradient: "linear-gradient(135deg, hsl(var(--warning) / 0.08), hsl(var(--warning) / 0.02))",
     accept: ".json",
-    hint: 'YIELD v2.0 (annotations) ÛŒØ§ v1.0 ({ "cards": [...] })',
+    hint: 'YIELD v2.0 (annotations) یا v1.0 ({ "cards": [...] })',
     formats: "JSON v2.0 / v1.0",
   },
 ];
@@ -251,18 +251,18 @@ const INIT: State = {
   deleteMode: "hard",
 };
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/* ═══════════════════════════════════════════════════════════════
    Props
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+═══════════════════════════════════════════════════════════════ */
 
 interface Props {
   stats: ContentStats;
   history: ImportHistoryEntry[];
 }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/* ═══════════════════════════════════════════════════════════════
    Helpers
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+═══════════════════════════════════════════════════════════════ */
 
 /** Aggregate counts for a list of history entries (for multi-select dialog). */
 function aggregateCounts(entries: ImportHistoryEntry[], ids: string[]) {
@@ -281,9 +281,9 @@ function aggregateCounts(entries: ImportHistoryEntry[], ids: string[]) {
     );
 }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/* ═══════════════════════════════════════════════════════════════
    Main Component
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+═══════════════════════════════════════════════════════════════ */
 
 export default function ContentManager({ stats, history: initialHistory }: Props) {
   const router = useRouter();
@@ -300,6 +300,19 @@ export default function ContentManager({ stats, history: initialHistory }: Props
   const [orphanStats, setOrphanStats] = useState<QBankOrphanStats | null>(null);
   const [purgeAllConfirm, setPurgeAllConfirm] = useState(false);
   const [purgeOrphanConfirm, setPurgeOrphanConfirm] = useState(false);
+  const [showChapterDialog, setShowChapterDialog] = useState(false);
+
+  const chapterSummary = useMemo(() => {
+    const map = new Map<number, { segments: Set<number>; segmentCount: number }>();
+    for (const entry of history) {
+      if (entry.chapterNo == null) continue;
+      if (!map.has(entry.chapterNo)) map.set(entry.chapterNo, { segments: new Set(), segmentCount: 0 });
+      const ch = map.get(entry.chapterNo)!;
+      if (entry.segmentNo != null) ch.segments.add(entry.segmentNo);
+    }
+    for (const [, v] of map) v.segmentCount = v.segments.size;
+    return map;
+  }, [history]);
 
   const filesRef = useRef(state.files);
   filesRef.current = state.files;
@@ -361,7 +374,7 @@ export default function ContentManager({ stats, history: initialHistory }: Props
       } catch {
         dispatch({
           type: "UPDATE_FILE", key: cat, id: entryId,
-          patch: { status: "error", errorMsg: "Ø®Ø·Ø§ Ø¯Ø± Ø®ÙˆØ§Ù†Ø¯Ù† ÙØ§ÛŒÙ„" },
+          patch: { status: "error", errorMsg: "خطا در خواندن فایل" },
         });
       }
     }
@@ -403,14 +416,14 @@ export default function ContentManager({ stats, history: initialHistory }: Props
       } catch (err) {
         dispatch({
           type: "UPDATE_FILE", key: cat, id: entry.id,
-          patch: { status: "error", errorMsg: err instanceof Error ? err.message : "Ø®Ø·Ø§ÛŒ Ù†Ø§Ø´Ù†Ø§Ø®ØªÙ‡" },
+          patch: { status: "error", errorMsg: err instanceof Error ? err.message : "خطای ناشناخته" },
         });
       }
     }
 
     setIsUploading(false);
     if (successCount > 0) {
-      toast.success(`${totalInserted} Ù…ÙˆØ±Ø¯ Ø§Ø² ${successCount} ÙØ§ÛŒÙ„ ÙˆØ§Ø±Ø¯ Ø´Ø¯`);
+      toast.success(`${totalInserted} مورد از ${successCount} فایل وارد شد`);
       await refreshHistory();
       router.refresh();
     }
@@ -440,12 +453,12 @@ export default function ContentManager({ stats, history: initialHistory }: Props
           } catch { failed++; }
         }
         if (importIds.length > failed) {
-          const parts = [`${importIds.length - failed} ÙˆØ§Ø±Ø¯Ø§Øª Ø­Ø°Ù Ø´Ø¯`];
-          if (totalQuestions > 0) parts.push(`${totalQuestions} Ø³ÙˆØ§Ù„`);
-          if (totalExamLinks > 0) parts.push(`${totalExamLinks} Ù„ÛŒÙ†Ú© Ø¢Ø²Ù…ÙˆÙ†`);
-          toast.success(parts.join(" Â· "));
+          const parts = [`${importIds.length - failed} واردات حذف شد`];
+          if (totalQuestions > 0) parts.push(`${totalQuestions} سوال`);
+          if (totalExamLinks > 0) parts.push(`${totalExamLinks} لینک آزمون`);
+          toast.success(parts.join(" · "));
         } else {
-          toast.error("Ø®Ø·Ø§ Ø¯Ø± Ø­Ø°Ù");
+          toast.error("خطا در حذف");
         }
       } else {
         // Detach mode
@@ -459,13 +472,12 @@ export default function ContentManager({ stats, history: initialHistory }: Props
           } catch { failed++; }
         }
         if (detached > 0) {
-          toast.success(`${detached} ÙˆØ§Ø±Ø¯Ø§Øª Ø¬Ø¯Ø§ Ø´Ø¯ â€” Ø³ÙˆØ§Ù„Ø§Øª Ø¢Ø²Ù…ÙˆÙ†ÛŒ Ø¯Ø± QBank Ø¨Ø§Ù‚ÛŒ Ù…Ø§Ù†Ø¯Ù†Ø¯`);
+          toast.success(`${detached} واردات جدا شد — سوالات آزمونی در QBank باقی ماندند`);
         } else {
-          toast.error("Ø®Ø·Ø§ Ø¯Ø± Ø¬Ø¯Ø§Ø³Ø§Ø²ÛŒ");
+          toast.error("خطا در جداسازی");
         }
       }
 
-      void counts; // suppress unused warning
       setSelectedHistoryIds(new Set());
       await refreshHistory();
       router.refresh();
@@ -495,7 +507,7 @@ export default function ContentManager({ stats, history: initialHistory }: Props
     <div data-content-mgr style={{ minHeight: "100vh", background: C.bg, fontFamily: "inherit" }} dir="rtl">
       <style dangerouslySetInnerHTML={{ __html: CM_STYLES }} />
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• Hero Header â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* ══════════════════ Hero Header ══════════════════ */}
       <div style={{
         background: `linear-gradient(160deg, ${C.surface} 0%, ${C.accentSoft} 50%, ${C.surface} 100%)`,
         borderBottom: `1px solid ${C.border}`,
@@ -512,14 +524,26 @@ export default function ContentManager({ stats, history: initialHistory }: Props
               <FolderOpen size={22} color={C.accent} />
             </div>
             <div>
-              <h1 style={{ fontSize: 24, fontWeight: 800, color: C.text, margin: 0, letterSpacing: "-0.02em" }}>Ù…Ø¯ÛŒØ±ÛŒØª Ù…Ø­ØªÙˆØ§</h1>
-              <p style={{ fontSize: 13, color: C.textMuted, margin: "2px 0 0", lineHeight: 1.5 }}>ÙˆØ§Ø±Ø¯ Ú©Ø±Ø¯Ù†ØŒ Ø§Ø¹ØªØ¨Ø§Ø±Ø³Ù†Ø¬ÛŒ Ùˆ Ù…Ø¯ÛŒØ±ÛŒØª Ø¬Ø²ÙˆØ§ØªØŒ Ø³ÙˆØ§Ù„Ø§Øª Ùˆ ÙÙ„Ø´â€ŒÚ©Ø§Ø±Øªâ€ŒÙ‡Ø§</p>
+              <h1 style={{ fontSize: 24, fontWeight: 800, color: C.text, margin: 0, letterSpacing: "-0.02em" }}>مدیریت محتوا</h1>
+              <p style={{ fontSize: 13, color: C.textMuted, margin: "2px 0 0", lineHeight: 1.5 }}>وارد کردن، اعتبارسنجی و مدیریت جزوات، سوالات و فلش‌کارت‌ها</p>
             </div>
             <div style={{ marginRight: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+              {chapterSummary.size > 0 && (
+                <button
+                  onClick={() => setShowChapterDialog(true)}
+                  style={{ background: C.surface, border: `1px solid hsl(var(--primary) / 0.3)`, borderRadius: 12, padding: "8px 16px", display: "flex", alignItems: "center", gap: 8, boxShadow: `0 2px 8px ${C.text}06`, cursor: "pointer", transition: "border-color 0.2s, box-shadow 0.2s" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "hsl(var(--primary) / 0.6)"; e.currentTarget.style.boxShadow = `0 4px 16px hsl(var(--primary) / 0.12)`; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "hsl(var(--primary) / 0.3)"; e.currentTarget.style.boxShadow = `0 2px 8px ${C.text}06`; }}
+                >
+                  <BookMarked size={14} color="hsl(var(--primary))" />
+                  <span style={{ fontSize: 18, fontWeight: 800, color: "hsl(var(--primary))", fontVariantNumeric: "tabular-nums" }}>{chapterSummary.size.toLocaleString("fa-IR")}</span>
+                  <span style={{ fontSize: 11, color: C.textMuted }}>فصل آپلود شده</span>
+                </button>
+              )}
               <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12, padding: "8px 16px", display: "flex", alignItems: "center", gap: 8, boxShadow: `0 2px 8px ${C.text}06` }}>
                 <Sparkles size={14} color={C.accent} />
                 <span style={{ fontSize: 18, fontWeight: 800, color: C.text, fontVariantNumeric: "tabular-nums" }}>{totalStats.toLocaleString("fa-IR")}</span>
-                <span style={{ fontSize: 11, color: C.textMuted }}>Ù…ÙˆØ±Ø¯ Ú©Ù„</span>
+                <span style={{ fontSize: 11, color: C.textMuted }}>مورد کل</span>
               </div>
             </div>
           </div>
@@ -543,7 +567,7 @@ export default function ContentManager({ stats, history: initialHistory }: Props
                   {s.lastImportedAt && (
                     <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 8, background: C.surfaceSubtle, fontSize: 10, color: C.textMuted }}>
                       <Clock size={10} />
-                      <span>Ø¢Ø®Ø±ÛŒÙ†: {new Date(s.lastImportedAt).toLocaleDateString("fa-IR")}</span>
+                      <span>آخرین: {new Date(s.lastImportedAt).toLocaleDateString("fa-IR")}</span>
                     </div>
                   )}
                 </div>
@@ -557,21 +581,21 @@ export default function ContentManager({ stats, history: initialHistory }: Props
               <ShieldAlert size={16} color={hasOrphans ? "hsl(var(--warning))" : C.textMuted} />
               <span style={{ fontSize: 13, color: hasOrphans ? "hsl(var(--warning))" : C.textMuted, fontWeight: 600, flex: 1 }}>
                 {hasOrphans
-                  ? `QBank Ø´Ø§Ù…Ù„ ${orphanStats.orphanQuestions} Ø³ÙˆØ§Ù„ Ø¨Ø¯ÙˆÙ† Ù¾ÛŒÙˆÙ†Ø¯ Ø¨Ù‡ ÙˆØ§Ø±Ø¯Ø§Øª Ø§Ø³Øª`
-                  : `QBank: ${totalQBankQuestions} Ø³ÙˆØ§Ù„`}
+                  ? `QBank شامل ${orphanStats.orphanQuestions} سوال بدون پیوند به واردات است`
+                  : `QBank: ${totalQBankQuestions} سوال`}
               </span>
               <span style={{ fontSize: 11, color: C.textMuted }}>
-                {orphanStats.linkedQuestions} Ù¾ÛŒÙˆÙ†Ø¯ Â· {orphanStats.examLinkedTotal} Ù„ÛŒÙ†Ú© Ø¢Ø²Ù…ÙˆÙ†
+                {orphanStats.linkedQuestions} پیوند · {orphanStats.examLinkedTotal} لینک آزمون
               </span>
             </div>
           )}
         </div>
       </div>
 
-      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• Body â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* ══════════════════ Body ══════════════════ */}
       <div style={{ maxWidth: 1140, margin: "0 auto", padding: "28px 32px 48px" }}>
 
-        {/* â”€â”€ Category Sections â”€â”€ */}
+        {/* ── Category Sections ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 28 }}>
           {CATEGORIES.map((cat) => (
             <CategorySection
@@ -599,46 +623,15 @@ export default function ContentManager({ stats, history: initialHistory }: Props
           ))}
         </div>
 
-        <Link
-          href="/import/outliner"
-          style={{
-            background: C.surface,
-            borderRadius: 18,
-            border: `1px solid ${C.border}`,
-            overflow: "hidden",
-            marginBottom: 14,
-            boxShadow: `0 2px 8px ${C.text}04`,
-            padding: "16px 22px",
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            textDecoration: "none",
-          }}
-        >
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: "linear-gradient(135deg, rgba(15,118,110,0.15), rgba(15,118,110,0.06))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <Upload size={16} color="#0f766e" />
-          </div>
-          <div style={{ flex: 1, textAlign: "right" }}>
-            <span style={{ fontSize: 14, fontWeight: 800, color: C.text }}>Outliner — الگوریتم‌های تصویری</span>
-            <span style={{ fontSize: 11, color: C.textMuted, display: "block", marginTop: 1 }}>
-              ایمپورت فایل‌های Algorithm IR برای نمایش الگوریتم‌های Outliner
-            </span>
-          </div>
-          <div style={{ display: "flex", gap: 6, alignItems: "center", color: C.textMuted, fontSize: 11 }}>
-            <span style={{ border: `1px solid ${C.border}`, borderRadius: 999, padding: "4px 8px" }}>.json</span>
-            <span style={{ border: `1px solid ${C.border}`, borderRadius: 999, padding: "4px 8px" }}>.zip</span>
-            <ArrowUpRight size={14} />
-          </div>
-        </Link>
-        {/* â”€â”€ Edge Import â”€â”€ */}
+        {/* ── Edge Import ── */}
         <div style={{ background: C.surface, borderRadius: 18, border: `1px solid ${showEdgeImport ? C.accentBorder : C.border}`, overflow: "hidden", marginBottom: 14, boxShadow: showEdgeImport ? `0 8px 32px ${C.accent}10` : `0 2px 8px ${C.text}04`, transition: "border-color 0.3s, box-shadow 0.3s" }}>
           <button onClick={() => setShowEdgeImport((v) => !v)} style={{ width: "100%", background: "none", border: "none", cursor: "pointer", padding: "16px 22px", display: "flex", alignItems: "center", gap: 12, textAlign: "right" }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: `linear-gradient(135deg, ${C.accent}15, ${C.accent}08)`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               <Zap size={16} color={C.accent} />
             </div>
             <div style={{ flex: 1, textAlign: "right" }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>ÙˆØ§Ø±Ø¯Ø§Øª Ø³Ø±ÛŒØ¹ Edge (V3)</span>
-              <span style={{ fontSize: 11, color: C.textMuted, display: "block", marginTop: 1 }}>Ø§Ø³ØªØ±ÛŒÙ… ÙØ§ÛŒÙ„â€ŒÙ‡Ø§ÛŒ Ø¨Ø²Ø±Ú¯ Ø¨Ø§ Ù…ÙˆØªÙˆØ± WASM Ù…Ø³ØªÙ‚ÛŒÙ… Ø¨Ù‡ OPFS Ù…Ø±ÙˆØ±Ú¯Ø±</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>واردات سریع Edge (V3)</span>
+              <span style={{ fontSize: 11, color: C.textMuted, display: "block", marginTop: 1 }}>استریم فایل‌های بزرگ با موتور WASM مستقیم به OPFS مرورگر</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               {(["WASM", "OPFS"] as const).map((label) => (
@@ -658,7 +651,7 @@ export default function ContentManager({ stats, history: initialHistory }: Props
           </AnimatePresence>
         </div>
 
-        {/* â”€â”€ Media / Chapter Images â”€â”€ */}
+        {/* ── Media / Chapter Images ── */}
         <Link
           href="/import/media"
           style={{ display: "block", textDecoration: "none", marginBottom: 14 }}
@@ -671,9 +664,9 @@ export default function ContentManager({ stats, history: initialHistory }: Props
               <ImageIcon size={20} color="hsl(var(--info))" />
             </div>
             <div style={{ flex: 1, textAlign: "right" }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: C.text, display: "block" }}>ØªØµØ§ÙˆÛŒØ± ÙØµÙ„ / Ø±Ø³Ø§Ù†Ù‡</span>
+              <span style={{ fontSize: 15, fontWeight: 700, color: C.text, display: "block" }}>تصاویر فصل / رسانه</span>
               <span style={{ fontSize: 11, color: C.textMuted, display: "block", marginTop: 2 }}>
-                ÙˆØ§Ø±Ø¯ Ú©Ø±Ø¯Ù† ØªØµØ§ÙˆÛŒØ± Ùˆ Ø¨Ø§Ù†Ø¯Ù„ Ø±Ø³Ø§Ù†Ù‡â€ŒØ§ÛŒ ÙØµÙ„â€ŒÙ‡Ø§ÛŒ Campbell Â· Ù…Ø¯ÛŒØ±ÛŒØª Ø±Ø¬ÛŒØ³ØªØ±ÛŒ Ø±Ø³Ø§Ù†Ù‡ Ù…ÙˆØ±Ø¯ Ø§Ø³ØªÙØ§Ø¯Ù‡ Ø¯Ø± Reader
+                وارد کردن تصاویر و باندل رسانه‌ای فصل‌های Campbell · مدیریت رجیستری رسانه مورد استفاده در Reader
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -685,7 +678,7 @@ export default function ContentManager({ stats, history: initialHistory }: Props
           </div>
         </Link>
 
-        {/* â”€â”€ Import History â”€â”€ */}
+        {/* ── Import History ── */}
         <div style={{ background: C.surface, borderRadius: 18, border: `1px solid ${C.border}`, overflow: "hidden", boxShadow: `0 4px 20px ${C.text}04` }}>
           <div style={{ padding: "18px 22px", borderBottom: `1px solid ${C.border}`, background: `linear-gradient(180deg, ${C.surface}, ${C.surfaceSubtle})` }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
@@ -693,7 +686,7 @@ export default function ContentManager({ stats, history: initialHistory }: Props
                 <div style={{ width: 32, height: 32, borderRadius: 8, background: `linear-gradient(135deg, ${C.accent}12, ${C.accent}06)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Clock size={15} color={C.accent} />
                 </div>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text, margin: 0 }}>ØªØ§Ø±ÛŒØ®Ú†Ù‡ ÙˆØ§Ø±Ø¯Ø§Øª</h2>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text, margin: 0 }}>تاریخچه واردات</h2>
                 <span style={{ fontSize: 11, color: C.textMuted, background: C.surfaceSubtle, border: `1px solid ${C.border}`, borderRadius: 8, padding: "3px 10px", fontVariantNumeric: "tabular-nums" }}>
                   {filteredHistory.length}/{history.length}
                 </span>
@@ -701,15 +694,15 @@ export default function ContentManager({ stats, history: initialHistory }: Props
                   <Button
                     variant="destructive"
                     size="sm"
-                    onClick={() => openDeleteDialog([...selectedHistoryIds], `${selectedHistoryIds.size} ÙˆØ§Ø±Ø¯Ø§Øª Ø§Ù†ØªØ®Ø§Ø¨ Ø´Ø¯Ù‡`)}
+                    onClick={() => openDeleteDialog([...selectedHistoryIds], `${selectedHistoryIds.size} واردات انتخاب شده`)}
                     style={{ gap: 4 }}
                   >
-                    <Trash2 size={12} /> Ø­Ø°Ù {selectedHistoryIds.size} ÙˆØ§Ø±Ø¯Ø§Øª Ùˆ Ù…Ø­ØªÙˆØ§
+                    <Trash2 size={12} /> حذف {selectedHistoryIds.size} واردات و محتوا
                   </Button>
                 )}
               </div>
               <button onClick={refreshHistory} style={{ background: C.surfaceSubtle, border: `1px solid ${C.border}`, borderRadius: 10, cursor: "pointer", color: C.textMuted, display: "flex", alignItems: "center", gap: 6, fontSize: 12, padding: "7px 14px", fontWeight: 500 }}>
-                <RefreshCw size={12} /> Ø¨Ø±ÙˆØ²Ø±Ø³Ø§Ù†ÛŒ
+                <RefreshCw size={12} /> بروزرسانی
               </button>
             </div>
 
@@ -721,32 +714,32 @@ export default function ContentManager({ stats, history: initialHistory }: Props
                   type="text"
                   value={historySearch}
                   onChange={(e) => setHistorySearch(e.target.value)}
-                  placeholder="Ø¬Ø³ØªØ¬ÙˆÛŒ Ù†Ø§Ù… ÙØ§ÛŒÙ„ØŒ Ù†ÙˆØ¹ØŒ ÙØµÙ„..."
+                  placeholder="جستجوی نام فایل، نوع، فصل..."
                   style={{ width: "100%", height: 38, paddingRight: 14, paddingLeft: 36, borderRadius: 12, border: `1px solid ${C.border}`, fontSize: 13, outline: "none", background: C.surface, color: C.text, transition: "border-color 0.2s, box-shadow 0.2s" }}
                   onFocus={(e) => { e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.boxShadow = `0 0 0 3px ${C.accent}15`; }}
                   onBlur={(e) => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.boxShadow = "none"; }}
                 />
               </div>
               <select value={historyStatusFilter} onChange={(e) => setHistoryStatusFilter(e.target.value)} style={{ height: 38, borderRadius: 12, border: `1px solid ${C.border}`, fontSize: 13, padding: "0 12px", background: C.surface, color: C.text }}>
-                <option value="all">Ù‡Ù…Ù‡ ÙˆØ¶Ø¹ÛŒØªâ€ŒÙ‡Ø§</option>
-                <option value="completed">Ù…ÙˆÙÙ‚</option>
-                <option value="running">Ø¯Ø± Ø­Ø§Ù„ Ø§Ø¬Ø±Ø§</option>
-                <option value="failed">Ù†Ø§Ù…ÙˆÙÙ‚</option>
-                <option value="pending">Ø¯Ø± Ø§Ù†ØªØ¸Ø§Ø±</option>
+                <option value="all">همه وضعیت‌ها</option>
+                <option value="completed">موفق</option>
+                <option value="running">در حال اجرا</option>
+                <option value="failed">ناموفق</option>
+                <option value="pending">در انتظار</option>
               </select>
               <select value={historyTypeFilter} onChange={(e) => setHistoryTypeFilter(e.target.value)} style={{ height: 38, borderRadius: 12, border: `1px solid ${C.border}`, fontSize: 13, padding: "0 12px", background: C.surface, color: C.text }}>
-                <option value="all">Ù‡Ù…Ù‡ Ø§Ù†ÙˆØ§Ø¹</option>
-                <option value="notes">Ø¬Ø²ÙˆØ§Øª</option>
-                <option value="questions">Ø³ÙˆØ§Ù„Ø§Øª</option>
-                <option value="flashcards">ÙÙ„Ø´â€ŒÚ©Ø§Ø±Øª</option>
+                <option value="all">همه انواع</option>
+                <option value="notes">جزوات</option>
+                <option value="questions">سوالات</option>
+                <option value="flashcards">فلش‌کارت</option>
                 <option value="yield">Yield</option>
-                <option value="batch">Ø¯Ø³ØªÙ‡â€ŒØ§ÛŒ</option>
+                <option value="batch">دسته‌ای</option>
               </select>
               {filteredHistory.length > 0 && (
                 <button onClick={toggleAllHistory} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: "0 14px", height: 38, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: C.textMuted, fontWeight: 500 }}>
                   {filteredHistory.every((imp) => selectedHistoryIds.has(imp.id))
-                    ? <><CheckSquare size={13} /> Ù„ØºÙˆ Ø§Ù†ØªØ®Ø§Ø¨ Ù‡Ù…Ù‡</>
-                    : <><Square size={13} /> Ø§Ù†ØªØ®Ø§Ø¨ Ù‡Ù…Ù‡</>}
+                    ? <><CheckSquare size={13} /> لغو انتخاب همه</>
+                    : <><Square size={13} /> انتخاب همه</>}
                 </button>
               )}
             </div>
@@ -758,7 +751,7 @@ export default function ContentManager({ stats, history: initialHistory }: Props
               <div style={{ width: 56, height: 56, borderRadius: 16, background: C.surfaceSubtle, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
                 <FolderOpen size={24} color={C.textMuted} style={{ opacity: 0.5 }} />
               </div>
-              {history.length === 0 ? "Ù‡Ù†ÙˆØ² Ù…Ø­ØªÙˆØ§ÛŒÛŒ ÙˆØ§Ø±Ø¯ Ù†Ø´Ø¯Ù‡ Ø§Ø³Øª" : "Ù†ØªÛŒØ¬Ù‡â€ŒØ§ÛŒ ÛŒØ§ÙØª Ù†Ø´Ø¯"}
+              {history.length === 0 ? "هنوز محتوایی وارد نشده است" : "نتیجه‌ای یافت نشد"}
             </div>
           ) : (
             <div style={{ maxHeight: 520, overflowY: "auto" }}>
@@ -776,14 +769,14 @@ export default function ContentManager({ stats, history: initialHistory }: Props
           )}
         </div>
 
-        {/* â”€â”€ QBank Purge Panel â”€â”€ */}
+        {/* ── QBank Purge Panel ── */}
         <div style={{ marginTop: 14, background: C.surface, borderRadius: 18, border: `1px solid ${C.border}`, padding: "18px 22px", boxShadow: `0 2px 8px ${C.text}04` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
             <ShieldAlert size={16} color="hsl(var(--danger))" />
-            <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Ø¹Ù…Ù„ÛŒØ§Øª Ù¾Ø§Ú©â€ŒØ³Ø§Ø²ÛŒ QBank</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>عملیات پاک‌سازی QBank</span>
             {orphanStats && (
               <span style={{ fontSize: 11, color: C.textMuted }}>
-                Ú©Ù„ Ø³ÙˆØ§Ù„Ø§Øª: {orphanStats.totalQuestions} Â· Ø¨Ø¯ÙˆÙ† ÙˆØ§Ø±Ø¯Ø§Øª: {orphanStats.orphanQuestions}
+                کل سوالات: {orphanStats.totalQuestions} · بدون واردات: {orphanStats.orphanQuestions}
               </span>
             )}
           </div>
@@ -796,7 +789,7 @@ export default function ContentManager({ stats, history: initialHistory }: Props
               style={{ gap: 6, borderColor: "hsl(var(--warning) / 0.4)", color: "hsl(var(--warning))" }}
             >
               <Trash2 size={13} />
-              Ù¾Ø§Ú© Ú©Ø±Ø¯Ù† Ø³ÙˆØ§Ù„Ø§Øª Ø¨Ø¯ÙˆÙ† ÙˆØ§Ø±Ø¯Ø§Øª ({orphanStats?.orphanQuestions ?? 0})
+              پاک کردن سوالات بدون واردات ({orphanStats?.orphanQuestions ?? 0})
             </Button>
             <Button
               variant="destructive"
@@ -806,43 +799,43 @@ export default function ContentManager({ stats, history: initialHistory }: Props
               style={{ gap: 6 }}
             >
               <Trash2 size={13} />
-              Ù¾Ø§Ú© Ú©Ø±Ø¯Ù† Ù‡Ù…Ù‡ Ø³ÙˆØ§Ù„Ø§Øª QBank ({orphanStats?.totalQuestions ?? 0})
+              پاک کردن همه سوالات QBank ({orphanStats?.totalQuestions ?? 0})
             </Button>
           </div>
           <p style={{ fontSize: 11, color: C.textMuted, marginTop: 10, marginBottom: 0 }}>
-            Ø§ÛŒÙ† Ø¹Ù…Ù„ÛŒØ§Øªâ€ŒÙ‡Ø§ Ù…Ø³ØªÙ‚Ù„ Ø§Ø² ØªØ§Ø±ÛŒØ®Ú†Ù‡ ÙˆØ§Ø±Ø¯Ø§Øª Ù‡Ø³ØªÙ†Ø¯ Ùˆ Ø­ØªÛŒ Ø§Ú¯Ø± ØªØ§Ø±ÛŒØ®Ú†Ù‡ Ø®Ø§Ù„ÛŒ Ø¨Ø§Ø´Ø¯ Ú©Ø§Ø± Ù…ÛŒâ€ŒÚ©Ù†Ù†Ø¯.
+            این عملیات‌ها مستقل از تاریخچه واردات هستند و حتی اگر تاریخچه خالی باشد کار می‌کنند.
           </p>
         </div>
       </div>
 
-      {/* â”€â”€ Delete Confirmation Dialog â”€â”€ */}
+      {/* ── Delete Confirmation Dialog ── */}
       <Dialog open={!!state.deleteTarget} onOpenChange={(open) => { if (!open) dispatch({ type: "SET_DELETE", target: null }); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle style={{ color: "hsl(var(--danger))" }}>
               <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Trash2 size={18} /> Ø­Ø°Ù ÙˆØ§Ø±Ø¯Ø§Øª Ùˆ Ù…Ø­ØªÙˆØ§ÛŒ ÙˆØ§Ø±Ø¯ Ø´Ø¯Ù‡
+                <Trash2 size={18} /> حذف واردات و محتوای وارد شده
               </span>
             </DialogTitle>
             <DialogDescription>
-              Ø¯Ø± Ø­Ø§Ù„ Ø­Ø°Ù: {state.deleteTarget?.label}
+              در حال حذف: {state.deleteTarget?.label}
             </DialogDescription>
           </DialogHeader>
 
-          {/* Rich delete body â€” lives outside DialogDescription (which is a <p>) */}
+          {/* Rich delete body — lives outside DialogDescription (which is a <p>) */}
           <div style={{ fontSize: 13, lineHeight: 1.7 }}>
             {state.deleteTarget && (
               <div style={{ background: "hsl(var(--danger) / 0.05)", border: "1px solid hsl(var(--danger) / 0.15)", borderRadius: 10, padding: "10px 14px", marginBottom: 12 }}>
                 <div style={{ fontSize: 12, color: "hsl(var(--foreground))", display: "flex", flexDirection: "column", gap: 4 }}>
-                  {state.deleteTarget.counts.questions > 0 && <span>â€¢ {state.deleteTarget.counts.questions} Ø³ÙˆØ§Ù„ MCQ</span>}
+                  {state.deleteTarget.counts.questions > 0 && <span>• {state.deleteTarget.counts.questions} سوال MCQ</span>}
                   {state.deleteTarget.counts.examLinkedQuestions > 0 && (
                     <span style={{ color: "hsl(var(--warning))", fontWeight: 600 }}>
-                      â€¢ {state.deleteTarget.counts.examLinkedQuestions} Ø³ÙˆØ§Ù„ Ù…Ø±ØªØ¨Ø· Ø¨Ø§ Ø¢Ø²Ù…ÙˆÙ†
+                      • {state.deleteTarget.counts.examLinkedQuestions} سوال مرتبط با آزمون
                     </span>
                   )}
-                  {state.deleteTarget.counts.flashcards > 0 && <span>â€¢ {state.deleteTarget.counts.flashcards} ÙÙ„Ø´â€ŒÚ©Ø§Ø±Øª</span>}
-                  {state.deleteTarget.counts.chunks > 0 && <span>â€¢ {state.deleteTarget.counts.chunks} Ø¨Ø®Ø´ Ø¬Ø²ÙˆÙ‡</span>}
-                  {state.deleteTarget.counts.noteDocuments > 0 && <span>â€¢ {state.deleteTarget.counts.noteDocuments} Ø³Ù†Ø¯ Ø¬Ø²ÙˆÙ‡</span>}
+                  {state.deleteTarget.counts.flashcards > 0 && <span>• {state.deleteTarget.counts.flashcards} فلش‌کارت</span>}
+                  {state.deleteTarget.counts.chunks > 0 && <span>• {state.deleteTarget.counts.chunks} بخش جزوه</span>}
+                  {state.deleteTarget.counts.noteDocuments > 0 && <span>• {state.deleteTarget.counts.noteDocuments} سند جزوه</span>}
                 </div>
               </div>
             )}
@@ -852,21 +845,21 @@ export default function ContentManager({ stats, history: initialHistory }: Props
               <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", padding: "10px 12px", borderRadius: 10, border: `2px solid ${state.deleteMode === "hard" ? "hsl(var(--danger))" : C.border}`, background: state.deleteMode === "hard" ? "hsl(var(--danger) / 0.05)" : "transparent" }}>
                 <input type="radio" name="deleteMode" value="hard" checked={state.deleteMode === "hard"} onChange={() => dispatch({ type: "SET_DELETE_MODE", mode: "hard" })} style={{ marginTop: 2, accentColor: "hsl(var(--danger))" }} />
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--danger))" }}>Ø­Ø°Ù ÙˆØ§Ø±Ø¯Ø§Øª Ùˆ ØªÙ…Ø§Ù… Ù…Ø­ØªÙˆØ§ÛŒ ÙˆØ§Ø±Ø¯ Ø´Ø¯Ù‡</div>
-                  <div style={{ fontSize: 11, color: C.textMuted }}>Ø³ÙˆØ§Ù„Ø§Øª Ø¢Ø²Ù…ÙˆÙ†ÛŒ Ù‡Ù… Ø§Ø² QBank Ùˆ Ø¢Ø²Ù…ÙˆÙ†â€ŒÙ‡Ø§ Ø­Ø°Ù Ù…ÛŒâ€ŒØ´ÙˆÙ†Ø¯. Ø¨Ø±Ú¯Ø´Øªâ€ŒÙ¾Ø°ÛŒØ± Ù†ÛŒØ³Øª.</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--danger))" }}>حذف واردات و تمام محتوای وارد شده</div>
+                  <div style={{ fontSize: 11, color: C.textMuted }}>سوالات آزمونی هم از QBank و آزمون‌ها حذف می‌شوند. برگشت‌پذیر نیست.</div>
                 </div>
               </label>
               <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer", padding: "10px 12px", borderRadius: 10, border: `2px solid ${state.deleteMode === "detach" ? "hsl(var(--warning))" : C.border}`, background: state.deleteMode === "detach" ? "hsl(var(--warning) / 0.05)" : "transparent" }}>
                 <input type="radio" name="deleteMode" value="detach" checked={state.deleteMode === "detach"} onChange={() => dispatch({ type: "SET_DELETE_MODE", mode: "detach" })} style={{ marginTop: 2, accentColor: "hsl(var(--warning))" }} />
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--warning))" }}>Ù†Ú¯Ù‡ Ø¯Ø§Ø´ØªÙ† ØªØ§Ø±ÛŒØ®Ú†Ù‡ Ø¢Ø²Ù…ÙˆÙ† / ÙÙ‚Ø· Ø¬Ø¯Ø§Ø³Ø§Ø²ÛŒ</div>
-                  <div style={{ fontSize: 11, color: C.textMuted }}>Ø³ÙˆØ§Ù„Ø§ØªÛŒ Ú©Ù‡ Ø¯Ø± Ø¢Ø²Ù…ÙˆÙ† Ø§Ø³ØªÙØ§Ø¯Ù‡ Ø´Ø¯Ù‡â€ŒØ§Ù†Ø¯ Ø¯Ø± QBank Ø¨Ø§Ù‚ÛŒ Ù…ÛŒâ€ŒÙ…Ø§Ù†Ù†Ø¯. Ø³ÙˆØ§Ù„Ø§Øª Ø¨Ø¯ÙˆÙ† Ø¢Ø²Ù…ÙˆÙ† Ø­Ø°Ù Ù…ÛŒâ€ŒØ´ÙˆÙ†Ø¯.</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--warning))" }}>نگه داشتن تاریخچه آزمون / فقط جداسازی</div>
+                  <div style={{ fontSize: 11, color: C.textMuted }}>سوالاتی که در آزمون استفاده شده‌اند در QBank باقی می‌مانند. سوالات بدون آزمون حذف می‌شوند.</div>
                 </div>
               </label>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => dispatch({ type: "SET_DELETE", target: null })}>Ø§Ù†ØµØ±Ø§Ù</Button>
+            <Button variant="outline" onClick={() => dispatch({ type: "SET_DELETE", target: null })}>انصراف</Button>
             <Button
               variant="destructive"
               onClick={handleDelete}
@@ -874,27 +867,27 @@ export default function ContentManager({ stats, history: initialHistory }: Props
               style={state.deleteMode === "detach" ? { background: "hsl(var(--warning))", borderColor: "hsl(var(--warning))" } : undefined}
             >
               {isDeleting
-                ? "Ø¯Ø± Ø­Ø§Ù„ Ø­Ø°Ù..."
+                ? "در حال حذف..."
                 : state.deleteMode === "hard"
-                  ? "Ø­Ø°Ù Ú©Ø§Ù…Ù„ ÙˆØ§Ø±Ø¯Ø§Øª Ùˆ Ù…Ø­ØªÙˆØ§"
-                  : "Ø¬Ø¯Ø§Ø³Ø§Ø²ÛŒ ÙˆØ§Ø±Ø¯Ø§Øª (Ù†Ú¯Ù‡ Ø¯Ø§Ø´ØªÙ† Ø¢Ø²Ù…ÙˆÙ†)"}
+                  ? "حذف کامل واردات و محتوا"
+                  : "جداسازی واردات (نگه داشتن آزمون)"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* â”€â”€ Purge Orphan Confirm â”€â”€ */}
+      {/* ── Purge Orphan Confirm ── */}
       <Dialog open={purgeOrphanConfirm} onOpenChange={setPurgeOrphanConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Ù¾Ø§Ú© Ú©Ø±Ø¯Ù† Ø³ÙˆØ§Ù„Ø§Øª Ø¨Ø¯ÙˆÙ† ÙˆØ§Ø±Ø¯Ø§Øª</DialogTitle>
+            <DialogTitle>پاک کردن سوالات بدون واردات</DialogTitle>
             <DialogDescription>
-              {orphanStats?.orphanQuestions ?? 0} Ø³ÙˆØ§Ù„ Ø¨Ø¯ÙˆÙ† Ù¾ÛŒÙˆÙ†Ø¯ Ø¨Ù‡ ÙˆØ§Ø±Ø¯Ø§Øª Ø§Ø² QBank Ø­Ø°Ù Ø®ÙˆØ§Ù‡Ù†Ø¯ Ø´Ø¯.
-              Ù„ÛŒÙ†Ú©â€ŒÙ‡Ø§ÛŒ Ø¢Ø²Ù…ÙˆÙ† Ø¢Ù†â€ŒÙ‡Ø§ Ù†ÛŒØ² Ù¾Ø§Ú© Ù…ÛŒâ€ŒØ´ÙˆÙ†Ø¯. Ø§ÛŒÙ† Ø¹Ù…Ù„ Ø¨Ø±Ú¯Ø´Øªâ€ŒÙ¾Ø°ÛŒØ± Ù†ÛŒØ³Øª.
+              {orphanStats?.orphanQuestions ?? 0} سوال بدون پیوند به واردات از QBank حذف خواهند شد.
+              لینک‌های آزمون آن‌ها نیز پاک می‌شوند. این عمل برگشت‌پذیر نیست.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPurgeOrphanConfirm(false)}>Ø§Ù†ØµØ±Ø§Ù</Button>
+            <Button variant="outline" onClick={() => setPurgeOrphanConfirm(false)}>انصراف</Button>
             <Button
               variant="destructive"
               disabled={isPurging}
@@ -903,35 +896,89 @@ export default function ContentManager({ stats, history: initialHistory }: Props
                 startPurgeTransition(async () => {
                   const r = await purgeOrphanQuestionsAction();
                   if (r.success) {
-                    toast.success(`${r.data.deleted.questions} Ø³ÙˆØ§Ù„ Ø¨Ø¯ÙˆÙ† ÙˆØ§Ø±Ø¯Ø§Øª Ø­Ø°Ù Ø´Ø¯ Â· ${r.data.deleted.examSessionLinks} Ù„ÛŒÙ†Ú© Ø¢Ø²Ù…ÙˆÙ† Ù¾Ø§Ú© Ø´Ø¯`);
+                    toast.success(`${r.data.deleted.questions} سوال بدون واردات حذف شد · ${r.data.deleted.examSessionLinks} لینک آزمون پاک شد`);
                     await refreshHistory();
                     router.refresh();
                   } else {
-                    toast.error(`Ø®Ø·Ø§: ${r.error}`);
+                    toast.error(`خطا: ${r.error}`);
                   }
                 });
               }}
             >
-              {isPurging ? "Ø¯Ø± Ø­Ø§Ù„ Ù¾Ø§Ú©â€ŒØ³Ø§Ø²ÛŒ..." : "Ù¾Ø§Ú© Ú©Ø±Ø¯Ù† Ø³ÙˆØ§Ù„Ø§Øª Ø¨Ø¯ÙˆÙ† ÙˆØ§Ø±Ø¯Ø§Øª"}
+              {isPurging ? "در حال پاک‌سازی..." : "پاک کردن سوالات بدون واردات"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* â”€â”€ Purge All Confirm â”€â”€ */}
+      {/* ── Chapter Upload Summary Dialog ── */}
+      <Dialog open={showChapterDialog} onOpenChange={setShowChapterDialog}>
+        <DialogContent style={{ maxWidth: 560, maxHeight: "80vh", display: "flex", flexDirection: "column" }}>
+          <DialogHeader>
+            <DialogTitle style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <BookMarked size={18} color="hsl(var(--primary))" />
+              فصل‌های آپلود شده
+            </DialogTitle>
+            <DialogDescription>
+              {chapterSummary.size} فصل در تاریخچه واردات یافت شد
+            </DialogDescription>
+          </DialogHeader>
+          <div style={{ overflowY: "auto", flex: 1, paddingTop: 4 }}>
+            {[...chapterSummary.entries()]
+              .sort(([a], [b]) => a - b)
+              .map(([chNo, { segments }]) => {
+                const sortedSegs = [...segments].sort((a, b) => a - b);
+                return (
+                  <div key={chNo} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "10px 4px", borderBottom: `1px solid ${C.border}` }}>
+                    <div style={{ minWidth: 72, padding: "4px 10px", borderRadius: 8, background: "hsl(var(--primary) / 0.08)", border: "1px solid hsl(var(--primary) / 0.2)", textAlign: "center", flexShrink: 0 }}>
+                      <div style={{ fontSize: 11, color: "hsl(var(--primary))", fontWeight: 600 }}>فصل</div>
+                      <div style={{ fontSize: 20, fontWeight: 800, color: "hsl(var(--primary))", lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>{chNo}</div>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, color: C.textMuted, marginBottom: 6 }}>
+                        {sortedSegs.length > 0
+                          ? `${sortedSegs.length} بخش آپلود شده`
+                          : "بدون اطلاعات بخش"}
+                      </div>
+                      {sortedSegs.length > 0 && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                          {sortedSegs.map((seg) => (
+                            <span key={seg} style={{ fontSize: 10, fontWeight: 600, color: "hsl(var(--info))", background: "hsl(var(--info) / 0.07)", border: "1px solid hsl(var(--info) / 0.2)", borderRadius: 6, padding: "2px 8px", fontVariantNumeric: "tabular-nums" }}>
+                              {String(seg).padStart(2, "0")}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            {chapterSummary.size === 0 && (
+              <div style={{ padding: "32px 0", textAlign: "center", color: C.textMuted, fontSize: 13 }}>
+                هنوز فصلی با شماره‌گذاری آپلود نشده است
+              </div>
+            )}
+          </div>
+          <DialogFooter style={{ paddingTop: 8 }}>
+            <Button variant="outline" onClick={() => setShowChapterDialog(false)}>بستن</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Purge All Confirm ── */}
       <Dialog open={purgeAllConfirm} onOpenChange={setPurgeAllConfirm}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle style={{ color: "hsl(var(--danger))" }}>Ù¾Ø§Ú© Ú©Ø±Ø¯Ù† Ù‡Ù…Ù‡ Ø³ÙˆØ§Ù„Ø§Øª QBank</DialogTitle>
+            <DialogTitle style={{ color: "hsl(var(--danger))" }}>پاک کردن همه سوالات QBank</DialogTitle>
             <DialogDescription>
-              <strong>Ù‡Ù…Ù‡ {orphanStats?.totalQuestions ?? 0} Ø³ÙˆØ§Ù„</strong> Ø§Ø² QBank Ø­Ø°Ù Ø®ÙˆØ§Ù‡Ù†Ø¯ Ø´Ø¯ØŒ
-              Ø§Ø² Ø¬Ù…Ù„Ù‡ Ø³ÙˆØ§Ù„Ø§ØªÛŒ Ú©Ù‡ Ø¯Ø± Ø¢Ø²Ù…ÙˆÙ† Ø§Ø³ØªÙØ§Ø¯Ù‡ Ø´Ø¯Ù‡â€ŒØ§Ù†Ø¯.
-              ØªÙ…Ø§Ù… Ù„ÛŒÙ†Ú©â€ŒÙ‡Ø§ÛŒ Ø¢Ø²Ù…ÙˆÙ† ({orphanStats?.examLinkedTotal ?? 0}) Ù†ÛŒØ² Ù¾Ø§Ú© Ù…ÛŒâ€ŒØ´ÙˆÙ†Ø¯.
-              Ø§ÛŒÙ† Ø¹Ù…Ù„ Ú©Ø§Ù…Ù„Ø§Ù‹ Ø¨Ø±Ú¯Ø´Øªâ€ŒÙ¾Ø°ÛŒØ± Ù†ÛŒØ³Øª.
+              <strong>همه {orphanStats?.totalQuestions ?? 0} سوال</strong> از QBank حذف خواهند شد،
+              از جمله سوالاتی که در آزمون استفاده شده‌اند.
+              تمام لینک‌های آزمون ({orphanStats?.examLinkedTotal ?? 0}) نیز پاک می‌شوند.
+              این عمل کاملاً برگشت‌پذیر نیست.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPurgeAllConfirm(false)}>Ø§Ù†ØµØ±Ø§Ù</Button>
+            <Button variant="outline" onClick={() => setPurgeAllConfirm(false)}>انصراف</Button>
             <Button
               variant="destructive"
               disabled={isPurging}
@@ -940,16 +987,16 @@ export default function ContentManager({ stats, history: initialHistory }: Props
                 startPurgeTransition(async () => {
                   const r = await purgeAllQuestionsAction();
                   if (r.success) {
-                    toast.success(`${r.data.deleted.questions} Ø³ÙˆØ§Ù„ Ø§Ø² QBank Ù¾Ø§Ú© Ø´Ø¯ Â· ${r.data.deleted.examSessionLinks} Ù„ÛŒÙ†Ú© Ø¢Ø²Ù…ÙˆÙ† Ù¾Ø§Ú© Ø´Ø¯`);
+                    toast.success(`${r.data.deleted.questions} سوال از QBank پاک شد · ${r.data.deleted.examSessionLinks} لینک آزمون پاک شد`);
                     await refreshHistory();
                     router.refresh();
                   } else {
-                    toast.error(`Ø®Ø·Ø§: ${r.error}`);
+                    toast.error(`خطا: ${r.error}`);
                   }
                 });
               }}
             >
-              {isPurging ? "Ø¯Ø± Ø­Ø§Ù„ Ù¾Ø§Ú©â€ŒØ³Ø§Ø²ÛŒ..." : "Ù¾Ø§Ú© Ú©Ø±Ø¯Ù† Ù‡Ù…Ù‡ Ø³ÙˆØ§Ù„Ø§Øª QBank"}
+              {isPurging ? "در حال پاک‌سازی..." : "پاک کردن همه سوالات QBank"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -958,9 +1005,9 @@ export default function ContentManager({ stats, history: initialHistory }: Props
   );
 }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/* ═══════════════════════════════════════════════════════════════
    Category Section
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+═══════════════════════════════════════════════════════════════ */
 
 function CategorySection({
   cat, isActive, files, isUploading, selectedIds,
@@ -1013,8 +1060,8 @@ function CategorySection({
         </div>
         {files.length > 0 && (
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            {invalidCount > 0 && <Badge variant="destructive" style={{ fontSize: 10 }}>{invalidCount} Ø®Ø·Ø§</Badge>}
-            <Badge variant={invalidCount > 0 ? "warning" : "success"} style={{ fontSize: 10 }}>{files.length} ÙØ§ÛŒÙ„</Badge>
+            {invalidCount > 0 && <Badge variant="destructive" style={{ fontSize: 10 }}>{invalidCount} خطا</Badge>}
+            <Badge variant={invalidCount > 0 ? "warning" : "success"} style={{ fontSize: 10 }}>{files.length} فایل</Badge>
           </div>
         )}
         <ArrowUpRight className="cm-cat-arrow" size={16} color={cat.color} style={{ opacity: 0, transition: "opacity 0.2s, transform 0.2s", transform: "translateX(0)" }} />
@@ -1035,8 +1082,8 @@ function CategorySection({
                 <div style={{ width: 48, height: 48, borderRadius: 14, margin: "0 auto 12px", background: isDragOver ? cat.colorBg : C.bg, border: `1px solid ${isDragOver ? cat.color + "30" : C.border}`, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }}>
                   <Upload size={22} color={isDragOver ? cat.color : C.textMuted} style={{ transition: "color 0.2s" }} />
                 </div>
-                <p style={{ fontSize: 14, color: C.text, fontWeight: 600, margin: "0 0 4px", position: "relative" }}>ÙØ§ÛŒÙ„â€ŒÙ‡Ø§ Ø±Ø§ Ø§ÛŒÙ†Ø¬Ø§ Ø±Ù‡Ø§ Ú©Ù†ÛŒØ¯ ÛŒØ§ Ú©Ù„ÛŒÚ© Ú©Ù†ÛŒØ¯</p>
-                <p style={{ fontSize: 12, color: C.textMuted, margin: 0, position: "relative" }}>ÙØ±Ù…Øª Ù¾Ø´ØªÛŒØ¨Ø§Ù†ÛŒ: {cat.formats} &middot; {cat.accept}</p>
+                <p style={{ fontSize: 14, color: C.text, fontWeight: 600, margin: "0 0 4px", position: "relative" }}>فایل‌ها را اینجا رها کنید یا کلیک کنید</p>
+                <p style={{ fontSize: 12, color: C.textMuted, margin: 0, position: "relative" }}>فرمت پشتیبانی: {cat.formats} &middot; {cat.accept}</p>
                 <input ref={inputRef} type="file" accept={cat.accept} multiple style={{ display: "none" }} onChange={(e) => { const f = Array.from(e.target.files ?? []); if (f.length > 0) onFilesSelected(f); e.target.value = ""; }} />
               </div>
 
@@ -1044,17 +1091,17 @@ function CategorySection({
               {files.length > 0 && (
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, padding: "10px 14px", borderRadius: 12, background: C.surfaceSubtle, border: `1px solid ${C.border}`, fontSize: 12 }}>
                   <div style={{ width: 8, height: 8, borderRadius: "50%", background: invalidCount > 0 ? C.danger : C.success, flexShrink: 0, animation: pendingCount > 0 ? "cm-pulse-ring 1.5s infinite" : "none" }} />
-                  <span style={{ color: C.success, fontWeight: 600 }}>{validCount} Ù…Ø¹ØªØ¨Ø±</span>
-                  {invalidCount > 0 && <span style={{ color: C.danger, fontWeight: 600 }}>{invalidCount} Ù†Ø§Ù…Ø¹ØªØ¨Ø±</span>}
-                  {pendingCount > 0 && <span style={{ color: C.textMuted }}>{pendingCount} Ø¯Ø± Ø§Ù†ØªØ¸Ø§Ø±</span>}
-                  {uploadedCount > 0 && <span style={{ color: C.accent, fontWeight: 600 }}>{uploadedCount} ÙˆØ§Ø±Ø¯ Ø´Ø¯Ù‡</span>}
+                  <span style={{ color: C.success, fontWeight: 600 }}>{validCount} معتبر</span>
+                  {invalidCount > 0 && <span style={{ color: C.danger, fontWeight: 600 }}>{invalidCount} نامعتبر</span>}
+                  {pendingCount > 0 && <span style={{ color: C.textMuted }}>{pendingCount} در انتظار</span>}
+                  {uploadedCount > 0 && <span style={{ color: C.accent, fontWeight: 600 }}>{uploadedCount} وارد شده</span>}
                   <span style={{ marginRight: "auto" }} />
                   <button onClick={allSelected ? onDeselectAll : onSelectAll} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 8, padding: "4px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.textMuted, fontWeight: 500 }}>
-                    {allSelected ? <><CheckSquare size={12} /> Ù„ØºÙˆ Ø§Ù†ØªØ®Ø§Ø¨</> : <><Square size={12} /> Ø§Ù†ØªØ®Ø§Ø¨ Ù‡Ù…Ù‡</>}
+                    {allSelected ? <><CheckSquare size={12} /> لغو انتخاب</> : <><Square size={12} /> انتخاب همه</>}
                   </button>
                   {selectedIds.size > 0 && (
                     <button onClick={onRemoveSelected} style={{ background: "none", border: `1px solid ${C.danger}40`, borderRadius: 8, padding: "4px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: C.danger, fontWeight: 500 }}>
-                      <Trash2 size={11} /> Ø­Ø°Ù {selectedIds.size} ÙØ§ÛŒÙ„
+                      <Trash2 size={11} /> حذف {selectedIds.size} فایل
                     </button>
                   )}
                 </div>
@@ -1074,14 +1121,14 @@ function CategorySection({
                 <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "14px 16px", borderRadius: 14, background: `linear-gradient(135deg, ${cat.colorBg}, ${C.surfaceSubtle})`, border: `1px solid ${cat.color}15` }}>
                   <Button onClick={onCommit} disabled={validCount === 0 || isUploading || uploadedCount === validCount} style={{ background: cat.color, borderColor: cat.color, gap: 6 }}>
                     <Plus size={14} />
-                    {isUploading ? "Ø¯Ø± Ø­Ø§Ù„ ÙˆØ§Ø±Ø¯ Ú©Ø±Ø¯Ù†..." : `ÙˆØ§Ø±Ø¯ Ú©Ø±Ø¯Ù† ${validCount} ÙØ§ÛŒÙ„ Ù…Ø¹ØªØ¨Ø±`}
+                    {isUploading ? "در حال وارد کردن..." : `وارد کردن ${validCount} فایل معتبر`}
                   </Button>
                   <Button variant="outline" onClick={onClearFiles} disabled={isUploading} style={{ gap: 6 }}>
-                    <X size={14} /> Ù¾Ø§Ú© Ú©Ø±Ø¯Ù† Ù‡Ù…Ù‡
+                    <X size={14} /> پاک کردن همه
                   </Button>
                   {invalidCount > 0 && (
                     <span style={{ fontSize: 12, color: C.danger, display: "flex", alignItems: "center", gap: 5 }}>
-                      <AlertTriangle size={13} /> {invalidCount} ÙØ§ÛŒÙ„ Ù†Ø§Ù…Ø¹ØªØ¨Ø±
+                      <AlertTriangle size={13} /> {invalidCount} فایل نامعتبر
                     </span>
                   )}
                 </div>
@@ -1094,9 +1141,9 @@ function CategorySection({
   );
 }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/* ═══════════════════════════════════════════════════════════════
    File Row
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+═══════════════════════════════════════════════════════════════ */
 
 function parseFileMeta(name: string): { chapterNo: number | null; segmentIdx: number | null } {
   const base = name.replace(/\.[^.]+$/, "");
@@ -1164,13 +1211,13 @@ function FileRow({ entry, catKey, catColor, isSelected, onToggleSelect, onRemove
   }[entry.status];
 
   const statusLabel = {
-    pending: "Ø¯Ø± Ø§Ù†ØªØ¸Ø§Ø±",
-    validating: "Ø§Ø¹ØªØ¨Ø§Ø±Ø³Ù†Ø¬ÛŒ...",
-    valid: v ? `${v.itemCount} Ù…ÙˆØ±Ø¯ Ù…Ø¹ØªØ¨Ø±` : "Ù…Ø¹ØªØ¨Ø±",
-    invalid: "Ù†Ø§Ù…Ø¹ØªØ¨Ø±",
-    uploading: "Ø¯Ø± Ø­Ø§Ù„ Ø§Ø±Ø³Ø§Ù„...",
-    uploaded: "ÙˆØ§Ø±Ø¯ Ø´Ø¯",
-    error: entry.errorMsg ?? "Ø®Ø·Ø§",
+    pending: "در انتظار",
+    validating: "اعتبارسنجی...",
+    valid: v ? `${v.itemCount} مورد معتبر` : "معتبر",
+    invalid: "نامعتبر",
+    uploading: "در حال ارسال...",
+    uploaded: "وارد شد",
+    error: entry.errorMsg ?? "خطا",
   }[entry.status];
 
   return (
@@ -1195,7 +1242,7 @@ function FileRow({ entry, catKey, catColor, isSelected, onToggleSelect, onRemove
 
         {v && v.errors.length > 0 && (
           <button onClick={() => setShowErrors(!showErrors)} style={{ background: `${C.danger}08`, border: `1px solid ${C.danger}20`, borderRadius: 6, cursor: "pointer", fontSize: 10, color: C.danger, padding: "2px 8px", whiteSpace: "nowrap", fontWeight: 500 }}>
-            {showErrors ? "Ø¨Ø³ØªÙ†" : `${v.errors.length} Ø®Ø·Ø§`}
+            {showErrors ? "بستن" : `${v.errors.length} خطا`}
           </button>
         )}
         <button onClick={onRemove} style={{ background: "none", border: "none", cursor: "pointer", padding: 4, borderRadius: 6, display: "flex", alignItems: "center" }}>
@@ -1205,45 +1252,45 @@ function FileRow({ entry, catKey, catColor, isSelected, onToggleSelect, onRemove
 
       {/* Chapter / Segment row */}
       <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, fontSize: 11 }}>
-        <span style={{ color: C.textMuted, flexShrink: 0, fontWeight: 500 }}>ÙØµÙ„:</span>
-        <input type="number" min={0} max={244} placeholder="â€”" value={chapterNo ?? ""} onChange={(e) => onPatch({ manualChapter: e.target.value ? parseInt(e.target.value, 10) : null })} style={{ width: 58, padding: "4px 8px", borderRadius: 8, fontSize: 12, fontWeight: 700, textAlign: "center", color: "hsl(var(--primary))", background: "hsl(var(--primary) / 0.06)", border: "1px solid hsl(var(--primary) / 0.15)", outline: "none" }} />
-        <span style={{ color: C.textMuted, flexShrink: 0, fontWeight: 500 }}>Ø¨Ø®Ø´:</span>
-        <input type="number" min={0} max={99} placeholder="â€”" value={segmentIdx ?? ""} onChange={(e) => onPatch({ manualSegment: e.target.value ? parseInt(e.target.value, 10) : null })} style={{ width: 50, padding: "4px 8px", borderRadius: 8, fontSize: 12, fontWeight: 700, textAlign: "center", color: "hsl(var(--info))", background: "hsl(var(--info) / 0.06)", border: "1px solid hsl(var(--info) / 0.15)", outline: "none" }} />
+        <span style={{ color: C.textMuted, flexShrink: 0, fontWeight: 500 }}>فصل:</span>
+        <input type="number" min={0} max={244} placeholder="—" value={chapterNo ?? ""} onChange={(e) => onPatch({ manualChapter: e.target.value ? parseInt(e.target.value, 10) : null })} style={{ width: 58, padding: "4px 8px", borderRadius: 8, fontSize: 12, fontWeight: 700, textAlign: "center", color: "hsl(var(--primary))", background: "hsl(var(--primary) / 0.06)", border: "1px solid hsl(var(--primary) / 0.15)", outline: "none" }} />
+        <span style={{ color: C.textMuted, flexShrink: 0, fontWeight: 500 }}>بخش:</span>
+        <input type="number" min={0} max={99} placeholder="—" value={segmentIdx ?? ""} onChange={(e) => onPatch({ manualSegment: e.target.value ? parseInt(e.target.value, 10) : null })} style={{ width: 50, padding: "4px 8px", borderRadius: 8, fontSize: 12, fontWeight: 700, textAlign: "center", color: "hsl(var(--info))", background: "hsl(var(--info) / 0.06)", border: "1px solid hsl(var(--info) / 0.15)", outline: "none" }} />
         {autoMeta.chapterNo || autoMeta.segmentIdx != null ? (
-          <span style={{ color: C.textMuted, fontSize: 10 }}>(Ø®ÙˆØ¯Ú©Ø§Ø±: {autoMeta.chapterNo ? `Ch.${autoMeta.chapterNo}` : ""}{autoMeta.segmentIdx != null ? ` Seg.${autoMeta.segmentIdx}` : ""})</span>
+          <span style={{ color: C.textMuted, fontSize: 10 }}>(خودکار: {autoMeta.chapterNo ? `Ch.${autoMeta.chapterNo}` : ""}{autoMeta.segmentIdx != null ? ` Seg.${autoMeta.segmentIdx}` : ""})</span>
         ) : (
-          <span style={{ color: C.warning, fontSize: 10, display: "flex", alignItems: "center", gap: 3 }}><AlertTriangle size={10} /> Ù„Ø·ÙØ§ ÙØµÙ„ Ùˆ Ø¨Ø®Ø´ Ø±Ø§ ÙˆØ§Ø±Ø¯ Ú©Ù†ÛŒØ¯</span>
+          <span style={{ color: C.warning, fontSize: 10, display: "flex", alignItems: "center", gap: 3 }}><AlertTriangle size={10} /> لطفا فصل و بخش را وارد کنید</span>
         )}
       </div>
 
       {showErrors && v && v.errors.length > 0 && (
         <div style={{ marginTop: 8, padding: "8px 12px", borderRadius: 10, background: "hsl(var(--danger) / 0.04)", border: "1px solid hsl(var(--danger) / 0.1)", fontSize: 11, color: C.danger, lineHeight: 1.7 }}>
           {v.errors.slice(0, 10).map((e, i) => <div key={i}>&#x2022; {e.message}</div>)}
-          {v.errors.length > 10 && <div style={{ opacity: 0.7 }}>... Ùˆ {v.errors.length - 10} Ø®Ø·Ø§ÛŒ Ø¯ÛŒÚ¯Ø±</div>}
+          {v.errors.length > 10 && <div style={{ opacity: 0.7 }}>... و {v.errors.length - 10} خطای دیگر</div>}
         </div>
       )}
     </div>
   );
 }
 
-/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+/* ═══════════════════════════════════════════════════════════════
    History Row
-â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+═══════════════════════════════════════════════════════════════ */
 
 const CONTENT_TYPE_BADGE: Record<string, { label: string; color: string; bg: string }> = {
-  notes: { label: "Ø¬Ø²ÙˆÙ‡", color: "hsl(var(--success))", bg: "hsl(var(--success) / 0.06)" },
+  notes: { label: "جزوه", color: "hsl(var(--success))", bg: "hsl(var(--success) / 0.06)" },
   questions: { label: "MCQ", color: "hsl(var(--primary))", bg: "hsl(var(--primary) / 0.06)" },
-  flashcards: { label: "ÙÙ„Ø´â€ŒÚ©Ø§Ø±Øª", color: "hsl(var(--info))", bg: "hsl(var(--info) / 0.06)" },
+  flashcards: { label: "فلش‌کارت", color: "hsl(var(--info))", bg: "hsl(var(--info) / 0.06)" },
   yield: { label: "Yield", color: "hsl(var(--warning))", bg: "hsl(var(--warning) / 0.06)" },
-  batch: { label: "Ø¯Ø³ØªÙ‡â€ŒØ§ÛŒ", color: "hsl(var(--muted-foreground))", bg: "hsl(var(--muted-foreground) / 0.06)" },
-  mixed: { label: "ØªØ±Ú©ÛŒØ¨ÛŒ", color: "hsl(var(--muted-foreground))", bg: "hsl(var(--muted-foreground) / 0.06)" },
+  batch: { label: "دسته‌ای", color: "hsl(var(--muted-foreground))", bg: "hsl(var(--muted-foreground) / 0.06)" },
+  mixed: { label: "ترکیبی", color: "hsl(var(--muted-foreground))", bg: "hsl(var(--muted-foreground) / 0.06)" },
 };
 
 const STATUS_LABEL: Record<string, { label: string; dotColor: string }> = {
-  completed: { label: "Ù…ÙˆÙÙ‚", dotColor: "hsl(var(--success))" },
-  running: { label: "Ø¯Ø± Ø­Ø§Ù„ Ø§Ø¬Ø±Ø§", dotColor: "hsl(var(--primary))" },
-  failed: { label: "Ù†Ø§Ù…ÙˆÙÙ‚", dotColor: "hsl(var(--danger))" },
-  pending: { label: "Ø¯Ø± Ø§Ù†ØªØ¸Ø§Ø±", dotColor: "hsl(var(--muted-foreground))" },
+  completed: { label: "موفق", dotColor: "hsl(var(--success))" },
+  running: { label: "در حال اجرا", dotColor: "hsl(var(--primary))" },
+  failed: { label: "ناموفق", dotColor: "hsl(var(--danger))" },
+  pending: { label: "در انتظار", dotColor: "hsl(var(--muted-foreground))" },
 };
 
 function HistoryRow({ imp, isSelected, isLast, onToggleSelect, onDelete }: {
@@ -1266,11 +1313,11 @@ function HistoryRow({ imp, isSelected, isLast, onToggleSelect, onDelete }: {
   if (imp.questionCount > 0)
     countChips.push({ label: `${imp.questionCount} MCQ`, color: "hsl(var(--primary))", bg: "hsl(var(--primary) / 0.07)" });
   if (imp.flashcardCount > 0)
-    countChips.push({ label: `${imp.flashcardCount} Ú©Ø§Ø±Øª`, color: "hsl(var(--info))", bg: "hsl(var(--info) / 0.07)" });
+    countChips.push({ label: `${imp.flashcardCount} کارت`, color: "hsl(var(--info))", bg: "hsl(var(--info) / 0.07)" });
   if (imp.noteDocumentCount > 0)
-    countChips.push({ label: `${imp.noteDocumentCount} Ø³Ù†Ø¯`, color: "hsl(var(--success))", bg: "hsl(var(--success) / 0.07)" });
+    countChips.push({ label: `${imp.noteDocumentCount} سند`, color: "hsl(var(--success))", bg: "hsl(var(--success) / 0.07)" });
   if (imp.chunkCount > 0)
-    countChips.push({ label: `${imp.chunkCount} Ø¨Ø®Ø´`, color: "hsl(var(--muted-foreground))", bg: "hsl(var(--muted-foreground) / 0.07)" });
+    countChips.push({ label: `${imp.chunkCount} بخش`, color: "hsl(var(--muted-foreground))", bg: "hsl(var(--muted-foreground) / 0.07)" });
 
   return (
     <div
@@ -1285,7 +1332,7 @@ function HistoryRow({ imp, isSelected, isLast, onToggleSelect, onDelete }: {
         {/* Title row */}
         <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden", flexWrap: "wrap" }}>
           <span style={{ fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 200 }}>
-            {imp.fileName ?? imp.sourceName ?? "â€”"}
+            {imp.fileName ?? imp.sourceName ?? "—"}
           </span>
 
           {/* Content type badge */}
@@ -1303,14 +1350,14 @@ function HistoryRow({ imp, isSelected, isLast, onToggleSelect, onDelete }: {
           {/* Chapter chip */}
           {chapterNo != null && (
             <span style={{ fontSize: 9, fontWeight: 700, color: "hsl(var(--primary))", background: "hsl(var(--primary) / 0.06)", borderRadius: 5, padding: "1px 7px", whiteSpace: "nowrap", flexShrink: 0 }}>
-              ÙØµÙ„ {chapterNo}
+              فصل {chapterNo}
             </span>
           )}
 
           {/* Segment chip */}
           {segmentNo != null && (
             <span style={{ fontSize: 9, fontWeight: 700, color: "hsl(var(--info))", background: "hsl(var(--info) / 0.06)", borderRadius: 5, padding: "1px 7px", whiteSpace: "nowrap", flexShrink: 0 }}>
-              Ø¨Ø®Ø´ {String(segmentNo).padStart(2, "0")}
+              بخش {String(segmentNo).padStart(2, "0")}
             </span>
           )}
         </div>
@@ -1323,7 +1370,7 @@ function HistoryRow({ imp, isSelected, isLast, onToggleSelect, onDelete }: {
             </span>
           ))}
           {countChips.length === 0 && imp.itemCount > 0 && (
-            <span style={{ fontSize: 10, color: C.textMuted, fontVariantNumeric: "tabular-nums" }}>{imp.itemCount} Ù…ÙˆØ±Ø¯</span>
+            <span style={{ fontSize: 10, color: C.textMuted, fontVariantNumeric: "tabular-nums" }}>{imp.itemCount} مورد</span>
           )}
           {imp.createdAt ? (
             <span style={{ fontSize: 10, color: C.textMuted, display: "flex", alignItems: "center", gap: 3, marginRight: "auto" }}>
@@ -1340,13 +1387,13 @@ function HistoryRow({ imp, isSelected, isLast, onToggleSelect, onDelete }: {
       </div>
 
       {(imp.examLinkedQuestionCount ?? 0) > 0 && (
-        <Badge variant="warning" style={{ fontSize: 10, flexShrink: 0 }}>{imp.examLinkedQuestionCount} Ø¢Ø²Ù…ÙˆÙ†ÛŒ</Badge>
+        <Badge variant="warning" style={{ fontSize: 10, flexShrink: 0 }}>{imp.examLinkedQuestionCount} آزمونی</Badge>
       )}
 
       <button
         onClick={onDelete}
         style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 10, cursor: "pointer", padding: 7, display: "flex", alignItems: "center", justifyContent: "center", transition: "border-color 0.15s, background 0.15s", flexShrink: 0 }}
-        title="Ø­Ø°Ù ÙˆØ§Ø±Ø¯Ø§Øª Ùˆ Ù…Ø­ØªÙˆØ§"
+        title="حذف واردات و محتوا"
         onMouseEnter={(e) => { e.currentTarget.style.borderColor = C.danger; e.currentTarget.style.background = `${C.danger}08`; }}
         onMouseLeave={(e) => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = "none"; }}
       >
@@ -1355,4 +1402,3 @@ function HistoryRow({ imp, isSelected, isLast, onToggleSelect, onDelete }: {
     </div>
   );
 }
-

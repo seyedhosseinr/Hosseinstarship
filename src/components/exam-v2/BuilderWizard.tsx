@@ -35,6 +35,14 @@ const POOL_OPTIONS: { id: ExamPoolMode; label: string }[] = [
 
 const PRESETS = [10, 20, 40];
 
+
+function normalizeChapterQuery(value: string | null): string | null {
+  const text = String(value ?? '').trim()
+  if (!text) return null
+  const n = Number.parseInt(text.replace(/^ch-0*/i, ''), 10)
+  return Number.isFinite(n) && n > 0 ? `ch-${String(n).padStart(3, '0')}` : text
+}
+
 export function BuilderWizard() {
   const router = useRouter();
   const { initExam, error } = useExamStore();
@@ -77,6 +85,25 @@ export function BuilderWizard() {
       .then((d) => setDbCount(d.count ?? 0))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const requestedChapter = normalizeChapterQuery(new URLSearchParams(window.location.search).get("chapter"));
+    if (!requestedChapter) return;
+
+    const allChapters = getChaptersByPartIds(allParts.map((part) => part.id));
+    const requestedNo = Number.parseInt(requestedChapter.replace(/^ch-0*/i, ""), 10);
+    const match = allChapters.find((chapter) => {
+      const chapterNo = Number.parseInt(chapter.id.replace(/^ch-0*/i, ""), 10);
+      return chapter.id === requestedChapter || (!Number.isNaN(requestedNo) && chapterNo === requestedNo);
+    });
+
+    if (!match) return;
+    setSelectedVolumeIds([]);
+    setSelectedPartIds([]);
+    setSelectedChapterIds([match.id]);
+    setStep("configure");
+  }, [allParts]);
 
   const toggleVolume = useCallback((id: string) => {
     setSelectedVolumeIds((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));

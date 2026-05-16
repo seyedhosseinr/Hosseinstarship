@@ -1,5 +1,7 @@
 "use client";
 
+import type { LucideIcon } from "lucide-react"
+import { createElement } from "react"
 /**
  * TodayTaskList — UWorld-style sectioned task view for the Today tab.
  *
@@ -35,11 +37,12 @@ import {
   formatPersianDate,
   useVisibilityRefresh,
   SECTION_LABEL,
+  getTaskTypeLabel,
 } from "./task-helpers";
 import { getTodayPlanAction, getUpcomingTasksAction } from "@/lib/actions/planner-runtime-actions";
 import type { TodayPlanResult } from "@/lib/planner/runtime-types";
 import { isLocalFirstEnabled } from "@/lib/local-first/flag";
-import { getTodayPlanLocal, seedFromTodayPlan } from "@/lib/local-first/planner-local";
+import { getTodayPlanLocal, hasUnsyncedPlannerMutations, seedFromTodayPlan } from "@/lib/local-first/planner-local";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -200,13 +203,13 @@ function ProgressSummary({
         {remainingMinutes > 0 && (
           <span className="inline-flex items-center gap-1 tabular-nums">
             <Clock size={11} strokeWidth={1.75} />
-            {formatMinutes(remainingMinutes)} باقی‌مانده
+            {formatMinutes(remainingMinutes)} باقیمانده
           </span>
         )}
         {overdueTasks > 0 && (
           <span className="inline-flex items-center gap-1 tabular-nums text-destructive/85">
             <AlertTriangle size={11} strokeWidth={1.75} />
-            {n(overdueTasks)} عقب‌افتاده
+            {n(overdueTasks)} تسک عقب‌افتاده
           </span>
         )}
         {skippedTasks > 0 && (
@@ -227,22 +230,13 @@ function ProgressSummary({
               exam_block: GraduationCap,
             };
             const TypeIcon = ICONS[type];
-            const LABELS: Record<string, string> = {
-              question_block: "تست",
-              flashcard_review: "فلش‌کارت",
-              chapter_read: "مطالعه",
-              chunk_review: "مرور",
-              exam_block: "آزمون",
-              notebook_review: "نوت‌بوک",
-              custom_task: "دلخواه",
-            };
             return (
               <span
                 key={type}
                 className="inline-flex items-center gap-1 rounded-full border border-border/55 bg-muted/40 px-2 py-[1px] text-[10.5px] text-muted-foreground/85"
               >
-                {TypeIcon && <TypeIcon size={10} strokeWidth={1.75} />}
-                <span className="tabular-nums">{LABELS[type] ?? type}: {n(count)}</span>
+                {TypeIcon ? createElement(TypeIcon as LucideIcon, { size: 10, strokeWidth: 1.75 }) : null}
+                <span className="tabular-nums">{getTaskTypeLabel(type)}: {n(count)}</span>
               </span>
             );
           })}
@@ -296,11 +290,18 @@ export function TodayTaskList({ onShowOverdue, onReschedule }: TodayTaskListProp
       ]);
 
       if (todayRes.ok) {
-        setData(todayRes.data);
         setError(null);
-        // Seed Dexie for the next offline load
         if (isLocalFirstEnabled()) {
-          seedFromTodayPlan(todayRes.data).catch(() => {});
+          const keepLocal = await hasUnsyncedPlannerMutations().catch(() => false);
+          await seedFromTodayPlan(todayRes.data).catch(() => {});
+          if (keepLocal) {
+            const localAfterSeed = await getTodayPlanLocal().catch(() => null);
+            setData(localAfterSeed ?? todayRes.data);
+          } else {
+            setData(todayRes.data);
+          }
+        } else {
+          setData(todayRes.data);
         }
       } else if (!hasLocalData) {
         setData(null);
@@ -367,7 +368,7 @@ export function TodayTaskList({ onShowOverdue, onReschedule }: TodayTaskListProp
               {error}
             </div>
             <div className="text-[11.5px] text-muted-foreground">
-              اتصال شما را بررسی کنید و دوباره تلاش کنید
+              اتصال اینترنت را بررسی کنید و دوباره تلاش کنید
             </div>
           </div>
           <button
@@ -394,7 +395,7 @@ export function TodayTaskList({ onShowOverdue, onReschedule }: TodayTaskListProp
               برنامه فعالی وجود ندارد
             </div>
             <div className="max-w-sm text-[11.5px] leading-5 text-muted-foreground">
-              planner فقط نمای اجرایی را نشان می‌دهد. برای دیدن تسک‌های امروز و هفته، یک برنامه مطالعه فعال کنید.
+              هنوز پلن مطالعه‌ای برای شما ثبت نشده است. از داشبورد یک برنامه فعال کنید تا تسک‌های امروز و هفته اینجا نمایش داده شوند.
             </div>
           </div>
         </div>
@@ -444,7 +445,7 @@ export function TodayTaskList({ onShowOverdue, onReschedule }: TodayTaskListProp
 
   return (
     <div className="space-y-4">
-      {/* ── PROGRESS SUMMARY ── */}
+      {/* PROGRESS SUMMARY */}
       <ProgressSummary
         todayDate={today}
         dayLabel={data.day?.label ?? undefined}
@@ -458,7 +459,7 @@ export function TodayTaskList({ onShowOverdue, onReschedule }: TodayTaskListProp
         tasksByType={tasksByType}
       />
 
-      {/* ── OVERDUE SECTION ── */}
+      {/* OVERDUE SECTION */}
       {overdueTasks.length > 0 && (
         <div>
           <SectionHeader
@@ -479,7 +480,7 @@ export function TodayTaskList({ onShowOverdue, onReschedule }: TodayTaskListProp
                   </span>
                 </div>
                 <span className="text-[11px] font-medium text-foreground/80 underline-offset-2 hover:underline">
-                  مدیریت یکجا
+                  مدیریت همه
                 </span>
               </button>
             ) : null}
@@ -500,33 +501,33 @@ export function TodayTaskList({ onShowOverdue, onReschedule }: TodayTaskListProp
         </div>
       )}
 
-      {/* ── ALL DONE CELEBRATION ── */}
+      {/* ALL DONE CELEBRATION */}
       {allDone && (
         <div className="rounded-[14px] border border-border/70 bg-muted/30 px-4 py-5">
           <div className="flex flex-col items-center gap-2 text-center">
             <PartyPopper size={20} className="text-success" />
             <div className="text-[13px] font-medium text-foreground">
-              تبریک! تسک‌های امروز تکمیل شد.
+              تبریک! همه تسک‌های امروز انجام شد.
             </div>
           </div>
         </div>
       )}
 
-      {/* ── REST DAY ── */}
+      {/* REST DAY */}
       {data.day?.isRestDay === 1 && totalTasks === 0 && (
         <div className="rounded-[14px] border border-border/70 bg-muted/30 px-4 py-5">
           <div className="text-center">
             <div className="mb-1 text-[13px] font-medium text-foreground">
-              ☕ امروز روز استراحت است
+              امروز روز استراحت است
             </div>
             <div className="text-[11.5px] text-muted-foreground">
-              استراحت کنید و انرژی جمع کنید.
+              استراحت کنید و برای ادامهٔ هفته انرژی جمع کنید.
             </div>
           </div>
         </div>
       )}
 
-      {/* ── TODAY'S ACTIVE TASKS ── */}
+      {/* TODAY'S ACTIVE TASKS */}
       {activeTasks.length > 0 && (
         <div>
           <SectionHeader
@@ -550,16 +551,16 @@ export function TodayTaskList({ onShowOverdue, onReschedule }: TodayTaskListProp
         </div>
       )}
 
-      {/* ── No Day Record ── */}
+      {/* No Day Record */}
       {!data.day && totalTasks === 0 && !allDone && (
         <div className="rounded-[14px] border border-border/70 bg-muted/30 px-4 py-5">
           <div className="text-center text-[12.5px] text-muted-foreground">
-            برای امروز تسکی تعریف نشده است.
+            برای امروز تسک تعریف نشده است.
           </div>
         </div>
       )}
 
-      {/* ── UPCOMING (THIS WEEK) ── */}
+      {/* UPCOMING (THIS WEEK) */}
       {upcomingTasks.length > 0 && (
         <div>
           <SectionHeader
@@ -597,7 +598,7 @@ export function TodayTaskList({ onShowOverdue, onReschedule }: TodayTaskListProp
         </div>
       )}
 
-      {/* ── COMPLETED SECTION ── */}
+      {/* COMPLETED SECTION */}
       {completedTasks.length > 0 && (
         <div>
           <SectionHeader

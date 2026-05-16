@@ -25,8 +25,6 @@ type FsrsStatsByChapter = {
   chapterId: string
   totalCards: number
   avgRetention: number | null
-  /** Average FSRS stability in days for reviewed cards (null/undefined = no reviewed cards). */
-  avgStability?: number | null
 }
 
 export interface StudyCockpitShellProps {
@@ -40,6 +38,8 @@ export interface StudyCockpitShellProps {
   mcqThisWeek: number
   overallAccuracy: number
   studyStreakDays: number
+  /** When set, the study-streak KPI shows this text instead of a numeric streak (planner unavailable). */
+  plannerKpiValueText?: string | null
   weekNumber: number
   totalWeeks: number
   daysUntilBoard: number
@@ -63,6 +63,7 @@ const FALLBACK_PROPS: Omit<StudyCockpitShellProps, 'children'> = {
   mcqThisWeek: 0,
   overallAccuracy: 0,
   studyStreakDays: 0,
+  plannerKpiValueText: null,
   weekNumber: 1,
   totalWeeks: 24,
   daysUntilBoard: 0,
@@ -75,12 +76,20 @@ const FALLBACK_PROPS: Omit<StudyCockpitShellProps, 'children'> = {
 }
 
 function formatPersianDate() {
-  return new Intl.DateTimeFormat('fa-IR', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(new Date())
+  try {
+    return new Intl.DateTimeFormat('fa-IR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    }).format(new Date())
+  } catch {
+    try {
+      return new Date().toLocaleDateString()
+    } catch {
+      return ''
+    }
+  }
 }
 
 function storageBarColor(percent: number) {
@@ -105,34 +114,10 @@ function SyncStatusLabel({ syncState, lastSyncLabel }: { syncState: StudyCockpit
   )
 }
 
-/**
- * FSRS-5 constants used in the forgetting-curve power law.
- *
- *   R(t, S) = (1 + FSRS_FACTOR × t / S) ^ FSRS_DECAY × 100
- *
- * At t = 0  → R = 100 % (just reviewed)
- * At t = S  → R = (1 + 19/81)^(−0.5) × 100 ≈ 90 %  (stability definition)
- *
- * This is the same formula ts-fsrs uses internally; the old Ebbinghaus
- * exponential e^(−t/S) is an approximation and overestimates forgetting speed.
- */
-const FSRS_FACTOR = 19 / 81   // ≈ 0.2346
-const FSRS_DECAY  = -0.5
-
-function fsrsRetrievability(t: number, S: number): number {
-  if (S <= 0) return 0
-  return Math.pow(1 + FSRS_FACTOR * t / S, FSRS_DECAY) * 100
-}
-
 function DecayCurvesSVG({
-  best, mid, critical, hasRealData, avgRetentionPct,
+  best, mid, critical, hasRealData
 }: {
-  best: number
-  mid: number
-  critical: number
-  hasRealData: boolean
-  /** Current population-average retrievability to show as a horizontal marker (0–100). */
-  avgRetentionPct: number | null
+  best: number; mid: number; critical: number; hasRealData: boolean
 }) {
   const W = 240, H = 110
   const padL = 32, padB = 24, padT = 10, padR = 12
@@ -142,29 +127,25 @@ function DecayCurvesSVG({
   const toX = (day: number) => padL + (day / 14) * plotW
   const toY = (ret: number) => padT + (1 - ret / 100) * plotH
 
-  // FSRS-5 power-law decay — NOT the Ebbinghaus exponential
+  // Generate polyline points for R(t) = e^(-t/S) * 100
   const curve = (S: number) =>
     Array.from({ length: 29 }, (_, i) => {
       const t = (i / 28) * 14
-      const r = fsrsRetrievability(t, S)
+      const r = Math.exp(-t / S) * 100
       return `${toX(t).toFixed(1)},${toY(Math.max(0, r)).toFixed(1)}`
     }).join(' ')
 
   const thresh70Y = toY(70)
-  const todayX    = toX(0)
-
-  // Current avg-retention horizontal marker
-  const avgY = avgRetentionPct != null ? toY(Math.min(100, Math.max(0, avgRetentionPct))) : null
+  const todayX = toX(0)
 
   return (
     <div className="flex flex-col items-center gap-1">
       <svg
         width={W} height={H}
         viewBox={`0 0 ${W} ${H}`}
-        aria-label="منحنی فراموشی FSRS-5"
+        aria-label="منحنی فراموشی FSRS"
         className="overflow-visible"
       >
-        {/* Grid lines */}
         {[0, 25, 50, 75, 100].map(r => (
           <g key={r}>
             <line
@@ -182,7 +163,6 @@ function DecayCurvesSVG({
           </g>
         ))}
 
-        {/* Day labels on x-axis */}
         {[0, 7, 14].map(d => (
           <text
             key={d}
@@ -194,12 +174,12 @@ function DecayCurvesSVG({
           >{d}d</text>
         ))}
 
-        {/* Danger zone below 70 % */}
         <rect
           x={padL} y={thresh70Y}
           width={plotW} height={padT + plotH - thresh70Y}
           fill="#B91C1C" opacity="0.05"
         />
+
         <line
           x1={padL} y1={thresh70Y}
           x2={W - padR} y2={thresh70Y}
@@ -212,7 +192,6 @@ function DecayCurvesSVG({
           fontFamily="'JetBrains Mono', monospace"
         >70</text>
 
-        {/* Today marker */}
         <line
           x1={todayX} y1={padT}
           x2={todayX} y2={H - padB}
@@ -220,29 +199,6 @@ function DecayCurvesSVG({
           strokeWidth="0.8" strokeDasharray="3 2"
         />
 
-        {/* Current average-retention marker */}
-        {avgY != null && (
-          <g>
-            <line
-              x1={padL} y1={avgY}
-              x2={W - padR} y2={avgY}
-              stroke="var(--accent)" strokeWidth="0.8"
-              strokeDasharray="2 3" opacity="0.7"
-            />
-            <circle
-              cx={todayX} cy={avgY} r="2.5"
-              fill="var(--accent)" opacity="0.9"
-            />
-            <text
-              x={padL + 3} y={avgY - 2}
-              fill="var(--accent)" fontSize="5.5"
-              fontFamily="'JetBrains Mono', monospace"
-              opacity="0.85"
-            >R̄={Math.round(avgRetentionPct!)}%</text>
-          </g>
-        )}
-
-        {/* Three FSRS-5 decay curves */}
         <polyline
           points={curve(critical)}
           fill="none" stroke="#B91C1C" strokeWidth="1.5"
@@ -288,7 +244,7 @@ function DecayCurvesSVG({
         className="text-[9px] text-center"
         style={{ color: 'var(--text-muted)', fontFamily: 'Vazirmatn, sans-serif' }}
       >
-        منحنی فراموشی · FSRS-5 Power Law
+        منحنی فراموشی ابینگهاوس · FSRS
       </div>
     </div>
   )
@@ -298,13 +254,15 @@ function DecayCurvesSVG({
 function KpiActionCard({
   label,
   value,
+  valueText,
   suffix,
   color,
   onClick,
   hint,
 }: {
   label: string
-  value: number
+  value?: number
+  valueText?: string | null
   suffix?: string
   color: string
   onClick?: () => void
@@ -322,9 +280,17 @@ function KpiActionCard({
           باز کردن
         </span>
       </div>
-      <div dir="ltr" className="text-2xl font-bold text-[var(--text-primary)]">
-        {value}
-        {suffix ?? ''}
+      <div dir="auto" className="text-2xl font-bold text-[var(--text-primary)]">
+        {valueText != null && valueText !== '' ? (
+          <span className="block text-right text-[13px] font-semibold leading-snug text-[var(--text-secondary)]">
+            {valueText}
+          </span>
+        ) : (
+          <>
+            {value ?? 0}
+            {suffix ?? ''}
+          </>
+        )}
       </div>
       <div className="text-xs text-[var(--text-muted)]">{label}</div>
       <div className="mt-2 text-[11px] text-[var(--text-secondary)]">{hint}</div>
@@ -344,6 +310,7 @@ export function StudyCockpitShell(props: Partial<StudyCockpitShellProps> = {}) {
     mcqThisWeek,
     overallAccuracy,
     studyStreakDays,
+    plannerKpiValueText,
     weekNumber,
     totalWeeks,
     daysUntilBoard,
@@ -366,42 +333,15 @@ export function StudyCockpitShell(props: Partial<StudyCockpitShellProps> = {}) {
   const pendingCount = pendingCrdtOps.filter((item) => !item.autoResolved).length
   const barColor = storageBarColor(storagePercent)
 
-  /**
-   * Build the three stability values (best / mid / critical) that drive the
-   * three FSRS-5 decay curves.
-   *
-   * Priority:
-   *  1. Use avgStability directly from FSRS if available — no conversion error.
-   *  2. Fallback: invert avgRetention via the FSRS-5 formula at t=1 day:
-   *       R = (1 + 19/81 / S)^(-0.5)  ⟹  S = (19/81) / (R^(-2) − 1)
-   *     (This replaces the old Ebbinghaus inverse S = −1/ln(R) which was wrong.)
-   */
+  // Derive stability S from avgRetention: R = e^(-1/S) -> S = -1/ln(R/100)
+  // avgRetention is retention at t=1 day after review
   const curveStabilities = useMemo(() => {
-    const chapters = fsrsStatsByChapter ?? []
-
-    // Path 1: direct stability values
-    const withStability = chapters
-      .filter(c => (c.avgStability ?? 0) > 0)
-      .map(c => ({ chapterId: c.chapterId, S: Math.max(0.1, c.avgStability!) }))
-      .sort((a, b) => b.S - a.S)
-
-    if (withStability.length > 0) {
-      const best     = withStability[0].S
-      const mid      = withStability[Math.floor(withStability.length / 2)].S
-      const critical = withStability[withStability.length - 1].S
-      return { best, mid, critical, hasRealData: true }
-    }
-
-    // Path 2: invert avgRetention using FSRS-5 power-law at t = 1 day
-    //   R(1, S) = (1 + FACTOR/S)^DECAY  ⟹  S = FACTOR / (R^(1/DECAY) − 1)
-    const withRetention = chapters
+    const withRetention = (fsrsStatsByChapter ?? [])
       .filter(c => c.avgRetention !== null && c.avgRetention > 0)
       .map(c => {
-        const R = Math.min(99.9, Math.max(1, c.avgRetention!)) / 100
-        // FSRS_DECAY = -0.5, so 1/DECAY = -2: R^(1/DECAY) = R^(-2)
-        const denominator = Math.pow(R, -2) - 1
-        const S = denominator > 0 ? FSRS_FACTOR / denominator : 30
-        return { chapterId: c.chapterId, S: Math.max(0.1, S) }
+        const R = Math.min(99, Math.max(1, c.avgRetention!)) / 100
+        const S = -1 / Math.log(R)
+        return { chapterId: c.chapterId, S: Math.max(0.5, S) }
       })
       .sort((a, b) => b.S - a.S)
 
@@ -409,20 +349,10 @@ export function StudyCockpitShell(props: Partial<StudyCockpitShellProps> = {}) {
       return { best: 15, mid: 7, critical: 3, hasRealData: false }
     }
 
-    const best     = withRetention[0].S
-    const mid      = withRetention[Math.floor(withRetention.length / 2)].S
+    const best = withRetention[0].S
+    const mid = withRetention[Math.floor(withRetention.length / 2)].S
     const critical = withRetention[withRetention.length - 1].S
     return { best, mid, critical, hasRealData: true }
-  }, [fsrsStatsByChapter])
-
-  /** Population-average retrievability to show as a horizontal marker on the SVG. */
-  const avgRetentionDisplay = useMemo(() => {
-    const chapters = (fsrsStatsByChapter ?? []).filter(
-      c => c.avgRetention !== null && c.avgRetention > 0,
-    )
-    if (!chapters.length) return null
-    const sum = chapters.reduce((acc, c) => acc + c.avgRetention!, 0)
-    return Math.round(sum / chapters.length)
   }, [fsrsStatsByChapter])
 
   const quickNavItems = [
@@ -470,7 +400,7 @@ export function StudyCockpitShell(props: Partial<StudyCockpitShellProps> = {}) {
             </div>
 
             <div className="text-xs text-[var(--text-muted)]">
-              <span dir="ltr" className="font-mono">{storageUsedMB.toFixed(1)} MB</span>
+              <span dir="ltr" className="font-mono">{Number.isFinite(storageUsedMB) ? storageUsedMB.toFixed(1) : '0.0'} MB</span>
             </div>
 
             <div className="relative">
@@ -587,7 +517,6 @@ export function StudyCockpitShell(props: Partial<StudyCockpitShellProps> = {}) {
                     mid={curveStabilities.mid}
                     critical={curveStabilities.critical}
                     hasRealData={curveStabilities.hasRealData}
-                    avgRetentionPct={avgRetentionDisplay}
                   />
                 </button>
               </div>
@@ -620,6 +549,7 @@ export function StudyCockpitShell(props: Partial<StudyCockpitShellProps> = {}) {
             <KpiActionCard
               label="رشته مطالعه"
               value={studyStreakDays}
+              valueText={plannerKpiValueText}
               suffix=" روز"
               color="var(--accent-amber)"
               hint="باز کردن برنامه مطالعه"

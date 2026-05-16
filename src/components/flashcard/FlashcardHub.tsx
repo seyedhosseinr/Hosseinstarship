@@ -578,7 +578,7 @@ export function FlashcardHub({ stats, cards, query = "" }: FlashcardHubProps) {
             <BookOpen size={13} /> کتابخانه فصل‌ها
           </button>
 
-          <button type="button" className="FC-dash-btn" onClick={() => router.push("/")}>
+          <button type="button" className="FC-dash-btn" onClick={() => router.push("/dashboard")}>
             <LayoutGrid size={13} /> داشبورد
           </button>
 

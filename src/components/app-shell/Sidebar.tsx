@@ -13,7 +13,6 @@ import {
   ChevronsUpDown,
   CreditCard,
   FileDown,
-  FileText,
   History,
   HardDrive,
   Inbox,
@@ -130,7 +129,6 @@ const NAV_SECTIONS: NavSection[] = [
       { href: "/flashcards/review",  label: "مرور امروز", icon: Inbox,      shortcut: ["G", "I"], badge: "due" },
       { href: "/library",            label: "کتابخانه",   icon: BookOpen,   shortcut: ["G", "L"] },
       { href: "/qbank",              label: "بانک سوال",  icon: Brain,      shortcut: ["G", "Q"] },
-      { href: "/outliner",           label: "Outliner",    icon: FileText,   shortcut: ["G", "O"] },
       {
         href: "/flashcards",
         label: "فلش‌کارت",
