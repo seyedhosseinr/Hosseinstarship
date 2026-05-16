@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-import { useOutlinerStore, type Checkpoint, type SearchResult } from "@/components/outliner/outliner-store";
+import { useOutlinerStore, type Checkpoint, type SearchResult, type StepwiseMode } from "@/components/outliner/outliner-store";
 import { CRDTStatusBar } from "@/components/outliner/CRDTStatusBar";
 import {
   familyOfSurface,
@@ -59,6 +59,36 @@ const SURFACE_DOT: Record<string, string> = {
 };
 
 const KEY_HINTS = ["] سطح بعد", "[ سطح قبل", "f فوکوس", "t تله", "h آستانه", "c مرور", "/ جستجو", "a حاشیه", "Esc خروج"];
+
+// ── Feature 7: Stepwise Reasoning Mode constants ──────────────────────────────
+const STEPWISE_LABELS: Record<StepwiseMode, string> = {
+  explore: "مرور آزاد",
+  step:    "قدم‌به‌قدم",
+  trap:    "دام‌ها",
+  recall:  "یادآوری",
+  exam:    "امتحانی",
+  weakness:"ضعف‌ها",
+};
+
+const STEPWISE_DESC: Record<StepwiseMode, string> = {
+  explore: "همه کارت‌ها روشن می‌مانند؛ برای مرور سریع مسیر بالینی و دیدن تصویر کلی.",
+  step:    "از گره انتخابی مسیر را مرحله‌به‌مرحله دنبال کن؛ تصمیم بعدی با سبز مشخص می‌شود.",
+  trap:    "دام‌های بوردی و مسیرهای اشتباه برجسته می‌شوند تا خطاهای پرتکرار دیده شوند.",
+  recall:  "برای بازیابی فعال؛ ابتدا عنوان را بخوان، سپس جواب/نکته را از کارت و پنل چک کن.",
+  exam:    "برای تمرین تصمیم‌گیری؛ شرط‌های یال و آستانه‌ها را مثل سؤال آزمون دنبال کن.",
+  weakness:"برای برگشت هدفمند به کارت‌هایی که checkpoint، دام یا نکته قابل سؤال دارند.",
+};
+
+const STEPWISE_MODES: StepwiseMode[] = ["explore", "step", "trap", "recall", "exam", "weakness"];
+
+const LEARNING_LEGEND = [
+  { label: "مسیر انتخاب‌شده", className: "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300" },
+  { label: "تصمیم بعدی", className: "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300" },
+  { label: "دام امتحانی", className: "border-rose-500 bg-rose-50 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300" },
+  { label: "منبع/رفرنس", className: "border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-950/70 dark:text-sky-300" },
+  { label: "مرور فعال", className: "border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300" },
+  { label: "اولویت بوردی", className: "border-violet-500 bg-violet-50 text-violet-700 dark:bg-violet-950/70 dark:text-violet-300" },
+];
 
 function resultKindLabel(kind: SearchResult["kind"]): string {
   const map: Record<SearchResult["kind"], string> = {
@@ -119,6 +149,8 @@ export function OutlinerShell({
   const initCRDTForSegment   = useOutlinerStore((s) => s.initCRDTForSegment);
   const zoomLevel            = useOutlinerStore((s) => s.zoomLevel);
   const setZoom              = useOutlinerStore((s) => s.setZoom);
+  const stepwiseMode         = useOutlinerStore((s) => s.stepwiseMode);
+  const setStepwiseMode      = useOutlinerStore((s) => s.setStepwiseMode);
 
   const [tocQuery, setTocQuery]                 = useState("");
   const [tocCollapsed, setTocCollapsed]         = useState(false);
@@ -327,6 +359,7 @@ export function OutlinerShell({
               onFocusMode={() => setFocusMode(true)}
             />
           )}
+          {stepwiseMode && <StepwiseModeBar mode={stepwiseMode} onExit={() => setStepwiseMode(null)} />}
           <MainCanvas surface={selectedSurface} surfaces={surfaces} onBlockClick={onBlockClick} segmentId={segmentId} />
         </div>
 
@@ -345,7 +378,7 @@ export function OutlinerShell({
       {focusMode && (
         <button
           type="button"
-          className="fixed left-4 top-4 z-50 flex items-center gap-2 rounded-xl border border-border/60 bg-background/95 px-3 py-2 text-[12px] font-semibold shadow-lg backdrop-blur"
+          className="fixed left-4 top-4 z-50 flex items-center gap-2 rounded-xl border border-border/70 bg-background px-3 py-2 text-[12px] font-semibold shadow-lg"
           onClick={() => setFocusMode(false)}
         >
           <PanelLeftClose className="h-4 w-4" />
@@ -419,12 +452,12 @@ function LeftRail({
 
       {/* Search */}
       <div className="shrink-0 px-2.5 pb-2.5">
-        <label className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/40 px-2.5 py-1.5 transition focus-within:border-primary/40 focus-within:bg-background">
+        <label className="flex items-center gap-2 rounded-lg border border-border/60 bg-card px-2.5 py-1.5 transition focus-within:border-primary/50 focus-within:bg-background">
           <Search className="h-3 w-3 shrink-0 text-muted-foreground" />
           <input
             value={tocQuery}
             onChange={(e) => setTocQuery(e.target.value)}
-            className="min-w-0 flex-1 bg-transparent text-[11px] outline-none placeholder:text-muted-foreground/50"
+            className="min-w-0 flex-1 bg-transparent text-[11px] outline-none placeholder:text-muted-foreground"
             placeholder="جستجو..."
           />
           {tocQuery && (
@@ -579,9 +612,11 @@ function TopBar({
   onToggleToc: () => void; onToggleInspector: () => void; onFocusMode: () => void;
 }) {
   const [showHints, setShowHints] = useState(false);
+  const stepwiseMode    = useOutlinerStore((s) => s.stepwiseMode);
+  const setStepwiseMode = useOutlinerStore((s) => s.setStepwiseMode);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border/40 bg-background/95 backdrop-blur-sm">
+    <header className="sticky top-0 z-30 border-b border-border/60 bg-background">
 
       {/* ── Row 1: breadcrumb + search + panel toggles ── */}
       <div className="flex items-center gap-2 px-3 py-2">
@@ -600,13 +635,13 @@ function TopBar({
 
         {/* Search */}
         <div className="relative">
-          <label className="flex w-48 items-center gap-2 rounded-xl border border-border/50 bg-muted/40 px-2.5 py-1.5 transition focus-within:border-primary/50 focus-within:bg-background">
+          <label className="flex w-48 items-center gap-2 rounded-xl border border-border/60 bg-card px-2.5 py-1.5 transition focus-within:border-primary/60 focus-within:bg-background">
             <Search className="h-3 w-3 shrink-0 text-muted-foreground" />
             <input
               ref={searchRef}
               value={searchQuery}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-transparent text-[11px] outline-none placeholder:text-muted-foreground/50"
+              className="w-full bg-transparent text-[11px] outline-none placeholder:text-muted-foreground"
               placeholder="جستجو..."
             />
             {searchQuery && (
@@ -628,10 +663,10 @@ function TopBar({
         {/* Panel + utility controls */}
         <div className="flex items-center gap-0.5">
           <IconBtn onClick={onToggleToc} label={tocCollapsed ? "نمایش فهرست" : "پنهان کردن فهرست"}>
-            <PanelLeftClose className={cn("h-4 w-4 transition-opacity", tocCollapsed && "opacity-40")} />
+            <PanelLeftClose className={cn("h-4 w-4 transition-opacity", tocCollapsed && "opacity-70")} />
           </IconBtn>
           <IconBtn onClick={onToggleInspector} label={inspectorCollapsed ? "نمایش جزئیات" : "پنهان کردن جزئیات"}>
-            <PanelRightClose className={cn("h-4 w-4 transition-opacity", inspectorCollapsed && "opacity-40")} />
+            <PanelRightClose className={cn("h-4 w-4 transition-opacity", inspectorCollapsed && "opacity-70")} />
           </IconBtn>
           <IconBtn onClick={onFocusMode} label="تمرکز کامل">
             <Maximize2 className="h-4 w-4 text-primary" />
@@ -672,7 +707,7 @@ function TopBar({
             dir="rtl">
             <ChevronRight className="h-3.5 w-3.5" /> قبلی
           </button>
-          <span className="min-w-[4.5rem] rounded-lg border border-border/40 bg-muted/30 px-2 py-1 text-center text-[10px] text-muted-foreground tabular-nums">
+          <span className="min-w-[4.5rem] rounded-lg border border-border/60 bg-card px-2 py-1 text-center text-[10px] text-foreground/70 tabular-nums">
             {currentIndex >= 0 ? `${currentIndex + 1} / ${visibleCount}` : `— / ${visibleCount}`}
           </span>
           <button type="button" onClick={onNext} disabled={visibleCount === 0}
@@ -700,8 +735,49 @@ function TopBar({
         </div>
       </div>
 
+      <div className="flex flex-wrap items-start justify-between gap-2 border-t border-border/40 bg-card px-3 py-2">
+        <div className="flex min-w-[220px] flex-1 flex-wrap items-center gap-1.5" dir="rtl" lang="fa">
+          <span className="ml-1 text-[11px] font-bold text-foreground">راهنما</span>
+          {LEARNING_LEGEND.map((item) => (
+            <span
+              key={item.label}
+              className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold", item.className)}
+            >
+              {item.label}
+            </span>
+          ))}
+        </div>
+        <div className="min-w-[260px] flex-1" dir="rtl" lang="fa">
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="ml-1 text-[11px] font-bold text-foreground">حالت یادگیری</span>
+            {STEPWISE_MODES.map((mode) => {
+              const active = stepwiseMode === mode || (!stepwiseMode && mode === "explore");
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  title={STEPWISE_DESC[mode]}
+                  onClick={() => setStepwiseMode(mode === "explore" ? null : mode)}
+                  className={cn(
+                    "rounded-full border px-2 py-0.5 text-[10px] font-semibold transition",
+                    active
+                      ? "border-primary/60 bg-primary/10 text-primary"
+                      : "border-border/70 bg-background text-foreground/75 hover:border-primary/40 hover:text-foreground",
+                  )}
+                >
+                  {STEPWISE_LABELS[mode]}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-1 text-[10px] leading-5 text-foreground/70">
+            {STEPWISE_DESC[stepwiseMode ?? "explore"]}
+          </p>
+        </div>
+      </div>
+
       {/* Progress bar */}
-      <div className="h-[2px] bg-muted/40">
+      <div className="h-[2px] bg-muted/60">
         <div
           className="h-full bg-primary/50 transition-all duration-500"
           style={{ width: totalCount ? `${(completedCount / totalCount) * 100}%` : "0%" }}
@@ -710,7 +786,7 @@ function TopBar({
 
       {/* Key hints (collapsible) */}
       {showHints && (
-        <div className="flex flex-wrap gap-1 border-t border-border/30 bg-muted/20 px-3 py-2">
+        <div className="flex flex-wrap gap-1 border-t border-border/40 bg-card px-3 py-2">
           {KEY_HINTS.map((hint) => (
             <kbd key={hint} className="rounded border border-border/50 bg-background px-1.5 py-0.5 text-[9px] text-muted-foreground">
               {hint}
@@ -728,7 +804,7 @@ function CompactFocusBar({
   chapterLabel, algorithmTitle, stepTitle, onRestore,
 }: { chapterLabel: string; algorithmTitle: string; stepTitle: string | null; onRestore: () => void }) {
   return (
-    <div className="sticky top-0 z-30 flex min-h-11 items-center justify-between gap-3 border-b border-border/40 bg-background/95 px-3 backdrop-blur-sm">
+    <div className="sticky top-0 z-30 flex min-h-11 items-center justify-between gap-3 border-b border-border/60 bg-background px-3">
       <nav className="flex min-w-0 items-center gap-1 text-[11px]">
         <span className="truncate text-muted-foreground">{chapterLabel}</span>
         <ChevronRight className="h-3 w-3 shrink-0 text-border" />
@@ -769,7 +845,7 @@ function SearchResults({
       <div className="p-1.5">
         {Object.entries(groups).map(([kind, items]) => (
           <section key={kind} className="mb-1 last:mb-0">
-            <h3 className="mb-0.5 px-2 pt-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/70">
+            <h3 className="mb-0.5 px-2 pt-1 text-[9px] font-bold uppercase tracking-widest text-foreground/65">
               {resultKindLabel(kind as SearchResult["kind"])}
             </h3>
             {items.map((result) => {
@@ -984,12 +1060,12 @@ function ThresholdModePanel({
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <h2 className="text-[18px] font-bold" dir="rtl" lang="fa">آستانه‌های کلیدی</h2>
           <div className="flex-1" />
-          <label className="flex items-center gap-2 rounded-xl border border-border/60 bg-muted/40 px-3 py-2 transition focus-within:border-primary/50 focus-within:bg-background">
+          <label className="flex items-center gap-2 rounded-xl border border-border/60 bg-card px-3 py-2 transition focus-within:border-primary/50 focus-within:bg-background">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="w-40 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground/50"
+              className="w-40 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground"
               placeholder="جستجو..."
             />
           </label>
@@ -1038,7 +1114,7 @@ function ThresholdModePanel({
                           </div>
                         )}
                         {readString(item, ["memoryAnchor"]) && (
-                          <p className="mt-2 text-[10px] italic text-muted-foreground/70" dir="rtl">
+                          <p className="mt-2 text-[10px] italic text-foreground/70" dir="rtl">
                             💡 {readString(item, ["memoryAnchor"])}
                           </p>
                         )}
@@ -1162,7 +1238,7 @@ function CheckpointModePanel() {
               )}
             </div>
           ) : (
-            <div className="border-t border-border/30 bg-muted/20 px-5 py-4 text-center">
+            <div className="border-t border-border/40 bg-card px-5 py-4 text-center">
               <button type="button" onClick={() => revealCheckpoint(current.id)}
                 className="rounded-xl bg-primary px-8 py-2.5 text-[12px] font-semibold text-primary-foreground transition hover:bg-primary/90">
                 نمایش پاسخ
@@ -1185,7 +1261,7 @@ function CheckpointModePanel() {
         </div>
 
         {/* Swipe hint */}
-        <p className="mt-3 text-center text-[9px] text-muted-foreground/50">← بکشید برای تغییر →</p>
+        <p className="mt-3 text-center text-[9px] text-foreground/60">← بکشید برای تغییر →</p>
       </div>
     </section>
   );
@@ -1334,6 +1410,28 @@ function RightRail({
   );
 }
 
+// ─── Feature 7: Stepwise Reasoning Mode Bar ──────────────────────────────────
+
+function StepwiseModeBar({ mode, onExit }: { mode: StepwiseMode; onExit: () => void }) {
+  return (
+    <div className="flex items-center gap-2 border-b border-amber-400/50 bg-amber-50 px-3 py-1.5 dark:bg-amber-950/80">
+      <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+        حالت: {STEPWISE_LABELS[mode]}
+      </span>
+      <span className="flex-1 text-[10px] text-amber-800 dark:text-amber-200">
+        {STEPWISE_DESC[mode]}
+      </span>
+      <button
+        type="button"
+        onClick={onExit}
+        className="shrink-0 rounded border border-amber-400/40 px-2 py-0.5 text-[10px] text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900/40"
+      >
+        <X className="inline h-3 w-3" />
+      </button>
+    </div>
+  );
+}
+
 // ─── Shared helpers ───────────────────────────────────────────────────────────
 
 function IconBtn({ children, onClick, label }: { children: ReactNode; onClick: () => void; label?: string }) {
@@ -1410,7 +1508,7 @@ function StatBadge({
       "rounded-lg border px-2 py-0.5 text-center",
       color === "rose"  ? "border-rose-400/30 bg-rose-50/60 dark:bg-rose-950/30"  :
       color === "amber" ? "border-amber-400/30 bg-amber-50/60 dark:bg-amber-950/30" :
-      "border-border/50 bg-muted/40",
+      "border-border/60 bg-card",
     )}>
       <div className="text-[9px] uppercase tracking-wide text-muted-foreground">{label}</div>
       <div className={cn(
@@ -1424,7 +1522,7 @@ function StatBadge({
 
 function RailItem({ item }: { item: AlgorithmRecord }) {
   return (
-    <div className="w-full rounded-lg border border-border/40 bg-muted/20 px-2.5 py-2 text-[11px] text-muted-foreground" dir="rtl" lang="fa">
+    <div className="w-full rounded-lg border border-border/60 bg-card px-2.5 py-2 text-[11px] text-foreground/75" dir="rtl" lang="fa">
       {nodeDisplayTitle(item) ?? "Clinical item"}
     </div>
   );

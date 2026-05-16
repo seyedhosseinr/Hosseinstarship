@@ -7,7 +7,7 @@
  *  Pass 2 · Edges     GPU-tessellated bezier tubes with animated flow dashes + arrowheads
  *  Pass 3 · Particles 5 sprites per edge flowing along beziers (additive glow)
  *  Pass 4 · LOD quads Colored node cards via WebGL when zoom < 0.55 (DOM hidden)
- *  Pass 5 · DOF       16-sample circular bokeh FBO post-process when a node is selected
+ *  Pass 5 · DOF       retained as an available shader, disabled by default for Study Clarity Mode
  *
  * Falls back to SVG via onFallback() on WebGL2 unavailability or context loss.
  */
@@ -23,10 +23,10 @@ import {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const LOD_THRESHOLD      = 0.55;   // zoom below → WebGL quads replace DOM cards
-const PARTICLES_PER_EDGE = 5;
+const PARTICLES_PER_EDGE = 3;
 const HEAT_RADIUS        = 90;     // CSS px
 const CURVE_SAMPLES      = 30;     // bezier subdivisions per edge
-const HALF_THICK         = 1.6;    // edge half-width CSS px
+const HALF_THICK         = 1.35;   // edge half-width CSS px
 const ARROW_LEN          = 10;
 const ARROW_HW           = 5.5;
 
@@ -138,7 +138,7 @@ void main(){
   vec3 hot =vec3(0.95,0.22,0.22);
   vec3 col =mix(cool,warm,smoothstep(0.0,0.5,v_risk));
       col =mix(col, hot, smoothstep(0.5,1.0,v_risk));
-  fragColor=vec4(col, h*0.24*v_risk);
+  fragColor=vec4(col, h*0.14*v_risk);
 }`;
 
 // ·· Particles (gl.POINTS sprites) ·············································
@@ -263,7 +263,8 @@ function unitDir(a: P2, b: P2): P2 {
 
 function evalBezierEdge(le: LayoutEdge, t: number): P2 {
   const {fromPos: f, toPos: to} = le;
-  const cp = Math.max(40, Math.abs(to.y - f.y) / 2);
+  const dy = Math.abs(to.y - f.y);
+  const cp = Math.max(40, dy / 2);
   return cubicBez([f.x,f.y],[f.x,f.y+cp],[to.x,to.y-cp],[to.x,to.y], t);
 }
 
@@ -274,6 +275,9 @@ function buildEdgeBuffers(
   edges: LayoutEdge[],
   selected: string | null,
   visited: Set<string>,
+  zoom: number,
+  ancestorSet?: Set<string>,
+  nextSet?: Set<string>,
 ): { stripData: Float32Array; arrowData: Float32Array } {
   const strip: number[] = [];
   const arrow: number[] = [];
@@ -281,16 +285,40 @@ function buildEdgeBuffers(
   for (let ei = 0; ei < edges.length; ei++) {
     const le = edges[ei];
     const { edge, fromPos: f, toPos: to } = le;
-    const [r, g, b, baseA] = edgeRGBA(edge.edgeType) as [number,number,number,number];
+    const [er, eg, eb, baseA] = edgeRGBA(edge.edgeType) as [number,number,number,number];
+
+    // F2: next-decision edge leaves selected node toward an outgoing neighbor
+    const isNext = selected !== null && edge.from === selected && (nextSet?.has(edge.to) ?? false);
+    // F1: ancestor-path edge — both endpoints on the clinical path to selected
+    const isPath = !isNext && (ancestorSet?.size ?? 0) > 0
+                 && (ancestorSet?.has(edge.from) ?? false)
+                 && (ancestorSet?.has(edge.to) ?? false);
 
     const isHi  = selected === edge.from || selected === edge.to
-                || visited.has(edge.from) || visited.has(edge.to);
+                || visited.has(edge.from) || visited.has(edge.to)
+                || isPath || isNext;
     const dimmed = selected !== null && !isHi;
-    const alpha  = dimmed ? baseA * 0.12 : baseA;
+    const alpha  = dimmed ? Math.max(baseA * 0.42, 0.34) : baseA;
     const hi     = isHi ? 1.0 : 0.0;
-    const hw     = isHi ? HALF_THICK * 1.9 : HALF_THICK;
 
-    const cp = Math.max(40, Math.abs(to.y - f.y) / 2);
+    // F2: next-decision edges get an emerald tint to signal "what to decide next"
+    // F1: ancestor-path edges get a subtle sky-blue tint to trace the clinical path
+    let r = er, g = eg, b = eb;
+    if (isNext) {
+      r = er * 0.15 + 0.04;
+      g = Math.min(eg * 0.20 + 0.68, 0.95);
+      b = eb * 0.15 + 0.12;
+    } else if (isPath) {
+      r = er * 0.20 + 0.05;
+      g = Math.min(eg * 0.30 + 0.42, 0.80);
+      b = Math.min(eb * 0.30 + 0.52, 0.95);
+    }
+
+    const screenScale = Math.max(0.25, zoom);
+    const hw = (isNext ? HALF_THICK * 2.0 : isPath ? HALF_THICK * 1.65 : isHi ? HALF_THICK * 1.55 : HALF_THICK) / screenScale;
+
+    const dy = Math.abs(to.y - f.y);
+    const cp = Math.max(40, dy / 2);
     const p0: P2=[f.x,f.y], p1: P2=[f.x,f.y+cp], p2: P2=[to.x,to.y-cp], p3: P2=[to.x,to.y];
     const pts: P2[] = Array.from({length: CURVE_SAMPLES+1}, (_,i) =>
       cubicBez(p0,p1,p2,p3, i/CURVE_SAMPLES));
@@ -316,9 +344,11 @@ function buildEdgeBuffers(
     const [atx,aty] = unitDir(prevPt,endPt);
     const [anx,any] = [-aty,atx];
     const tip:  P2 = [endPt[0],               endPt[1]];
-    const aL:   P2 = [endPt[0]-atx*ARROW_LEN-anx*ARROW_HW, endPt[1]-aty*ARROW_LEN-any*ARROW_HW];
-    const aR:   P2 = [endPt[0]-atx*ARROW_LEN+anx*ARROW_HW, endPt[1]-aty*ARROW_LEN+any*ARROW_HW];
-    const aA    = dimmed ? 0.10 : Math.min(baseA*1.15,1.0);
+    const arrowLen = ARROW_LEN / screenScale;
+    const arrowHw  = ARROW_HW / screenScale;
+    const aL:   P2 = [endPt[0]-atx*arrowLen-anx*arrowHw, endPt[1]-aty*arrowLen-any*arrowHw];
+    const aR:   P2 = [endPt[0]-atx*arrowLen+anx*arrowHw, endPt[1]-aty*arrowLen+any*arrowHw];
+    const aA    = dimmed ? 0.32 : Math.min(baseA*1.05,1.0);
     for (const [px,py] of [tip,aL,aR] as P2[])
       arrow.push(px,py,1.0,0.0,r,g,b,aA,hi);
   }
@@ -329,13 +359,15 @@ function buildEdgeBuffers(
 // Heat stride = 5: [x, y, cx, cy, risk]
 const HS = 5;
 
-function buildHeatGeo(nodes: LayoutNode[]): Float32Array {
+// F6: educational heat overrides node risk using trap count, testable point, checkpoint linkage
+function buildHeatGeo(nodes: LayoutNode[], eduHeatOverride?: Map<string, number>, zoom = 1): Float32Array {
   const data: number[] = [];
+  const screenScale = Math.max(0.25, zoom);
   for (const ln of nodes) {
-    const risk = RISK[ln.node.nodeType] ?? 0.15;
+    const risk = eduHeatOverride?.get(ln.node.nodeId) ?? RISK[ln.node.nodeType] ?? 0.15;
     if (risk < 0.05) continue;
     const cx = ln.x + NODE_W/2, cy = ln.y + NODE_H/2;
-    const r = HEAT_RADIUS;
+    const r = HEAT_RADIUS / screenScale;
     const x0=cx-r, y0=cy-r, x1=cx+r, y1=cy+r;
     for (const [px,py] of [[x0,y0],[x1,y0],[x0,y1],[x1,y0],[x1,y1],[x0,y1]] as P2[])
       data.push(px,py,cx,cy,risk);
@@ -351,10 +383,10 @@ function buildLODGeo(nodes: LayoutNode[]): Float32Array {
   for (const ln of nodes) {
     const [r,g,b] = NODE_RGBA[ln.node.nodeType] ?? DEFAULT_NODE_RGBA;
     const x0=ln.x, y0=ln.y, x1=ln.x+NODE_W, y1=ln.y+NODE_H;
-    // Card body (desaturated tint)
-    const br=r*0.28+0.72, bg=g*0.28+0.72, bb=b*0.28+0.72;
+    // Card body (clear study tint for low-zoom overview)
+    const br=r*0.22+0.78, bg=g*0.22+0.78, bb=b*0.22+0.78;
     for (const [px,py] of [[x0,y0],[x1,y0],[x0,y1],[x1,y0],[x1,y1],[x0,y1]] as P2[])
-      data.push(px,py,br,bg,bb,0.93);
+      data.push(px,py,br,bg,bb,0.98);
     // Top stripe (3 CSS px)
     const sy1 = y0+3;
     for (const [px,py] of [[x0,y0],[x1,y0],[x0,sy1],[x1,y0],[x1,sy1],[x0,sy1]] as P2[])
@@ -378,14 +410,15 @@ function stepParticles(ps: Particle[], dt: number): void {
   for (const p of ps) p.t = (p.t + p.speed * dt) % 1.0;
 }
 
-function buildParticleGeo(ps: Particle[], edges: LayoutEdge[]): Float32Array {
+function buildParticleGeo(ps: Particle[], edges: LayoutEdge[], zoom = 1): Float32Array {
   const data: number[] = [];
+  const screenScale = Math.max(0.25, zoom);
   for (const p of ps) {
     const le = edges[p.edgeIdx];
     if (!le) continue;
     const [x,y] = evalBezierEdge(le, p.t);
     const [r,g,b] = edgeRGBA(le.edge.edgeType) as [number,number,number,number];
-    data.push(x, y, Math.min(r*1.3,1), Math.min(g*1.3,1), Math.min(b*1.3,1), 0.90, 4.0);
+    data.push(x, y, Math.min(r*1.15,1), Math.min(g*1.15,1), Math.min(b*1.15,1), 0.42, 3.0 / screenScale);
   }
   return new Float32Array(data);
 }
@@ -471,6 +504,10 @@ export interface OutlinerWebGLCanvasProps {
   visitedPath:  string[];
   zoom:         number;
   onFallback:   () => void;
+  // Clinical Cognition Layer — all optional so existing callers are unaffected
+  ancestorPath?: string[];          // F1: node IDs on clinical path from root → selected
+  nextNodeIds?:  string[];          // F2: outgoing neighbors of selected (next decisions)
+  eduHeat?:      Map<string, number>; // F6: educational heat override per nodeId (0-1)
 }
 
 export function OutlinerWebGLCanvas({
@@ -482,6 +519,9 @@ export function OutlinerWebGLCanvas({
   visitedPath,
   zoom,
   onFallback,
+  ancestorPath,
+  nextNodeIds,
+  eduHeat,
 }: OutlinerWebGLCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glRef     = useRef<WebGL2RenderingContext | null>(null);
@@ -625,10 +665,12 @@ export function OutlinerWebGLCanvas({
     const gl = glRef.current;
     if (!gl || !eStripVAO.current || !edgeProgRef.current) return;
 
-    const visited = new Set(visitedPath);
+    const visited     = new Set(visitedPath);
+    const ancestorSet = new Set(ancestorPath ?? []);
+    const nextSet     = new Set(nextNodeIds  ?? []);
 
-    // Edge geometry
-    const { stripData, arrowData } = buildEdgeBuffers(layoutEdges, selectedNodeId, visited);
+    // Edge geometry — F1/F2: pass ancestor and next-decision sets for visual emphasis
+    const { stripData, arrowData } = buildEdgeBuffers(layoutEdges, selectedNodeId, visited, zoom, ancestorSet, nextSet);
     gl.bindBuffer(gl.ARRAY_BUFFER, eStripBuf.current);
     gl.bufferData(gl.ARRAY_BUFFER, stripData, gl.DYNAMIC_DRAW);
     eStripLen.current = stripData.length / ES;
@@ -636,8 +678,8 @@ export function OutlinerWebGLCanvas({
     gl.bufferData(gl.ARRAY_BUFFER, arrowData, gl.DYNAMIC_DRAW);
     eArrowLen.current = arrowData.length / ES;
 
-    // Heat geometry (static per layout)
-    const hData = buildHeatGeo(layoutNodes);
+    // Heat geometry — F6: educational heat boosts trap/testable nodes above baseline risk
+    const hData = buildHeatGeo(layoutNodes, eduHeat, zoom);
     gl.bindBuffer(gl.ARRAY_BUFFER, heatBuf.current);
     gl.bufferData(gl.ARRAY_BUFFER, hData, gl.STATIC_DRAW);
     heatLen.current = hData.length / HS;
@@ -650,7 +692,7 @@ export function OutlinerWebGLCanvas({
 
     // Particles: re-init on edge layout change
     particleRef.current = initParticles(layoutEdges.length);
-    const initPGeo = buildParticleGeo(particleRef.current, layoutEdges);
+    const initPGeo = buildParticleGeo(particleRef.current, layoutEdges, zoom);
     gl.bindBuffer(gl.ARRAY_BUFFER, partBuf.current);
     gl.bufferData(gl.ARRAY_BUFFER, initPGeo, gl.DYNAMIC_DRAW);
     partLen.current = initPGeo.length / PS;
@@ -698,7 +740,7 @@ export function OutlinerWebGLCanvas({
       // Step particles + upload (skip when reduced-motion)
       if (!reduceMotion) {
         stepParticles(particleRef.current, dt);
-        const pGeo = buildParticleGeo(particleRef.current, edgesRef.current);
+        const pGeo = buildParticleGeo(particleRef.current, edgesRef.current, zoomRef.current);
         if (partBuf.current) {
           g.bindBuffer(g.ARRAY_BUFFER, partBuf.current);
           g.bufferSubData(g.ARRAY_BUFFER, 0, pGeo);
@@ -707,7 +749,8 @@ export function OutlinerWebGLCanvas({
       }
 
       const sel     = selectedRef.current;
-      const useDOF  = sel !== null;
+      // Study Clarity Mode keeps focus educational: rings and edge cues, never blur.
+      const useDOF  = false;
       const lodMode = zoomRef.current < LOD_THRESHOLD;
 
       // Bind FBO when DOF is active, else render directly
@@ -730,7 +773,7 @@ export function OutlinerWebGLCanvas({
         g.blendFuncSeparate(g.SRC_ALPHA, g.ONE, g.ONE, g.ONE);
         g.useProgram(hp);
         g.uniform2f(uHRes, cssW, cssH);
-        g.uniform1f(uHHeatR, HEAT_RADIUS);
+        g.uniform1f(uHHeatR, HEAT_RADIUS / Math.max(0.25, zoomRef.current));
         g.bindVertexArray(heatVAO.current);
         g.drawArrays(g.TRIANGLES, 0, heatLen.current);
       }
@@ -801,8 +844,7 @@ export function OutlinerWebGLCanvas({
 
     draw();
     return () => cancelAnimationFrame(rafRef.current);
-  }, [layoutEdges, layoutNodes, selectedNodeId, visitedPath, canvasWidth, canvasHeight]);
-  // ↑ zoom intentionally omitted — accessed via zoomRef, avoids geometry rebuild
+  }, [layoutEdges, layoutNodes, selectedNodeId, visitedPath, canvasWidth, canvasHeight, zoom, ancestorPath, nextNodeIds, eduHeat]);
 
   return (
     <canvas

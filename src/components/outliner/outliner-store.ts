@@ -10,6 +10,9 @@ import {
 } from "@/lib/outliner/annotation-repository";
 import { crdtManager } from "@/lib/crdt-manager";
 
+// ── Feature 7: Stepwise Reasoning Mode foundation ─────────────────────────────
+export type StepwiseMode = "explore" | "step" | "trap" | "recall" | "exam" | "weakness";
+
 export interface SearchResult {
   kind: "surface" | "node" | "edge" | "matrix_row" | "threshold" | "trap" | "checkpoint" | "blockId";
   surfaceId: string;
@@ -56,6 +59,7 @@ interface OutlinerState {
   loadedAnnotations: Map<string, StrokeAnnotationMetadata[]>;
   zoomLevel: number;
   crdtReady: boolean;
+  stepwiseMode: StepwiseMode | null;
 
   setSegment: (segmentId: string, surfaces: AlgorithmSurface[]) => void;
   selectSurface: (surfaceId: string, nodeId?: string | null) => void;
@@ -81,6 +85,7 @@ interface OutlinerState {
   setCrdtReady: (value: boolean) => void;
   applyOp: (op: AnnotationOp) => Promise<void>;
   setZoom: (value: number) => void;
+  setStepwiseMode: (mode: StepwiseMode | null) => void;
 }
 
 export const useOutlinerStore = create<OutlinerState>((set, get) => ({
@@ -107,6 +112,7 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
   loadedAnnotations: new Map(),
   zoomLevel: 1,
   crdtReady: false,
+  stepwiseMode: null,
 
   setSegment: (segmentId, surfaces) =>
     set((state) => ({
@@ -265,4 +271,5 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
   },
 
   setZoom: (value) => set({ zoomLevel: Math.max(0.5, Math.min(1.5, value)) }),
+  setStepwiseMode: (mode) => set({ stepwiseMode: mode }),
 }));
