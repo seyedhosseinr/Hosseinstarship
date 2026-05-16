@@ -2056,3 +2056,22 @@ export const mediaAssets = pgTable(
     ),
   }),
 );
+
+export const mediaAssetPayloads = pgTable(
+  "media_asset_payloads",
+  {
+    /** Relative bundle path, e.g. `campbell/164/ch164_fig_164_1.png`. */
+    storageKey: text("storage_key").primaryKey(),
+    /** MIME type returned by the Vercel-safe media route. */
+    contentType: text("content_type").notNull(),
+    /** Base64-encoded payload kept out of the read-only filesystem. */
+    base64Data: text("base64_data").notNull(),
+    /** Original byte length before base64 inflation. */
+    byteLength: integer("byte_length").notNull(),
+    createdAt: integer("created_at").notNull().default(nowMs),
+    updatedAt: integer("updated_at").notNull().default(nowMs),
+  },
+  (t) => ({
+    updatedAtIdx: index("media_asset_payloads_updated_at_idx").on(t.updatedAt),
+  }),
+);

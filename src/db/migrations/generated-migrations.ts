@@ -304,14 +304,25 @@ export const migration_0003: BundledMigration = {
   idx: 3,
   tag: "0003_media_assets",
   when: 1777308000000,
-  hash: "78ba11d87c2d785281ae6186aabacea36a5dc70d66304c692632e10e366cf0e0",
+  hash: "123299e1ae4d90d00f041993ceabedcdc34b023e58f703127af6dfd979de9460",
   statements: [
-    "-- 0003_media_assets\n--\n-- Hossein Starship Phase 2 — media-reference reader registry.\n-- Adds a read-only lookup table that the Reader's resolver uses to match\n-- detected figure / image / table references in NOTE prose against\n-- imported assets. The table is intentionally decoupled from the\n-- per-chunk `chunk_assets` row set so refs can be looked up by\n-- chapter+ref alone, without joining through the chunk that authored them.\n--\n-- Compatibility: plain text + integer (bigint-as-number) columns; no\n-- dialect-specific types. Runs on Postgres and PGlite identically.\n-- Boolean stored as integer 0/1 (project-wide convention).\n--\n-- Idempotent: uses CREATE TABLE / CREATE INDEX IF NOT EXISTS so reruns\n-- are no-ops. Empty after migration — populated by a future importer.\n\nCREATE TABLE IF NOT EXISTS \"media_assets\" (\n  \"id\"             text PRIMARY KEY NOT NULL,\n  \"media_id\"       text NOT NULL,\n  \"chapter_number\" bigint NOT NULL,\n  \"segment_id\"     text,\n  \"ref_id\"         text,\n  \"figure_label\"   text,\n  \"kind\"           text NOT NULL,\n  \"filename\"       text,\n  \"storage_path\"   text,\n  \"source_page\"    bigint,\n  \"caption\"        text,\n  \"tags_json\"      text,\n  \"high_yield\"     bigint NOT NULL DEFAULT 0,\n  \"created_at\"     bigint NOT NULL DEFAULT ((extract(epoch from now()) * 1000)::bigint),\n  \"updated_at\"     bigint NOT NULL DEFAULT ((extract(epoch from now()) * 1000)::bigint)\n);",
-    "CREATE UNIQUE INDEX IF NOT EXISTS \"media_assets_media_id_unique\"\n  ON \"media_assets\" USING btree (\"media_id\");",
-    "CREATE INDEX IF NOT EXISTS \"media_assets_chapter_idx\"\n  ON \"media_assets\" USING btree (\"chapter_number\");",
-    "CREATE INDEX IF NOT EXISTS \"media_assets_ref_id_idx\"\n  ON \"media_assets\" USING btree (\"ref_id\");",
-    "CREATE INDEX IF NOT EXISTS \"media_assets_kind_idx\"\n  ON \"media_assets\" USING btree (\"kind\");",
-    "CREATE INDEX IF NOT EXISTS \"media_assets_chapter_kind_idx\"\n  ON \"media_assets\" USING btree (\"chapter_number\", \"kind\");",
+    "-- 0003_media_assets\r\n--\r\n-- Hossein Starship Phase 2 — media-reference reader registry.\r\n-- Adds a read-only lookup table that the Reader's resolver uses to match\r\n-- detected figure / image / table references in NOTE prose against\r\n-- imported assets. The table is intentionally decoupled from the\r\n-- per-chunk `chunk_assets` row set so refs can be looked up by\r\n-- chapter+ref alone, without joining through the chunk that authored them.\r\n--\r\n-- Compatibility: plain text + integer (bigint-as-number) columns; no\r\n-- dialect-specific types. Runs on Postgres and PGlite identically.\r\n-- Boolean stored as integer 0/1 (project-wide convention).\r\n--\r\n-- Idempotent: uses CREATE TABLE / CREATE INDEX IF NOT EXISTS so reruns\r\n-- are no-ops. Empty after migration — populated by a future importer.\r\n\r\nCREATE TABLE IF NOT EXISTS \"media_assets\" (\r\n  \"id\"             text PRIMARY KEY NOT NULL,\r\n  \"media_id\"       text NOT NULL,\r\n  \"chapter_number\" bigint NOT NULL,\r\n  \"segment_id\"     text,\r\n  \"ref_id\"         text,\r\n  \"figure_label\"   text,\r\n  \"kind\"           text NOT NULL,\r\n  \"filename\"       text,\r\n  \"storage_path\"   text,\r\n  \"source_page\"    bigint,\r\n  \"caption\"        text,\r\n  \"tags_json\"      text,\r\n  \"high_yield\"     bigint NOT NULL DEFAULT 0,\r\n  \"created_at\"     bigint NOT NULL DEFAULT ((extract(epoch from now()) * 1000)::bigint),\r\n  \"updated_at\"     bigint NOT NULL DEFAULT ((extract(epoch from now()) * 1000)::bigint)\r\n);",
+    "CREATE UNIQUE INDEX IF NOT EXISTS \"media_assets_media_id_unique\"\r\n  ON \"media_assets\" USING btree (\"media_id\");",
+    "CREATE INDEX IF NOT EXISTS \"media_assets_chapter_idx\"\r\n  ON \"media_assets\" USING btree (\"chapter_number\");",
+    "CREATE INDEX IF NOT EXISTS \"media_assets_ref_id_idx\"\r\n  ON \"media_assets\" USING btree (\"ref_id\");",
+    "CREATE INDEX IF NOT EXISTS \"media_assets_kind_idx\"\r\n  ON \"media_assets\" USING btree (\"kind\");",
+    "CREATE INDEX IF NOT EXISTS \"media_assets_chapter_kind_idx\"\r\n  ON \"media_assets\" USING btree (\"chapter_number\", \"kind\");",
+  ],
+};
+
+export const migration_0004: BundledMigration = {
+  idx: 4,
+  tag: "0004_media_asset_payloads",
+  when: 1778443200000,
+  hash: "052673f7c6969e143e9b98f4a3ff01f49adcfa909ecb75b0279ae5491f5452bf",
+  statements: [
+    "-- 0004_media_asset_payloads\n--\n-- Hossein Starship Phase 3.7 — Vercel-safe media payload storage.\n-- Adds a DB-backed payload table so imported chapter images can be served\n-- after deployment without writing into /public on a read-only filesystem.\n--\n-- Compatibility:\n--   - plain text + integer columns only\n--   - base64_data stores the binary payload in a portable form for both\n--     Postgres and PGlite\n--\n-- Idempotent: uses CREATE TABLE / CREATE INDEX IF NOT EXISTS.\n\nCREATE TABLE IF NOT EXISTS \"media_asset_payloads\" (\n  \"storage_key\"  text PRIMARY KEY NOT NULL,\n  \"content_type\" text NOT NULL,\n  \"base64_data\"  text NOT NULL,\n  \"byte_length\"  bigint NOT NULL,\n  \"created_at\"   bigint NOT NULL DEFAULT ((extract(epoch from now()) * 1000)::bigint),\n  \"updated_at\"   bigint NOT NULL DEFAULT ((extract(epoch from now()) * 1000)::bigint)\n);",
+    "CREATE INDEX IF NOT EXISTS \"media_asset_payloads_updated_at_idx\"\n  ON \"media_asset_payloads\" USING btree (\"updated_at\");",
   ],
 };
 
@@ -320,4 +331,5 @@ export const allMigrations: BundledMigration[] = [
   migration_0001,
   migration_0002,
   migration_0003,
+  migration_0004,
 ];

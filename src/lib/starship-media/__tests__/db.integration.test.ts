@@ -37,6 +37,7 @@ import {
   upsertMediaAssetsBatch,
 } from "../db";
 import type { MediaAssetUpsertRow } from "../importer";
+import { buildBundledMediaServePath } from "../storage";
 
 const globalWithPGlite = globalThis as typeof globalThis & {
   __uroPGlite?: unknown;
@@ -59,7 +60,9 @@ function row(overrides: Partial<MediaAssetUpsertRow>): MediaAssetUpsertRow {
     figureLabel: overrides.figureLabel ?? null,
     kind: overrides.kind ?? "figure",
     filename: overrides.filename ?? "x.png",
-    storagePath: overrides.storagePath ?? "/media/campbell/164/x.png",
+    storagePath:
+      overrides.storagePath
+      ?? buildBundledMediaServePath(`campbell/${overrides.chapterNumber ?? 164}/x.png`),
     sourcePage: overrides.sourcePage ?? null,
     caption: overrides.caption ?? null,
     tags: overrides.tags ?? null,
@@ -81,7 +84,7 @@ describe("media-assets DB adapter — multi-row insert (locks ANY-vs-inArray bug
         figureLabel: "Figure 164.4",
         kind: "figure",
         filename: "fig-164-4.png",
-        storagePath: "/media/campbell/164/fig-164-4.png",
+        storagePath: buildBundledMediaServePath("campbell/164/fig-164-4.png"),
         tags: ["anatomy", "verification"],
         highYield: true,
       }),
@@ -91,7 +94,7 @@ describe("media-assets DB adapter — multi-row insert (locks ANY-vs-inArray bug
         figureLabel: "Image 2",
         kind: "image",
         filename: "img-2.png",
-        storagePath: "/media/campbell/164/img-2.png",
+        storagePath: buildBundledMediaServePath("campbell/164/img-2.png"),
         tags: ["verification"],
         highYield: false,
       }),
@@ -212,7 +215,7 @@ describe("media-assets DB adapter — tags JSON roundtrip (locks Phase 3.5 bug)"
       figureLabel: null,
       kind: "figure",
       filename: "x.png",
-      storagePath: "/x.png",
+      storagePath: buildBundledMediaServePath("campbell/1/x.png"),
       sourcePage: null,
       caption: null,
       tagsJson: ["legacy-tag"] as unknown as string[],
