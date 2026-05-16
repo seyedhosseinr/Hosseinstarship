@@ -229,19 +229,24 @@ export default function DashboardClient() {
   const qbankStats = dashboard.serverStats.qbankStats
   const fsrsStats = dashboard.fsrsStats
   const plannerStats = dashboard.plannerDetailedStats
+  const chapterPerformance = dashboard.serverStats.chapterPerformance ?? []
+  const detailedWeakAreas = dashboard.serverStats.detailedWeakAreas ?? []
+  const weeklyActivity = dashboard.serverStats.weeklyActivity ?? []
+  const activityFeedRows = dashboard.serverStats.activityFeed ?? []
+  const weaknessRows = dashboard.serverStats.strengthsAndWeaknesses?.weaknesses ?? []
   const targetChapterNo = useMemo(
     () =>
       extractChapterNo(
-        dashboard.serverStats.detailedWeakAreas[0]?.key,
-        dashboard.serverStats.chapterPerformance[0]?.chapterId,
-        dashboard.serverStats.chapterPerformance[0]?.chapterTitle,
+        detailedWeakAreas[0]?.key,
+        chapterPerformance[0]?.chapterId,
+        chapterPerformance[0]?.chapterTitle,
       ),
-    [dashboard.serverStats.chapterPerformance, dashboard.serverStats.detailedWeakAreas],
+    [chapterPerformance, detailedWeakAreas],
   )
 
   const sphereChapters = useMemo<ChapterKnowledgeInput[]>(
     () =>
-      dashboard.serverStats.chapterPerformance
+      chapterPerformance
         .filter((item) => item.chapterId)
         .map((item, index) => ({
           chapterId: item.chapterId,
@@ -249,12 +254,12 @@ export default function DashboardClient() {
           titleEn: item.chapterTitle ?? undefined,
           order: extractChapterNo(item.chapterId, item.chapterTitle) ?? index + 1,
         })),
-    [dashboard.serverStats.chapterPerformance],
+    [chapterPerformance],
   )
 
   const sphereMcqStats = useMemo<McqKnowledgeInput[]>(
     () =>
-      dashboard.serverStats.chapterPerformance
+      chapterPerformance
         .filter((item) => item.chapterId && item.total > 0)
         .map((item) => ({
           chapterId: item.chapterId,
@@ -262,7 +267,7 @@ export default function DashboardClient() {
           correct: item.correct,
           wrong: Math.max(0, item.total - item.correct),
         })),
-    [dashboard.serverStats.chapterPerformance],
+    [chapterPerformance],
   )
 
   const sphereFlashcardStats = useMemo<FlashcardKnowledgeInput[]>(
@@ -295,16 +300,16 @@ export default function DashboardClient() {
   )
 
   const mcqThisWeek = useMemo(
-    () => dashboard.serverStats.weeklyActivity.reduce((sum, item) => sum + item.count, 0),
-    [dashboard.serverStats.weeklyActivity],
+    () => weeklyActivity.reduce((sum, item) => sum + item.count, 0),
+    [weeklyActivity],
   )
 
   const focusTopic = useMemo(
     () =>
-      dashboard.serverStats.detailedWeakAreas[0]?.label
-      || dashboard.serverStats.strengthsAndWeaknesses.weaknesses[0]?.key
+      detailedWeakAreas[0]?.label
+      || weaknessRows[0]?.key
       || 'مرور کارت‌های سررسید',
-    [dashboard.serverStats.detailedWeakAreas, dashboard.serverStats.strengthsAndWeaknesses.weaknesses],
+    [detailedWeakAreas, weaknessRows],
   )
 
   const fsrsQueue = useMemo(() => {
@@ -344,7 +349,7 @@ export default function DashboardClient() {
   }, [dashboard.dueToday, fsrsStats, reviewCards])
 
   const chapterStats = useMemo(() => {
-    const rows = dashboard.serverStats.chapterPerformance
+    const rows = chapterPerformance
       .slice(0, 4)
       .map((item) => ({
         chapter: item.chapterTitle || item.chapterId,
@@ -362,16 +367,16 @@ export default function DashboardClient() {
     }
 
     return []
-  }, [dashboard.serverStats.chapterPerformance, qbankStats])
+  }, [chapterPerformance, qbankStats])
 
   const heatmapDays = useMemo(
-    () => buildHeatmapDays(dashboard.monthlyActivity, dashboard.serverStats.weeklyActivity),
-    [dashboard.monthlyActivity, dashboard.serverStats.weeklyActivity],
+    () => buildHeatmapDays(dashboard.monthlyActivity, weeklyActivity),
+    [dashboard.monthlyActivity, weeklyActivity],
   )
 
   const activityFeed = useMemo(
     () =>
-      dashboard.serverStats.activityFeed.slice(0, 6).map((item) => ({
+      activityFeedRows.slice(0, 6).map((item) => ({
         id: item.id,
         type: item.type,
         timeAgo: formatRelativeLabel(item.timestamp),
@@ -392,7 +397,7 @@ export default function DashboardClient() {
             ? undefined
             : 'مسیر قابل اتکا برای این رویداد هنوز در دسترس نیست.',
       })),
-    [dashboard.serverStats.activityFeed],
+    [activityFeedRows],
   )
 
   const syncState = dashboard.loading

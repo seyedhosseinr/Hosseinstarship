@@ -7,7 +7,9 @@
  *   $env:POSTGRES_URL="postgresql://..."
  *   node scripts/import-ch164-media-assets.cjs ./ch164-media
  *
- * The script only writes to media_assets and only upserts chapter 164 rows.
+ * The script upserts both:
+ *   - media_assets          (metadata registry)
+ *   - media_asset_payloads  (binary payloads served by /api/media-assets/...)
  */
 
 const fs = require("node:fs/promises");
@@ -21,7 +23,8 @@ try {
 }
 
 const CHAPTER_NUMBER = 164;
-const STORAGE_PREFIX = `/media/campbell/${CHAPTER_NUMBER}`;
+const STORAGE_KEY_PREFIX = `campbell/${CHAPTER_NUMBER}`;
+const STORAGE_URL_PREFIX = `/api/media-assets/${STORAGE_KEY_PREFIX}`;
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif"]);
 
 function normalizeTags(value) {
@@ -108,6 +111,23 @@ function normalizeManifestEntries(manifest) {
   }));
 }
 
+function inferContentType(filename) {
+  const ext = path.extname(filename).toLowerCase();
+  switch (ext) {
+    case ".png":
+      return "image/png";
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".webp":
+      return "image/webp";
+    case ".gif":
+      return "image/gif";
+    default:
+      return "application/octet-stream";
+  }
+}
+
 async function readChapterAssets(mediaDir) {
   // Read manifest metadata first; tags/captions/pages come from here.
   const manifestPath = path.join(mediaDir, "manifest.json");
@@ -130,11 +150,13 @@ async function readChapterAssets(mediaDir) {
     .filter((filename) => IMAGE_EXTENSIONS.has(path.extname(filename).toLowerCase()))
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
-  return imageFiles.map((filename) => {
+  return Promise.all(imageFiles.map(async (filename) => {
     const entry = manifestByFilename.get(filename) || {};
     const refId = normalizeRefId(entry, filename);
     const mediaId = entry.media_id || entry.mediaId || `campbell-${CHAPTER_NUMBER}-${slugifyId(refId)}`;
     const id = entry.id || mediaId;
+    const storageKey = `${STORAGE_KEY_PREFIX}/${filename}`;
+    const rawBytes = await fs.readFile(path.join(mediaDir, filename));
 
     return {
       id,
@@ -145,13 +167,17 @@ async function readChapterAssets(mediaDir) {
       figureLabel: normalizeLabel(entry, filename, refId),
       kind: normalizeKind(entry, filename),
       filename,
-      storagePath: `${STORAGE_PREFIX}/${filename}`,
+      storageKey,
+      storagePath: `${STORAGE_URL_PREFIX}/${filename}`,
+      contentType: inferContentType(filename),
+      base64Data: rawBytes.toString("base64"),
+      byteLength: rawBytes.length,
       sourcePage: asNullableInteger(entry.source_page || entry.sourcePage || entry.page),
       caption: entry.caption || entry.description || null,
       tagsJson: JSON.stringify(normalizeTags(entry.tags || entry.tags_json || entry.tagsJson)),
       highYield: normalizeBooleanFlag(entry.high_yield || entry.highYield),
     };
-  });
+  }));
 }
 
 async function main() {
@@ -186,8 +212,37 @@ async function main() {
     await client.query("BEGIN");
 
     for (const asset of assets) {
-      // This is the only write query. It touches media_assets only.
-      // The conflict update is additionally guarded so a ref_id collision from
+      await client.query(
+        `
+          INSERT INTO media_asset_payloads (
+            storage_key,
+            content_type,
+            base64_data,
+            byte_length,
+            created_at,
+            updated_at
+          )
+          VALUES (
+            $1, $2, $3, $4,
+            (extract(epoch from now()) * 1000)::bigint,
+            (extract(epoch from now()) * 1000)::bigint
+          )
+          ON CONFLICT (storage_key) DO UPDATE
+          SET
+            content_type = EXCLUDED.content_type,
+            base64_data = EXCLUDED.base64_data,
+            byte_length = EXCLUDED.byte_length,
+            updated_at = (extract(epoch from now()) * 1000)::bigint
+        `,
+        [
+          asset.storageKey,
+          asset.contentType,
+          asset.base64Data,
+          asset.byteLength,
+        ],
+      );
+
+      // Metadata upsert. The conflict update is additionally guarded so a ref_id collision from
       // another chapter cannot update that other chapter's row.
       const result = await client.query(
         `

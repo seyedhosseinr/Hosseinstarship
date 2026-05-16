@@ -37,6 +37,10 @@ export interface DashboardStats {
   totalFlashcards: number;
   totalSessions: number;
   dueFlashcards: number;
+  chapterPerformance?: any;
+  fsrsStatsByChapter?: any;
+  readerStatsByChapter?: any;
+  activityFeed?: any;
 }
 
 export interface LocalChapterProgress {

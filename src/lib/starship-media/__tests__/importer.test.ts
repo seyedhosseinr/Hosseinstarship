@@ -17,6 +17,7 @@ import {
   type BundleStorage,
   type MediaAssetUpsertRow,
 } from "../importer";
+import { buildBundledMediaServePath } from "../storage";
 
 interface InMemoryDeps {
   storage: BundleStorage;
@@ -37,7 +38,7 @@ function inMemoryDeps(opts: {
         throw new Error(`simulated fs failure for ${relPath}`);
       }
       files.set(relPath, data);
-      return `/media/${relPath}`;
+      return buildBundledMediaServePath(relPath);
     },
   };
   const upserter: AssetUpserter = {
@@ -117,7 +118,7 @@ describe("runMediaBundleImport — happy path", () => {
       figureLabel: "Figure 164.4",
       refId: "figure:164.4",
       filename: "fig-164-4.png",
-      storagePath: "/media/campbell/164/fig-164-4.png",
+      storagePath: "/api/media-assets/campbell/164/fig-164-4.png",
       caption: "anatomy landmark",
       tags: ["anatomy"],
       highYield: true,
