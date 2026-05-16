@@ -704,3 +704,13 @@
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Outliner DAG canvas background + dot-grid — Apple system gray */
+:root {
+  --outliner-canvas-bg:  #f2f2f7;
+  --outliner-dot-color:  rgba(0, 0, 0, 0.10);
+}
+.dark {
+  --outliner-canvas-bg:  #1c1c1e;
+  --outliner-dot-color:  rgba(255, 255, 255, 0.06);
+}

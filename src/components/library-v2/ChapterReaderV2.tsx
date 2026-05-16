@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
@@ -7,17 +7,21 @@ import {
   ArrowLeft,
   ArrowRight,
   ChevronUp,
+  Circle,
   Eraser,
   Eye,
   EyeOff,
+  Highlighter,
   Maximize2,
   Minimize2,
   MoreHorizontal,
+  MousePointer2,
   NotebookPen,
   PanelLeft,
   Pen,
   StickyNote,
   Trash2,
+  Underline,
   Undo2,
 } from "lucide-react";
 import type { NoteViewerModel } from "@/lib/contract/note-viewer.types";
@@ -27,6 +31,7 @@ import type { ReaderAnnotation, ReaderSelectionPayload } from "@/hooks/useReader
 import { useReaderAnnotations } from "@/hooks/useReaderAnnotations";
 import { useAutoHighlight } from "@/hooks/useAutoHighlight";
 import { useReaderSettings, READER_FONT_STACKS } from "@/hooks/useReaderSettings";
+import { resolveSelectionAgainstCanonicalSurface } from "@/components/flashcard/SelectionPopup";
 import { useReaderPenSelection } from "@/hooks/useReaderPenSelection";
 import { usePalmBeforePenGuard } from "@/hooks/usePalmBeforePenGuard";
 import { useReaderSelectionWatcher } from "@/hooks/useReaderSelectionWatcher";
@@ -74,16 +79,25 @@ interface ChapterReaderV2Props {
   navigation: CampbellVolumeGroup[];
 }
 
+/* ── Per-tool stroke width config ── */
+type ToolWithWidth = "highlight" | "underline" | "circle" | "pen" | "highlighter";
+
+const TOOL_WIDTH_CFG: Record<ToolWithWidth, { min: number; max: number; step: number; default: number }> = {
+  highlight:   { min: 1,   max: 8,  step: 0.5, default: 2.5 },
+  underline:   { min: 0.5, max: 8,  step: 0.5, default: 2.5 },
+  circle:      { min: 0.5, max: 8,  step: 0.5, default: 2.5 },
+  pen:         { min: 0.5, max: 6,  step: 0.5, default: 2.05 },
+  highlighter: { min: 4,   max: 32, step: 2,   default: 18  },
+};
+
 /* ── Drawing palette constants ── */
-/* Ink palette */
-/* Ink palette */
 const DRAW_COLORS = [
-  { value: "#2B2B2B", label: "Graphite / Ù¾ÛŒØ´â€ŒÙØ±Ø¶" },
-  { value: "#2563EB", label: "Blue / Ù†Ú©ØªÙ‡ Ø¹Ù„Ù…ÛŒ" },
-  { value: "#15803D", label: "Green / ØªØ§ÛŒÛŒØ¯" },
-  { value: "#C2410C", label: "Amber-red / critical" },
-  { value: "#7C3AED", label: "Purple / ÙÙ„Ø´â€ŒÚ©Ø§Ø±Øª" },
-  { value: "#0F766E", label: "Teal / clinical pearl" },
+  { value: "#D4B106", label: "زرد / مهم" },
+  { value: "#4B9BFF", label: "آبی / بورد فکت" },
+  { value: "#57B26A", label: "سبز / فهمیدم" },
+  { value: "#D96AA0", label: "صورتی / اشتباه" },
+  { value: "#8A63D2", label: "بنفش / فلش‌کارت" },
+  { value: "#D9893D", label: "نارنجی / هشدار" },
 ] as const;
 
 const DRAW_WIDTHS = [
@@ -98,6 +112,16 @@ const DRAW_WIDTHS = [
  * Centralised here so a rename never silently breaks multiple call-sites.
  */
 const READER_CONTENT_SELECTOR = "[data-reader-content]";
+
+/* ── Annotation tool (GoodNotes-style rail) ── */
+type AnnotationTool =
+  | "cursor"
+  | "highlight"
+  | "underline"
+  | "pen"
+  | "highlighter"
+  | "circle"
+  | "eraser";
 
 /* ════════════════════════════════════════════════════════
    ChapterReaderV2 — multi-segment chapter reader.
@@ -120,25 +144,36 @@ export function ChapterReaderV2({
   const panels = usePanelState(isFocusMode);
   const [highlightsVisible, setHighlightsVisible] = useState(true);
 
-  // ── Pen / drawing mode ──
-  const [penMode, setPenMode] = useState(false);
+  // ── Annotation tool (GoodNotes rail) ──
+  const [annotationTool, setAnnotationTool] = useState<AnnotationTool>("cursor");
 
-  /**
-   * When entering pen/draw mode, clear any active text selection so that:
-   *  1. SelectionPopup does not linger over the canvas.
-   *  2. The first Pencil stroke is not accidentally interpreted as a
-   *     selection-extend gesture by the browser.
-   */
+  const penMode = annotationTool === "pen" || annotationTool === "highlighter" || annotationTool === "circle" || annotationTool === "eraser";
+
+  // Map annotation tool → DrawTool for the drawing layer
+  const activePenTool = useMemo((): DrawTool => {
+    if (annotationTool === "eraser") return "eraser";
+    if (annotationTool === "highlighter") return "highlighter";
+    if (annotationTool === "circle") return "circle";
+    return "pen";
+  }, [annotationTool]);
+
+  const selectAnnotationTool = useCallback((tool: AnnotationTool) => {
+    setAnnotationTool((prev) => (prev === tool ? "cursor" : tool));
+  }, []);
+
+  const togglePenMode = useCallback(() => {
+    setAnnotationTool((prev) =>
+      (prev === "pen" || prev === "highlighter" || prev === "circle" || prev === "eraser")
+        ? "cursor"
+        : "pen",
+    );
+  }, []);
+
+  // When entering pen/draw mode, clear text selection
   useEffect(() => {
     if (!penMode) return;
     window.getSelection()?.removeAllRanges();
   }, [penMode]);
-
-  /**
-   * Stable callback for toggling pen mode.
-   * Avoids re-creating child callbacks on every render.
-   */
-  const togglePenMode = useCallback(() => setPenMode((v) => !v), []);
 
   // ── User notes panel (study notes, local-first) ──
   const [userNotesOpen, setUserNotesOpen] = useState(false);
@@ -164,14 +199,23 @@ export function ChapterReaderV2({
   });
 
   const [penColor, setPenColor] = useState<string>(DRAW_COLORS[0].value);
-  const [penWidth, setPenWidth] = useState<number>(DRAW_WIDTHS[1].value);
-  const [penTool, setPenTool] = useState<DrawTool>("pen");
+
+  const [toolWidths, setToolWidths] = useState<Partial<Record<ToolWithWidth, number>>>({});
+  const getToolWidth = useCallback((t: ToolWithWidth) => toolWidths[t] ?? TOOL_WIDTH_CFG[t].default, [toolWidths]);
+  const adjustToolWidth = useCallback((t: ToolWithWidth, delta: number) => {
+    const cfg = TOOL_WIDTH_CFG[t];
+    setToolWidths(prev => {
+      const cur = prev[t] ?? cfg.default;
+      const raw = Math.max(cfg.min, Math.min(cfg.max, cur + delta));
+      const snapped = Math.round(raw / cfg.step) * cfg.step;
+      return { ...prev, [t]: parseFloat(snapped.toFixed(2)) };
+    });
+  }, []);
+  const penWidth = getToolWidth("pen");
+  // penTool is derived from annotationTool; kept as alias for DrawingLayer
+  const penTool = activePenTool;
   const drawingLayerRef = useRef<DrawingLayerHandle>(null);
 
-  const toggleEraser = useCallback(
-    () => setPenTool((t) => (t === "eraser" ? "pen" : "eraser")),
-    [],
-  );
   const undoStroke = useCallback(() => drawingLayerRef.current?.undo(), []);
   const clearDrawing = useCallback(() => drawingLayerRef.current?.clear(), []);
 
@@ -181,8 +225,6 @@ export function ChapterReaderV2({
   const toolbarRef = useRef<HTMLDivElement>(null);
 
   // ── Toolbar visibility: manual collapse + scroll-aware auto-hide ──
-  // Hides on scroll-down past 120px, reveals on scroll-up. Manual toggle
-  // pins the bar in collapsed state and persists across sessions.
   const [toolbarPinnedCollapsed, setToolbarPinnedCollapsed] = useState(false);
   const [toolbarVisibleByScroll, setToolbarVisibleByScroll] = useState(true);
 
@@ -251,10 +293,55 @@ export function ChapterReaderV2({
   const { annotations, addAnnotation, removeAnnotation, annotationCountByFrameId } =
     useReaderAnnotations(`ch-${chapter.chapterNo}`, chapter.chapterNo);
 
+  // Auto-highlight is ON when annotation tool is "highlight"
   const { autoHighlight, toggleAutoHighlight } = useAutoHighlight({
     annotations,
     onHighlight: (sel, color) => addAnnotation({ selection: sel, type: "highlight", color }),
   });
+
+  // Sync annotationTool ↔ autoHighlight
+  useEffect(() => {
+    const shouldBeOn = annotationTool === "highlight";
+    if (shouldBeOn !== autoHighlight) toggleAutoHighlight();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [annotationTool]);
+
+  // Auto-underline: when tool="underline", apply underline on selection-settled
+  const addAnnotationRef = useRef(addAnnotation);
+  useEffect(() => { addAnnotationRef.current = addAnnotation; }, [addAnnotation]);
+  const annotationToolRef = useRef(annotationTool);
+  useEffect(() => { annotationToolRef.current = annotationTool; }, [annotationTool]);
+
+  useEffect(() => {
+    const handler = () => {
+      if (annotationToolRef.current !== "underline") return;
+      const sel = window.getSelection();
+      const text = sel?.toString().trim() ?? "";
+      if (!text || text.length < 3 || text.length > 2000) return;
+      const range = sel?.rangeCount ? sel.getRangeAt(0) : null;
+      if (!range) return;
+      const anchorEl =
+        range.commonAncestorContainer instanceof Element
+          ? range.commonAncestorContainer
+          : (range.commonAncestorContainer as Node).parentElement;
+      if (!anchorEl?.closest(READER_CONTENT_SELECTOR)) return;
+      const frameEl = anchorEl.closest<HTMLElement>("[data-frame-id]");
+      const sectionEl = anchorEl.closest<HTMLElement>("[data-section-id]");
+      const resolved = resolveSelectionAgainstCanonicalSurface(frameEl ?? null, range, text);
+      const payload: ReaderSelectionPayload = {
+        text,
+        frameId: frameEl?.dataset.frameId ?? null,
+        sectionId: sectionEl?.dataset.sectionId ?? null,
+        blockText: resolved.blockText,
+        start: resolved.start,
+        end: resolved.end,
+        contentHash: resolved.contentHash,
+      };
+      addAnnotationRef.current({ selection: payload, type: "underline" });
+    };
+    document.addEventListener("reader:selection-settled", handler);
+    return () => document.removeEventListener("reader:selection-settled", handler);
+  }, []);
 
   const annotationsByFrameId = useMemo(() => {
     const map = new Map<string, ReaderAnnotation[]>();
@@ -353,12 +440,7 @@ export function ChapterReaderV2({
         }
       />
 
-      {/* ══ Floating top bar — collapsible + scroll-aware auto-hide ══
-          Two layers of hide:
-            • Pinned collapse (manual button → persists in localStorage)
-            • Scroll auto-hide (down → fade out, up → fade back in)
-          The collapsed state is a tiny floating dot; clicking re-expands.
-          When pen mode is active a drawing palette pill appears below. */}
+      {/* ══ Floating top bar — collapsible + scroll-aware auto-hide ══ */}
       <div
         ref={toolbarRef}
         className={cn(
@@ -519,7 +601,7 @@ export function ChapterReaderV2({
               </button>
             </div>
 
-            {/* ── Reader display settings panel — visible when AA button is active ── */}
+            {/* ── Reader display settings panel ── */}
             {fontSizeOpen && (
               <ReaderDisplaySettings
                 settings={readerSettings}
@@ -528,7 +610,7 @@ export function ChapterReaderV2({
               />
             )}
 
-            {/* ── Drawing palette pill — visible only when pen mode is active ── */}
+            {/* ── Drawing/color palette pill — visible when a draw tool is active ── */}
             {penMode && (
               <div className="pointer-events-auto flex items-center gap-0.5 rounded-full border border-lib-border/55 bg-lib-glass px-2 py-1.5 shadow-[0_4px_24px_-8px_color-mix(in_oklab,hsl(var(--foreground))_18%,transparent)] backdrop-blur-xl">
                 {/* Color swatches */}
@@ -536,11 +618,11 @@ export function ChapterReaderV2({
                   <button
                     key={c.value}
                     type="button"
-                    onClick={() => { setPenColor(c.value); setPenTool("pen"); }}
+                    onClick={() => setPenColor(c.value)}
                     title={c.label}
                     className={cn(
                       "h-5 w-5 rounded-full ring-offset-1 transition-all duration-150",
-                      penColor === c.value && penTool === "pen"
+                      penColor === c.value
                         ? "scale-110 ring-2 ring-lib-text/70"
                         : "scale-90 ring-0 hover:scale-100",
                     )}
@@ -550,43 +632,25 @@ export function ChapterReaderV2({
 
                 <div className="mx-1.5 h-4 w-px bg-lib-border/55" />
 
-                {/* Line widths */}
-                {DRAW_WIDTHS.map((w) => (
+                {/* Line widths — hidden for highlighter/eraser */}
+                {annotationTool !== "highlighter" && annotationTool !== "eraser" && DRAW_WIDTHS.map((w) => (
                   <button
                     key={w.value}
                     type="button"
-                    onClick={() => setPenWidth(w.value)}
+                    onClick={() => setToolWidths(prev => ({ ...prev, pen: w.value }))}
                     title={w.label}
                     className={cn(
                       "flex h-7 w-7 items-center justify-center rounded-full transition-colors",
-                      penWidth === w.value
+                      getToolWidth("pen") === w.value
                         ? "bg-lib-accent-soft text-lib-accent"
                         : "text-lib-text-secondary hover:bg-lib-hover",
                     )}
                   >
-                    <div
-                      className="rounded-full bg-current"
-                      style={{ width: w.dot, height: w.dot }}
-                    />
+                    <div className="rounded-full bg-current" style={{ width: w.dot, height: w.dot }} />
                   </button>
                 ))}
 
                 <div className="mx-1.5 h-4 w-px bg-lib-border/55" />
-
-                {/* Eraser */}
-                <button
-                  type="button"
-                  onClick={toggleEraser}
-                  title={penTool === "eraser" ? "Switch to pen" : "Eraser"}
-                  className={cn(
-                    "inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors",
-                    penTool === "eraser"
-                      ? "bg-lib-accent-soft text-lib-accent"
-                      : "text-lib-text-secondary hover:bg-lib-hover",
-                  )}
-                >
-                  <Eraser className="h-3.5 w-3.5" />
-                </button>
 
                 {/* Undo */}
                 <button
@@ -613,6 +677,147 @@ export function ChapterReaderV2({
         )}
       </div>
 
+      {/* ══ GoodNotes-style side tool rail ══
+          Visible when toolbarStyle is "rail" or "both".
+          Fixed vertical pill on the left side, vertically centered. */}
+      {(readerSettings.toolbarStyle === "rail" || readerSettings.toolbarStyle === "both") && (
+        <div
+          className={cn(
+            "pointer-events-none fixed left-3 top-1/2 z-40 -translate-y-1/2",
+            "transition-[opacity,transform] duration-300 ease-out",
+            toolbarCollapsed ? "opacity-0 -translate-x-4 pointer-events-none" : "opacity-100",
+          )}
+        >
+          <div className="pointer-events-auto flex flex-col items-center gap-0.5 rounded-2xl border border-lib-border/60 bg-lib-glass/90 p-1.5 shadow-[0_8px_32px_-8px_color-mix(in_oklab,hsl(var(--foreground))_24%,transparent)] backdrop-blur-xl">
+            {/* Active color dot indicator */}
+            {(annotationTool === "pen" || annotationTool === "highlighter" || annotationTool === "circle") && (
+              <div
+                className="mb-1 h-3 w-3 rounded-full ring-1 ring-lib-border/60 shadow-sm"
+                style={{ backgroundColor: penColor }}
+              />
+            )}
+
+            {/* ── Text tools ── */}
+            {[
+              { tool: "cursor" as AnnotationTool, Icon: MousePointer2, label: "انتخاب متن" },
+              { tool: "highlight" as AnnotationTool, Icon: Highlighter, label: "هایلایت" },
+              { tool: "underline" as AnnotationTool, Icon: Underline, label: "زیرخط" },
+              { tool: "circle" as AnnotationTool, Icon: Circle, label: "دایره / اُوال" },
+            ].map(({ tool, Icon, label }) => (
+              <button
+                key={tool}
+                type="button"
+                title={label}
+                onClick={() => selectAnnotationTool(tool)}
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-150",
+                  annotationTool === tool
+                    ? "bg-lib-accent text-lib-accent-fg shadow-sm scale-105"
+                    : "text-lib-text-secondary hover:bg-lib-hover hover:text-lib-text",
+                )}
+              >
+                <Icon className="h-4 w-4" />
+              </button>
+            ))}
+
+            {/* ── Per-tool stroke width stepper ── */}
+            {(annotationTool === "highlight" || annotationTool === "underline" || annotationTool === "circle" || annotationTool === "pen" || annotationTool === "highlighter") && (() => {
+              const t = annotationTool as ToolWithWidth;
+              const cfg = TOOL_WIDTH_CFG[t];
+              const val = getToolWidth(t);
+              const display = Number.isInteger(val / cfg.step) && cfg.step >= 1 ? String(Math.round(val)) : val.toFixed(1);
+              return (
+                <>
+                  <div className="my-0.5 h-px w-6 bg-lib-border/60" />
+                  <button
+                    type="button"
+                    title="افزایش ضخامت"
+                    onClick={() => adjustToolWidth(t, cfg.step)}
+                    className="flex h-7 w-8 items-center justify-center rounded-lg text-lib-text-secondary hover:bg-lib-hover hover:text-lib-text transition-colors"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+                  </button>
+                  <span className="select-none text-center font-mono text-[11px] tabular-nums text-lib-text">
+                    {display}
+                  </span>
+                  <button
+                    type="button"
+                    title="کاهش ضخامت"
+                    onClick={() => adjustToolWidth(t, -cfg.step)}
+                    className="flex h-7 w-8 items-center justify-center rounded-lg text-lib-text-secondary hover:bg-lib-hover hover:text-lib-text transition-colors"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 5h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
+                  </button>
+                </>
+              );
+            })()}
+
+            <div className="my-0.5 h-px w-6 bg-lib-border/60" />
+
+            {/* ── Drawing tools ── */}
+            {[
+              { tool: "pen" as AnnotationTool, Icon: Pen, label: "قلم" },
+              { tool: "highlighter" as AnnotationTool, Icon: Highlighter, label: "هایلایتر قلمی" },
+              { tool: "eraser" as AnnotationTool, Icon: Eraser, label: "پاک‌کن" },
+            ].map(({ tool, Icon, label }) => (
+              <button
+                key={tool}
+                type="button"
+                title={label}
+                onClick={() => selectAnnotationTool(tool)}
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-150",
+                  annotationTool === tool
+                    ? "bg-lib-accent text-lib-accent-fg shadow-sm scale-105"
+                    : "text-lib-text-secondary hover:bg-lib-hover hover:text-lib-text",
+                )}
+              >
+                <Icon className="h-4 w-4" />
+              </button>
+            ))}
+
+            {/* Color strip — visible for drawing tools */}
+            {(annotationTool === "pen" || annotationTool === "highlighter" || annotationTool === "circle") && (
+              <>
+                <div className="my-0.5 h-px w-6 bg-lib-border/60" />
+                {DRAW_COLORS.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    title={c.label}
+                    onClick={() => setPenColor(c.value)}
+                    className={cn(
+                      "h-6 w-6 rounded-full ring-offset-[2px] transition-all duration-150",
+                      penColor === c.value
+                        ? "scale-110 ring-2 ring-lib-text/70"
+                        : "scale-90 hover:scale-100",
+                    )}
+                    style={{ backgroundColor: c.value }}
+                  />
+                ))}
+                <div className="my-0.5 h-px w-6 bg-lib-border/60" />
+                <button
+                  type="button"
+                  title="Undo"
+                  onClick={undoStroke}
+                  className="flex h-8 w-8 items-center justify-center rounded-xl text-lib-text-secondary transition-colors hover:bg-lib-hover"
+                >
+                  <Undo2 className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  title="Clear all"
+                  onClick={clearDrawing}
+                  className="flex h-8 w-8 items-center justify-center rounded-xl text-lib-text-secondary transition-colors hover:bg-lib-hover hover:text-red-500"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {userNotesOpen && (
         <ReaderUserNotesPanel
           docId={`ch-${chapter.chapterNo}`}
@@ -622,14 +827,11 @@ export function ChapterReaderV2({
         />
       )}
 
-      <ReaderStage ref={scrollRef}>
+      <ReaderStage ref={scrollRef} bgTheme={readerSettings.bgTheme} spineOpen={panels.spine}>
         <MeasureColumn>
 
-          {/* ══ Hero chapter header — premium reading entry ══
-              Massive title, gradient backdrop ribbon, stat tiles row.
-              Replaces the previous compressed metadata strip. */}
+          {/* ══ Hero chapter header ══ */}
           <header className="relative mb-12 mt-20 ipad-portrait:mb-16 ipad-portrait:mt-24" data-chapter-hero>
-            {/* Soft gradient halo behind the title — only visible in light/dark mix */}
             <div
               aria-hidden="true"
               className="pointer-events-none absolute -inset-x-8 -top-10 -z-10 h-56 opacity-60"
@@ -641,7 +843,6 @@ export function ChapterReaderV2({
               }}
             />
 
-            {/* Eyebrow ribbon — colored chips for vol/part/ch */}
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="inline-flex items-center rounded-full bg-lib-accent-soft px-2.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-lib-accent ring-1 ring-inset ring-lib-accent/15">
                 Vol&nbsp;{chapter.volumeNo}
@@ -655,7 +856,6 @@ export function ChapterReaderV2({
               <StatusBadge status={status} className="ms-auto" />
             </div>
 
-            {/* Massive title — display weight, optical tracking, balanced wrap */}
             <h1
               className="mt-5 text-[36px] font-semibold leading-[1.08] tracking-[-0.018em] text-lib-text text-wrap-balance ipad-portrait:text-[48px] ipad-landscape:text-[44px]"
               style={{ fontFeatureSettings: '"calt" 1, "ss01" 1, "kern" 1' }}
@@ -663,7 +863,6 @@ export function ChapterReaderV2({
               {chapter.title}
             </h1>
 
-            {/* Stat tiles — page range, question count, flashcard count */}
             <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
               {chapter.pageRange && (
                 <div className="rounded-lib-md border border-lib-border/45 bg-lib-surface/65 px-3.5 py-2.5 backdrop-blur-sm">
@@ -723,12 +922,6 @@ export function ChapterReaderV2({
                 "--reader-font-size": `${readerSettings.fontSize}px`,
                 "--reader-font-scale": String(readerSettings.fontSize / 17),
                 "--reader-line-height": String(readerSettings.lineHeight),
-                /* Inner prose width follows the user's chosen column max.
-                   Sentinel: maxWidth ≥ 1800 → "Full". Cascade 100% so
-                   FrameBody paragraphs (max-w-[var(--reader-prose-w,70ch)])
-                   stretch to the full reading column instead of being
-                   centered inside it — which in RTL otherwise reads as
-                   "stuck to the right" with dead space on the left. */
                 "--reader-prose-w":
                   readerSettings.maxWidth >= 1800
                     ? "100%"
@@ -782,16 +975,23 @@ export function ChapterReaderV2({
         </MeasureColumn>
       </ReaderStage>
 
-      {/* ══ Floating progress pill (bottom-right, non-intrusive) ══ */}
-      <div className="pointer-events-none fixed bottom-4 right-4 z-30">
-        <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-lib-border/60 bg-lib-glass px-3 py-1.5 text-[11px] text-lib-text-muted shadow-md backdrop-blur-xl">
-          <div className="h-1.5 w-20 overflow-hidden rounded-full bg-lib-border/60">
-            <div
-              className="h-full bg-lib-accent transition-[width] duration-lib-spring ease-lib-spring"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <span className="tabular-nums font-medium">{progressLabel}</span>
+      {/* ══ Thin reading-progress bar ══ */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-x-0 top-0 z-50 h-[3px] bg-lib-border/30"
+      >
+        <div
+          className="h-full bg-lib-accent/80 transition-[width] duration-500 ease-out"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+
+      {/* ══ Progress pill ══ */}
+      <div className="pointer-events-none fixed bottom-5 right-4 z-30">
+        <div className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-lib-border/50 bg-lib-glass/80 px-2.5 py-1 text-[10px] text-lib-text-muted shadow-md backdrop-blur-xl">
+          <span className="tabular-nums font-semibold">{progressLabel}</span>
+          <span className="text-lib-text-muted/50">·</span>
+          <span className="tabular-nums">{progress}%</span>
         </div>
       </div>
 
@@ -805,7 +1005,6 @@ export function ChapterReaderV2({
         onRemoveHighlight={(ids) => ids.forEach(removeAnnotation)}
         onUnderline={(sel) => {
           addAnnotation({ selection: sel, type: "underline" });
-          panels.open("annotations");
         }}
         onComment={handleComment}
         autoHighlight={autoHighlight}
@@ -823,9 +1022,7 @@ export function ChapterReaderV2({
         onDelete={removeAnnotation}
       />
 
-      {/* ══ Drawing canvas overlay ══
-          Transparent fixed canvas — pointer-events only active when penMode is on.
-          Strokes are persisted per-chapter in localStorage. */}
+      {/* ══ Drawing canvas overlay ══ */}
       <DrawingLayer
         ref={drawingLayerRef}
         isActive={penMode}
@@ -833,8 +1030,10 @@ export function ChapterReaderV2({
         lineWidth={penWidth}
         tool={penTool}
         storageKey={`ch-${chapter.chapterNo}`}
-  scrollRef={scrollRef}
-  contentSelector={READER_CONTENT_SELECTOR}
+        scrollRef={scrollRef}
+        contentSelector={READER_CONTENT_SELECTOR}
+        annotationStrokeWidth={getToolWidth("circle")}
+        highlighterWidth={getToolWidth("highlighter")}
       />
 
       <PencilGpuInkLayer
@@ -847,14 +1046,13 @@ export function ChapterReaderV2({
 
       <PencilDebugOverlay mode={penMode ? "draw" : "select"} />
 
-      {/* On-text highlight + underline rendering via CSS Custom Highlight,
-          with overlay fallback. Reads stored offsets, falls back to
-          quote-search for legacy rows. */}
       <ReaderHighlightLayer
         annotations={annotations}
         contentSelector={READER_CONTENT_SELECTOR}
         scrollRef={scrollRef}
         visible={highlightsVisible}
+        underlineThickness={getToolWidth("underline")}
+        highlightThickness={getToolWidth("highlight")}
       />
       <NoteMarkerLayer
         annotations={annotations}
@@ -863,11 +1061,11 @@ export function ChapterReaderV2({
         visible={highlightsVisible}
       />
 
-      {/* Reference navigation rail - slim right-gutter minimap */}
       <ReaderReferenceRail
         notes={notes}
         scrollRef={scrollRef}
         annotationsPanelOpen={panels.annotations}
+        spineOpen={panels.spine}
       />
     </LibraryShell>
   );

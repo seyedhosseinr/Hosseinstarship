@@ -145,12 +145,17 @@ export const syntheticDashboardStatsPayload = {
     learningCards: 2,
     newCards: 3,
   },
-  fsrsStatsByChapter: syntheticFlashcardStats.map((item) => ({
+  // avgStability values are realistic FSRS-5 stability (days) for each chapter scenario:
+  //   strong  → 21 d (well-consolidated, ~94% retrieval)
+  //   weak    →  5 d (fragile memory, ~58% retrieval)
+  //   overdue →  3 d (rapidly decaying, ~45% retrieval)
+  fsrsStatsByChapter: syntheticFlashcardStats.map((item, idx) => ({
     chapterId: item.chapterId,
     totalCards: item.total,
     dueCards: item.due,
     reviewedCards: item.reviewed,
     avgRetention: item.retention,
+    avgStability: [21, 5, 3][idx] ?? null,
     lastReviewedAt: item.lastReviewedAt,
   })),
   readerStatsByChapter: syntheticReaderStats.map((item) => ({

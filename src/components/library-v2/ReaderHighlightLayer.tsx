@@ -4,6 +4,10 @@ import { useEffect, useRef, type RefObject } from "react";
 
 import type { ReaderAnnotation } from "@/hooks/useReaderAnnotations";
 import { resolveAnchorRangeByFrameId } from "@/lib/local-first/anchorResolver";
+import {
+  DEFAULT_READER_HIGHLIGHT_COLOR,
+  READER_HIGHLIGHT_COLORS,
+} from "@/lib/readerHighlightPalette";
 
 /**
  * ReaderHighlightLayer
@@ -27,6 +31,8 @@ interface Props {
   contentSelector: string;
   scrollRef: RefObject<HTMLElement | null>;
   visible?: boolean;
+  underlineThickness?: number;
+  highlightThickness?: number;
 }
 
 type PaintKind = "highlight" | "underline";
@@ -71,6 +77,7 @@ interface CSSWithHighlights {
 
 type HighlightOverlayElement = HTMLDivElement & {
   _delegatedClickHandler?: EventListener;
+  _visualLayer?: HTMLDivElement;
 };
 
 type RangeCache = Map<string, ResolvedRange | null>;
@@ -88,7 +95,7 @@ const STYLE_SHEET_ID = "rdr-highlight-layer-styles";
  * Canonical highlight palette — Readwise inspired
  * زرد Readwise به عنوان رنگ پیش‌فرض Reader استفاده می‌شود.
  */
-const PALETTE: ReadonlyMap<string, string> = new Map([
+const PALETTE_MAP: ReadonlyMap<string, string> = new Map([
   ["FFEB3B", "#FFEB3B"], // زرد اصلی Readwise
   ["A5D6A7", "#A5D6A7"], // سبز ملایم
   ["81D4FA", "#81D4FA"], // آبی روشن
@@ -101,6 +108,129 @@ function applyStyles(element: HTMLElement, styles: Record<string, string>): void
   Object.assign(element.style, styles);
 }
 
+const HIGHLIGHT_VISUAL_INSET_RATIO = 0.08;
+const HIGHLIGHT_VISUAL_MIN_INSET = 0.75;
+const HIGHLIGHT_VISUAL_MAX_INSET = 2.5;
+const HIGHLIGHT_VISUAL_MIN_HEIGHT = 8;
+const HIGHLIGHT_DEFAULT_THICKNESS = 2.5;
+const HIGHLIGHT_MAX_LINE_OVERFLOW = 6;
+
+interface PaletteEntry {
+  storage: string;
+  background: string;
+  underline: string;
+}
+
+const PALETTE_ENTRIES = new Map<string, PaletteEntry>(
+  READER_HIGHLIGHT_COLORS.map((color) => [
+    color.storage.replace(/^#/, "").toUpperCase(),
+    {
+      storage: color.storage,
+      background: color.background,
+      underline: color.underline,
+    },
+  ]),
+);
+
+const DEFAULT_HEX_KEY = DEFAULT_READER_HIGHLIGHT_COLOR.replace(/^#/, "").toUpperCase();
+
+function createCompactHighlightVisual(backgroundColor: string): HTMLSpanElement {
+  const visual = document.createElement("span");
+
+  applyStyles(visual, {
+    position: "absolute",
+    borderRadius: "0.28em",
+    backgroundColor,
+    pointerEvents: "none",
+  });
+
+  return visual;
+}
+
+interface HighlightPaintRect {
+  rect: DOMRect;
+  top: number;
+  height: number;
+  baseTop: number;
+  baseHeight: number;
+}
+
+interface HighlightLineGroup {
+  rects: DOMRect[];
+  top: number;
+  bottom: number;
+  center: number;
+}
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function computeHighlightVisualHeight(lineHeight: number, thickness: number): number {
+  const safeThickness = Number.isFinite(thickness)
+    ? Math.max(1, thickness)
+    : HIGHLIGHT_DEFAULT_THICKNESS;
+  const insetY = clampNumber(
+    lineHeight * HIGHLIGHT_VISUAL_INSET_RATIO,
+    HIGHLIGHT_VISUAL_MIN_INSET,
+    HIGHLIGHT_VISUAL_MAX_INSET,
+  );
+  const baseHeight = Math.max(HIGHLIGHT_VISUAL_MIN_HEIGHT, lineHeight - insetY * 2);
+  const extraHeight = (safeThickness - HIGHLIGHT_DEFAULT_THICKNESS) * 2.2;
+
+  return clampNumber(
+    baseHeight + extraHeight,
+    HIGHLIGHT_VISUAL_MIN_HEIGHT,
+    lineHeight + HIGHLIGHT_MAX_LINE_OVERFLOW,
+  );
+}
+
+function normalizeHighlightRects(rects: DOMRect[], thickness: number): HighlightPaintRect[] {
+  if (rects.length === 0) return [];
+
+  const medianHeight = [...rects]
+    .map((rect) => rect.height)
+    .sort((a, b) => a - b)[Math.floor(rects.length / 2)];
+  const lineTolerance = clampNumber(medianHeight * 0.35, 3, 8);
+  const groups: HighlightLineGroup[] = [];
+
+  for (const rect of [...rects].sort((a, b) => a.top - b.top || a.left - b.left)) {
+    const center = rect.top + rect.height / 2;
+    const group = groups.find((item) => Math.abs(center - item.center) <= lineTolerance);
+
+    if (!group) {
+      groups.push({
+        rects: [rect],
+        top: rect.top,
+        bottom: rect.bottom,
+        center,
+      });
+      continue;
+    }
+
+    group.rects.push(rect);
+    group.top = Math.min(group.top, rect.top);
+    group.bottom = Math.max(group.bottom, rect.bottom);
+    group.center = (group.top + group.bottom) / 2;
+  }
+
+  return groups.flatMap((group) => {
+    const lineHeight = Math.max(HIGHLIGHT_VISUAL_MIN_HEIGHT, group.bottom - group.top);
+    const height = computeHighlightVisualHeight(lineHeight, thickness);
+    const top = group.top + (lineHeight - height) / 2;
+    const baseHeight = computeHighlightVisualHeight(lineHeight, HIGHLIGHT_DEFAULT_THICKNESS);
+    const baseTop = group.top + (lineHeight - baseHeight) / 2;
+
+    return group.rects.map((rect) => ({
+      rect,
+      top,
+      height,
+      baseTop,
+      baseHeight,
+    }));
+  });
+}
+
 function getCssHighlightRegistry(): CSSHighlightRegistry | null {
   if (typeof window === "undefined") return null;
 
@@ -111,31 +241,34 @@ function getCssHighlightRegistry(): CSSHighlightRegistry | null {
   return cssRoot.highlights;
 }
 
-function ensureHighlightStyles(): void {
+function updateHighlightStyles(ulThickness: number): void {
   if (typeof document === "undefined") return;
-  if (document.getElementById(STYLE_SHEET_ID)) return;
 
-  const style = document.createElement("style");
-  style.id = STYLE_SHEET_ID;
+  let style = document.getElementById(STYLE_SHEET_ID) as HTMLStyleElement | null;
+  if (!style) {
+    style = document.createElement("style");
+    style.id = STYLE_SHEET_ID;
+    document.head.appendChild(style);
+  }
 
+  const t = `${ulThickness}px`;
   const rules: string[] = [];
 
-  for (const [hex, color] of PALETTE) {
+  for (const [key, entry] of PALETTE_ENTRIES) {
     rules.push(
-      `::highlight(${HL_PREFIX}${hex}) { background-color: ${color}; color: inherit; }`,
+      `::highlight(${HL_PREFIX}${key}) { background-color: ${entry.background}; color: inherit; }`,
     );
 
     rules.push(
-      `::highlight(${UL_PREFIX}${hex}) { text-decoration-line: underline; text-decoration-thickness: 2px; text-decoration-color: ${color}; text-underline-offset: 0.18em; color: inherit; }`,
+      `::highlight(${UL_PREFIX}${key}) { text-decoration-line: underline; text-decoration-style: solid; text-decoration-thickness: ${t}; text-decoration-color: ${entry.underline}; text-underline-offset: 0.3em; text-decoration-skip-ink: none; color: inherit; }`,
     );
   }
 
   rules.push(
-    `::highlight(${LEGACY_UL_NAME}) { text-decoration-line: underline; text-decoration-thickness: 2px; text-underline-offset: 0.18em; color: inherit; }`,
+    `::highlight(${LEGACY_UL_NAME}) { text-decoration-line: underline; text-decoration-style: solid; text-decoration-thickness: ${t}; text-underline-offset: 0.3em; text-decoration-skip-ink: none; color: inherit; }`,
   );
 
   style.textContent = rules.join("\n");
-  document.head.appendChild(style);
 }
 
 function clearOurBuckets(registry: CSSHighlightRegistry): void {
@@ -171,14 +304,21 @@ function paintCssHighlights(
 }
 
 function hexFromColor(color: string | null | undefined): string {
-  if (!color) return "default";
+  if (!color) return DEFAULT_HEX_KEY;
 
   const normalized = color.replace(/^#/, "").toUpperCase();
-  return PALETTE.has(normalized) ? normalized : "default";
+  return PALETTE_ENTRIES.has(normalized) ? normalized : DEFAULT_HEX_KEY;
 }
 
-function colorFromHexKey(hex: string): string {
-  return PALETTE.get(hex) ?? PALETTE.get("default") ?? "#FFEB3B";
+function entryFromHexKey(hex: string): PaletteEntry {
+  return (
+    PALETTE_ENTRIES.get(hex) ??
+    PALETTE_ENTRIES.get(DEFAULT_HEX_KEY) ?? {
+      storage: DEFAULT_READER_HIGHLIGHT_COLOR,
+      background: READER_HIGHLIGHT_COLORS[0].background,
+      underline: READER_HIGHLIGHT_COLORS[0].underline,
+    }
+  );
 }
 
 function bucketName(ann: ReaderAnnotation): string {
@@ -413,7 +553,7 @@ function buildBuckets(
 
     const kind: PaintKind = ann.type === "underline" ? "underline" : "highlight";
     const colorKey = hexFromColor(ann.color);
-    const color = ann.color ?? colorFromHexKey(colorKey);
+    const color = ann.color ?? entryFromHexKey(colorKey).storage;
 
     let bucket = buckets.get(name);
     if (!bucket) {
@@ -449,6 +589,7 @@ function ensureOverlay(
   overlayRef: RefObject<HTMLDivElement | null>,
 ): HTMLDivElement | null {
   if (overlayRef.current?.isConnected) {
+    ensureVisualLayer(article, overlayRef.current as HighlightOverlayElement);
     return overlayRef.current;
   }
 
@@ -460,6 +601,14 @@ function ensureOverlay(
     host.style.position = "relative";
   }
 
+  const articleStyle = window.getComputedStyle(article);
+  if (articleStyle.position === "static") {
+    article.style.position = "relative";
+  }
+  if (articleStyle.zIndex === "auto") {
+    article.style.zIndex = "1";
+  }
+
   const overlay = document.createElement("div");
   overlay.dataset.readerHighlightOverlay = "true";
 
@@ -467,13 +616,49 @@ function ensureOverlay(
     position: "absolute",
     inset: "0",
     pointerEvents: "none",
-    zIndex: "2",
+    zIndex: "3",
   });
 
+  ensureVisualLayer(article, overlay as HighlightOverlayElement);
   host.appendChild(overlay);
   overlayRef.current = overlay;
 
   return overlay;
+}
+
+function ensureVisualLayer(
+  article: HTMLElement,
+  overlay: HighlightOverlayElement,
+): HTMLDivElement | null {
+  const host = article.parentElement;
+  if (!host) return null;
+
+  if (overlay._visualLayer?.isConnected) {
+    return overlay._visualLayer;
+  }
+
+  const existing = host.querySelector<HTMLDivElement>(
+    ":scope > [data-reader-highlight-visual-layer='true']",
+  );
+  if (existing) {
+    overlay._visualLayer = existing;
+    return existing;
+  }
+
+  const visualLayer = document.createElement("div");
+  visualLayer.dataset.readerHighlightVisualLayer = "true";
+
+  applyStyles(visualLayer, {
+    position: "absolute",
+    inset: "0",
+    pointerEvents: "none",
+    zIndex: "2",
+  });
+
+  host.appendChild(visualLayer);
+  overlay._visualLayer = visualLayer;
+
+  return visualLayer;
 }
 
 function selectRange(range: Range): void {
@@ -609,6 +794,197 @@ function paintOverlayRects(params: {
   overlay.addEventListener("click", handleClick);
 }
 
+function paintOverlayRectsV2(params: {
+  article: HTMLElement;
+  overlay: HTMLDivElement;
+  buckets: Map<string, Bucket>;
+  supportsCustomHighlight: boolean;
+  highlightThickness: number;
+}): void {
+  const { overlay, buckets, supportsCustomHighlight, highlightThickness } = params;
+  const overlayEl = overlay as HighlightOverlayElement;
+
+  if (overlayEl._delegatedClickHandler) {
+    overlay.removeEventListener("click", overlayEl._delegatedClickHandler);
+    overlayEl._delegatedClickHandler = undefined;
+  }
+
+  overlay.replaceChildren();
+  const visualLayer = overlayEl._visualLayer;
+  visualLayer?.replaceChildren();
+
+  const baseRect = overlay.getBoundingClientRect();
+  const fragment = document.createDocumentFragment();
+  const visualFragment = document.createDocumentFragment();
+
+  const hitMap = new Map<
+    string,
+    {
+      annotationId: string;
+      kind: PaintKind;
+      range: Range;
+    }
+  >();
+
+  const pendingRects: Array<{
+    annotationId: string;
+    kind: PaintKind;
+    range: Range;
+    rect: DOMRect;
+    entry: PaletteEntry;
+  }> = [];
+
+  for (const bucket of buckets.values()) {
+    const hexKey = bucket.name
+      .replace(HL_PREFIX, "")
+      .replace(UL_PREFIX, "");
+    const entry = entryFromHexKey(hexKey);
+
+    for (const item of bucket.ranges) {
+      const range = item.range.cloneRange();
+      const rects = Array.from(range.getClientRects()).filter(
+        (rect) => rect.width > 0 && rect.height > 0,
+      );
+
+      for (const rect of rects) {
+        pendingRects.push({
+          annotationId: item.id,
+          kind: bucket.kind,
+          range,
+          rect,
+          entry,
+        });
+      }
+    }
+  }
+
+  const highlightMetrics = new Map<DOMRect, HighlightPaintRect>();
+  normalizeHighlightRects(
+    pendingRects
+      .filter((item) => item.kind === "highlight")
+      .map((item) => item.rect),
+    highlightThickness,
+  ).forEach((paintRect) => {
+    highlightMetrics.set(paintRect.rect, paintRect);
+  });
+
+  let hitIndex = 0;
+
+  for (const item of pendingRects) {
+    const paintRect =
+      item.kind === "highlight"
+        ? highlightMetrics.get(item.rect) ?? {
+            rect: item.rect,
+            top: item.rect.top,
+            height: item.rect.height,
+            baseTop: item.rect.top,
+            baseHeight: item.rect.height,
+          }
+        : {
+            rect: item.rect,
+            top: item.rect.top,
+            height: item.rect.height,
+            baseTop: item.rect.top,
+            baseHeight: item.rect.height,
+          };
+    const { rect } = paintRect;
+    const hitId = `${item.annotationId}::${hitIndex++}`;
+    const button = document.createElement("button");
+
+    button.type = "button";
+    button.dataset.readerAnnotationHit = item.annotationId;
+    button.dataset.readerAnnotationHitId = hitId;
+
+    button.setAttribute(
+      "aria-label",
+      item.kind === "underline" ? "Edit underline" : "Edit highlight",
+    );
+
+    applyStyles(button, {
+      position: "absolute",
+      left: `${rect.left - baseRect.left}px`,
+      top: `${paintRect.top - baseRect.top}px`,
+      width: `${rect.width}px`,
+      height: `${paintRect.height}px`,
+      padding: "0",
+      margin: "0",
+      border: "none",
+      borderRadius: "0.125rem",
+      cursor: "pointer",
+      pointerEvents: "auto",
+      background: "transparent",
+      touchAction: "manipulation",
+      outline: "none",
+      WebkitTapHighlightColor: "transparent",
+      overflow: "visible",
+    });
+
+    if (item.kind === "highlight" && visualLayer) {
+      const visualRects = supportsCustomHighlight
+        ? [
+            { top: paintRect.top, height: Math.max(0, paintRect.baseTop - paintRect.top) },
+            {
+              top: paintRect.baseTop + paintRect.baseHeight,
+              height: Math.max(
+                0,
+                paintRect.top + paintRect.height - (paintRect.baseTop + paintRect.baseHeight),
+              ),
+            },
+          ]
+        : [{ top: paintRect.top, height: paintRect.height }];
+
+      for (const visualRect of visualRects) {
+        if (visualRect.height < 0.5) continue;
+
+        const visual = createCompactHighlightVisual(item.entry.background);
+        applyStyles(visual, {
+          left: `${rect.left - baseRect.left}px`,
+          top: `${visualRect.top - baseRect.top}px`,
+          width: `${rect.width}px`,
+          height: `${visualRect.height}px`,
+        });
+        visualFragment.appendChild(visual);
+      }
+    } else if (item.kind === "underline" && !supportsCustomHighlight) {
+      button.style.boxShadow = `0 4px 0 -1px ${item.entry.underline}`;
+      button.style.opacity = "0.9";
+    }
+
+    hitMap.set(hitId, {
+      annotationId: item.annotationId,
+      kind: item.kind,
+      range: item.range,
+    });
+
+    fragment.appendChild(button);
+  }
+
+  visualLayer?.appendChild(visualFragment);
+  overlay.appendChild(fragment);
+
+  const handleClick: EventListener = (event) => {
+    const target = (event.target as HTMLElement | null)?.closest<HTMLElement>(
+      "[data-reader-annotation-hit-id]",
+    );
+
+    if (!target) return;
+
+    const hitId = target.dataset.readerAnnotationHitId;
+    if (!hitId) return;
+
+    const meta = hitMap.get(hitId);
+    if (!meta) return;
+
+    event.stopPropagation();
+
+    selectRange(meta.range.cloneRange());
+    dispatchAnnotationClicked(meta.annotationId, meta.kind);
+  };
+
+  overlayEl._delegatedClickHandler = handleClick;
+  overlay.addEventListener("click", handleClick);
+}
+
 function dispatchPaintStats(params: {
   painted: number;
   viaOffsets: number;
@@ -628,8 +1004,15 @@ export function ReaderHighlightLayer({
   contentSelector,
   scrollRef,
   visible = true,
+  underlineThickness = 2.5,
+  highlightThickness = 2.5,
 }: Props): null {
   const overlayRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (getCssHighlightRegistry()) updateHighlightStyles(underlineThickness);
+  }, [underlineThickness]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -641,7 +1024,7 @@ export function ReaderHighlightLayer({
     const supportsCustomHighlight = !!registry;
 
     if (supportsCustomHighlight) {
-      ensureHighlightStyles();
+      updateHighlightStyles(underlineThickness);
     }
 
     const rangeCache: RangeCache = new Map();
@@ -671,11 +1054,12 @@ export function ReaderHighlightLayer({
       const overlay = ensureOverlay(article, overlayRef);
 
       if (overlay) {
-        paintOverlayRects({
+        paintOverlayRectsV2({
           article,
           overlay,
           buckets,
           supportsCustomHighlight,
+          highlightThickness,
         });
       }
 
@@ -765,10 +1149,19 @@ export function ReaderHighlightLayer({
       }
 
       const overlay = overlayRef.current as HighlightOverlayElement | null;
+      const visualLayer =
+        overlay?._visualLayer ??
+        overlay?.parentElement?.querySelector<HTMLDivElement>(
+          ":scope > [data-reader-highlight-visual-layer='true']",
+        );
 
       if (overlay?._delegatedClickHandler) {
         overlay.removeEventListener("click", overlay._delegatedClickHandler);
         overlay._delegatedClickHandler = undefined;
+      }
+
+      if (visualLayer?.parentElement) {
+        visualLayer.parentElement.removeChild(visualLayer);
       }
 
       if (overlay?.parentElement) {
@@ -777,7 +1170,7 @@ export function ReaderHighlightLayer({
 
       overlayRef.current = null;
     };
-  }, [annotations, contentSelector, scrollRef, visible]);
+  }, [annotations, contentSelector, scrollRef, visible, underlineThickness, highlightThickness]);
 
   return null;
 }

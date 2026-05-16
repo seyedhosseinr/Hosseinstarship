@@ -340,6 +340,13 @@ export class StarshipLocalFirstDb extends Dexie {
       outlinerValidationReports: "segmentId, status, importedAt",
       outlinerMdxMirrors: "segmentId, importedAt",
     });
+    // v6: ensure outlinerAlgorithmIR exists even if v5 was applied without it
+    // (happens when idb.ts was temporarily missing this store definition).
+    // Dexie only re-runs an upgrade when the version number advances, so bumping
+    // to 6 guarantees the store is created in browsers that already have v5.
+    this.version(6).stores({
+      outlinerAlgorithmIR: "segmentId, jsonHash, importedAt",
+    });
   }
 }
 

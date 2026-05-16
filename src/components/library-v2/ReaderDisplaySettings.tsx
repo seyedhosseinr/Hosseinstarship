@@ -1,9 +1,9 @@
-﻿"use client";
+"use client";
 
 import { useMemo } from "react";
-import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import type { ReaderFontFamily, ReaderSettings } from "@/hooks/useReaderSettings";
+import type { ReaderFontFamily, ReaderSettings, ReaderBgTheme, ReaderToolbarStyle } from "@/hooks/useReaderSettings";
+import { BG_THEMES } from "@/hooks/useReaderSettings";
 import { cn } from "@/lib/utils";
 
 type ReaderDisplaySettingsProps = {
@@ -13,49 +13,41 @@ type ReaderDisplaySettingsProps = {
 };
 
 const FONT_OPTIONS: Array<{ value: ReaderFontFamily; label: string; caption: string }> = [
-  { value: "sans", label: "سنس", caption: "خواندن فارسی" },
+  { value: "sans",  label: "سنس",  caption: "خواندن فارسی" },
   { value: "serif", label: "سریف", caption: "متن کلاسیک" },
-  { value: "mono", label: "مونو", caption: "اعداد/کد" },
+  { value: "mono",  label: "مونو", caption: "اعداد/کد" },
 ];
 
 const FONT_SIZE_PRESETS = [16, 20, 24, 32, 40];
 const LINE_HEIGHT_PRESETS = [1.6, 1.8, 2.0];
-// 720 ≈ 78ch editorial · 1000 wide · 1280 extra-wide · 1600 very-wide.
-// 1800 acts as sentinel: ChapterReaderV2 maps maxWidth>=1800 → 100% full-screen.
 const WIDTH_PRESETS = [720, 1000, 1280, 1600];
 const WIDTH_FULL = 1800;
 const WIDTH_MIN = 540;
 const WIDTH_MAX = 1800;
 
+const TOOLBAR_STYLE_OPTIONS: Array<{ value: ReaderToolbarStyle; label: string; caption: string }> = [
+  { value: "popup", label: "پاپ‌آپ", caption: "نمایش پس از انتخاب" },
+  { value: "rail",  label: "ریل",   caption: "نوار ثابت GoodNotes" },
+  { value: "both",  label: "هر دو", caption: "ریل + پاپ‌آپ" },
+];
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-2">
-      <div className="text-[11px] font-semibold text-lib-text-muted">{title}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-lib-text-muted">{title}</div>
       {children}
     </section>
   );
 }
 
 function SegmentButton({
-  active,
-  children,
-  onClick,
-  title,
+  active, children, onClick, title,
 }: {
-  active: boolean;
-  children: React.ReactNode;
-  onClick: () => void;
-  title?: string;
+  active: boolean; children: React.ReactNode; onClick: () => void; title?: string;
 }) {
   return (
     <button
@@ -65,9 +57,7 @@ function SegmentButton({
       className={cn(
         "min-h-11 flex-1 rounded-lib-sm px-3 py-2 text-center text-xs transition",
         "border border-transparent hover:bg-lib-hover",
-        active
-          ? "bg-lib-accent/10 text-lib-accent ring-1 ring-lib-accent/25"
-          : "text-lib-text-secondary"
+        active ? "bg-lib-accent/10 text-lib-accent ring-1 ring-lib-accent/25" : "text-lib-text-secondary",
       )}
     >
       {children}
@@ -75,16 +65,8 @@ function SegmentButton({
   );
 }
 
-function Stepper({
-  value,
-  label,
-  onMinus,
-  onPlus,
-}: {
-  value: React.ReactNode;
-  label: string;
-  onMinus: () => void;
-  onPlus: () => void;
+function Stepper({ value, label, onMinus, onPlus }: {
+  value: React.ReactNode; label: string; onMinus: () => void; onPlus: () => void;
 }) {
   return (
     <div className="flex items-center gap-1 rounded-lib-sm border border-lib-border bg-lib-surface p-1">
@@ -93,9 +75,7 @@ function Stepper({
         onClick={onMinus}
         className="flex h-11 w-11 items-center justify-center rounded-lib-sm text-base text-lib-text-secondary hover:bg-lib-hover"
         aria-label={`${label}: decrease`}
-      >
-        −
-      </button>
+      >−</button>
       <div className="min-w-[72px] flex-1 text-center">
         <div className="text-sm font-semibold tabular-nums text-lib-text">{value}</div>
         <div className="text-[10px] text-lib-text-muted">{label}</div>
@@ -105,10 +85,44 @@ function Stepper({
         onClick={onPlus}
         className="flex h-11 w-11 items-center justify-center rounded-lib-sm text-base text-lib-text-secondary hover:bg-lib-hover"
         aria-label={`${label}: increase`}
-      >
-        +
-      </button>
+      >+</button>
     </div>
+  );
+}
+
+function BgSwatchButton({
+  config, active, onClick,
+}: {
+  config: typeof BG_THEMES[0];
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      title={config.label}
+      onClick={onClick}
+      className={cn(
+        "group flex flex-col items-center gap-1.5 rounded-xl p-2 transition-all",
+        active
+          ? "ring-2 ring-lib-accent ring-offset-1 ring-offset-lib-panel"
+          : "hover:bg-lib-hover",
+      )}
+    >
+      <span
+        className="h-9 w-9 rounded-full border-2 shadow-inner transition-transform group-hover:scale-105"
+        style={{
+          backgroundColor: config.swatch,
+          borderColor: active ? "hsl(var(--lib-accent))" : "rgba(0,0,0,0.12)",
+        }}
+      />
+      <span className={cn(
+        "text-[10px] leading-none",
+        active ? "font-semibold text-lib-accent" : "text-lib-text-muted",
+      )}>
+        {config.label}
+      </span>
+    </button>
   );
 }
 
@@ -117,19 +131,78 @@ export function ReaderDisplaySettings({
   onUpdate,
   className,
 }: ReaderDisplaySettingsProps) {
-  const { theme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
 
-  const activeTheme = useMemo(() => theme ?? "system", [theme]);
+  const handleBgTheme = (id: ReaderBgTheme) => {
+    onUpdate({ bgTheme: id });
+    const cfg = BG_THEMES.find((t) => t.id === id);
+    if (cfg) setTheme(cfg.isDark ? "dark" : "light");
+  };
+
+  const lightThemes = useMemo(() => BG_THEMES.filter((t) => !t.isDark), []);
+  const darkThemes  = useMemo(() => BG_THEMES.filter((t) => t.isDark), []);
 
   return (
     <div
       dir="rtl"
       className={cn(
-        "w-full max-w-[380px] rounded-2xl border border-lib-border bg-lib-panel/95 p-3 shadow-xl backdrop-blur",
-        "space-y-4 text-right",
-        className
+        "w-full max-w-[400px] rounded-2xl border border-lib-border bg-lib-panel/95 p-4 shadow-xl backdrop-blur",
+        "space-y-5 text-right",
+        className,
       )}
     >
+      {/* ── Background theme ── */}
+      <Section title="پس‌زمینه خواندن">
+        <div className="space-y-2">
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-lib-text-muted/80">روشن</span>
+            <div className="flex flex-1 justify-around">
+              {lightThemes.map((cfg) => (
+                <BgSwatchButton
+                  key={cfg.id}
+                  config={cfg}
+                  active={settings.bgTheme === cfg.id}
+                  onClick={() => handleBgTheme(cfg.id)}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-[10px] text-lib-text-muted/80">تیره</span>
+            <div className="flex flex-1 justify-around">
+              {darkThemes.map((cfg) => (
+                <BgSwatchButton
+                  key={cfg.id}
+                  config={cfg}
+                  active={settings.bgTheme === cfg.id}
+                  onClick={() => handleBgTheme(cfg.id)}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </Section>
+
+      {/* ── Toolbar style ── */}
+      <Section title="سبک ابزار حاشیه‌نویسی">
+        <div className="grid grid-cols-3 gap-1 rounded-lib-sm bg-lib-surface p-1">
+          {TOOLBAR_STYLE_OPTIONS.map((opt) => (
+            <SegmentButton
+              key={opt.value}
+              active={settings.toolbarStyle === opt.value}
+              onClick={() => onUpdate({ toolbarStyle: opt.value })}
+              title={opt.caption}
+            >
+              <span className="block text-sm font-semibold">{opt.label}</span>
+              <span className="mt-0.5 block text-[9px] opacity-70">{opt.caption}</span>
+            </SegmentButton>
+          ))}
+        </div>
+      </Section>
+
+      <div className="h-px bg-lib-border/50" />
+
+      {/* ── Font ── */}
       <Section title="قلم">
         <div className="grid grid-cols-3 gap-1 rounded-lib-sm bg-lib-surface p-1">
           {FONT_OPTIONS.map((option) => (
@@ -146,6 +219,7 @@ export function ReaderDisplaySettings({
         </div>
       </Section>
 
+      {/* ── Font size ── */}
       <Section title="اندازه متن">
         <Stepper
           label="px"
@@ -155,103 +229,46 @@ export function ReaderDisplaySettings({
         />
         <div className="grid grid-cols-5 gap-1">
           {FONT_SIZE_PRESETS.map((size) => (
-            <SegmentButton
-              key={size}
-              active={settings.fontSize === size}
-              onClick={() => onUpdate({ fontSize: size })}
-            >
+            <SegmentButton key={size} active={settings.fontSize === size} onClick={() => onUpdate({ fontSize: size })}>
               {size}
             </SegmentButton>
           ))}
         </div>
       </Section>
 
+      {/* ── Line height ── */}
       <Section title="فاصله سطر">
         <Stepper
           label="line"
           value={settings.lineHeight.toFixed(1)}
-          onMinus={() =>
-            onUpdate({
-              lineHeight: clamp(Number((settings.lineHeight - 0.1).toFixed(1)), 1.4, 2.2),
-            })
-          }
-          onPlus={() =>
-            onUpdate({
-              lineHeight: clamp(Number((settings.lineHeight + 0.1).toFixed(1)), 1.4, 2.2),
-            })
-          }
+          onMinus={() => onUpdate({ lineHeight: clamp(Number((settings.lineHeight - 0.1).toFixed(1)), 1.4, 2.2) })}
+          onPlus={() => onUpdate({ lineHeight: clamp(Number((settings.lineHeight + 0.1).toFixed(1)), 1.4, 2.2) })}
         />
         <div className="grid grid-cols-3 gap-1">
-          {LINE_HEIGHT_PRESETS.map((lineHeight) => (
-            <SegmentButton
-              key={lineHeight}
-              active={settings.lineHeight === lineHeight}
-              onClick={() => onUpdate({ lineHeight })}
-            >
-              {lineHeight.toFixed(1)}
+          {LINE_HEIGHT_PRESETS.map((lh) => (
+            <SegmentButton key={lh} active={settings.lineHeight === lh} onClick={() => onUpdate({ lineHeight: lh })}>
+              {lh.toFixed(1)}
             </SegmentButton>
           ))}
         </div>
       </Section>
 
+      {/* ── Column width ── */}
       <Section title="عرض ستون">
         <Stepper
           label={settings.maxWidth >= WIDTH_FULL ? "تمام صفحه" : "px"}
           value={settings.maxWidth >= WIDTH_FULL ? "تمام" : settings.maxWidth}
-          onMinus={() =>
-            onUpdate({
-              maxWidth: clamp(
-                settings.maxWidth >= WIDTH_FULL ? 1600 : settings.maxWidth - 80,
-                WIDTH_MIN,
-                WIDTH_MAX,
-              ),
-            })
-          }
-          onPlus={() =>
-            onUpdate({
-              maxWidth: clamp(settings.maxWidth + 80, WIDTH_MIN, WIDTH_MAX),
-            })
-          }
+          onMinus={() => onUpdate({ maxWidth: clamp(settings.maxWidth >= WIDTH_FULL ? 1600 : settings.maxWidth - 80, WIDTH_MIN, WIDTH_MAX) })}
+          onPlus={() => onUpdate({ maxWidth: clamp(settings.maxWidth + 80, WIDTH_MIN, WIDTH_MAX) })}
         />
         <div className="grid grid-cols-5 gap-1">
           {WIDTH_PRESETS.map((width) => (
-            <SegmentButton
-              key={width}
-              active={settings.maxWidth === width}
-              onClick={() => onUpdate({ maxWidth: width })}
-            >
+            <SegmentButton key={width} active={settings.maxWidth === width} onClick={() => onUpdate({ maxWidth: width })}>
               {width}
             </SegmentButton>
           ))}
-          <SegmentButton
-            active={settings.maxWidth >= WIDTH_FULL}
-            onClick={() => onUpdate({ maxWidth: WIDTH_FULL })}
-            title="تمام عرض صفحه"
-          >
+          <SegmentButton active={settings.maxWidth >= WIDTH_FULL} onClick={() => onUpdate({ maxWidth: WIDTH_FULL })} title="تمام عرض صفحه">
             تمام
-          </SegmentButton>
-        </div>
-      </Section>
-
-      <Section title="پس‌زمینه">
-        <div className="grid grid-cols-3 gap-1 rounded-lib-sm bg-lib-surface p-1">
-          <SegmentButton active={activeTheme === "light"} onClick={() => setTheme("light")}>
-            <span className="flex items-center justify-center gap-1">
-              <Sun className="h-3.5 w-3.5" />
-              روشن
-            </span>
-          </SegmentButton>
-          <SegmentButton active={activeTheme === "dark"} onClick={() => setTheme("dark")}>
-            <span className="flex items-center justify-center gap-1">
-              <Moon className="h-3.5 w-3.5" />
-              تیره
-            </span>
-          </SegmentButton>
-          <SegmentButton active={activeTheme === "system"} onClick={() => setTheme("system")}>
-            <span className="flex items-center justify-center gap-1">
-              <Monitor className="h-3.5 w-3.5" />
-              سیستم
-            </span>
           </SegmentButton>
         </div>
       </Section>

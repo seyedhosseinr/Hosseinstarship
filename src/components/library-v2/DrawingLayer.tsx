@@ -9,7 +9,7 @@ import {
   useRef,
 } from "react";
 
-export type DrawTool = "pen" | "eraser";
+export type DrawTool = "pen" | "eraser" | "highlighter" | "circle";
 
 interface Pt {
   x: number; // content-space x
@@ -23,6 +23,8 @@ interface Stroke {
   color: string;
   w: number;
   erase: boolean;
+  highlight?: boolean; // semi-transparent wide brush
+  isCircle?: boolean;  // closed ellipse shape
 }
 
 export interface DrawingLayerHandle {
@@ -42,16 +44,22 @@ interface DrawingLayerProps {
 
   /** Element that ink should stick to. */
   contentSelector?: string;
+
+  /** Stroke width for circle/oval tool (px). Independent from pen lineWidth. */
+  annotationStrokeWidth?: number;
+
+  /** Brush width for canvas highlighter tool (px). */
+  highlighterWidth?: number;
 }
 
-/* Ink palette */
+/* Ink palette — GoodNotes-style calm study colors */
 export const INK_PALETTE = {
-  graphite: "#2B2B2B", // پیش‌فرض اصلی
-  blue: "#2563EB", // نکته علمی
-  green: "#15803D", // فهمیدم/تایید
-  red: "#C2410C", // اشتباه/critical
-  purple: "#7C3AED", // فلش‌کارت/حافظه
-  teal: "#0F766E", // clinical pearl
+  graphite: "#2F3437", // default handwriting / margin notes
+  blue: "#3E6FA3", // concept / explanation
+  green: "#5B8C6A", // remembered / confirmed
+  red: "#B86A4B", // trap / critical / wrong
+  purple: "#7A669E", // memory / flashcard
+  teal: "#2F7F86", // clinical pearl / algorithm
 } as const;
 
 const STORAGE_PREFIX = "drw:v3:";
@@ -64,17 +72,66 @@ const PEN_MIN_WIDTH = 1.2;
 const PEN_MAX_WIDTH = 3.2;
 const PEN_BASE_OPACITY = 0.92;
 
-/**
- * Reader Ink V3 tuning:
- * - Graphite-first, study-note palette.
- * - Medium pressure smoothing.
- * - Anti-jitter + corner preservation for handwriting.
- * - Subtle deterministic paper texture, without redraw shimmer.
- */
+const HIGHLIGHTER_OPACITY = 0.32;
+const HIGHLIGHTER_WIDTH = 18;
+
+function generateEllipsePoints(
+  cx: number, cy: number,
+  rx: number, ry: number,
+  pressure = 0.5,
+  t0 = 0,
+): Pt[] {
+  const steps = Math.max(48, Math.round((rx + ry) * 0.8));
+  const pts: Pt[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const angle = (i / steps) * 2 * Math.PI;
+    pts.push({ x: cx + rx * Math.cos(angle), y: cy + ry * Math.sin(angle), p: pressure, t: t0 + i });
+  }
+  return pts;
+}
+
+function drawHighlighterSegment(g: CanvasRenderingContext2D, stroke: Stroke, projectedPts: Pt[]) {
+  const n = projectedPts.length;
+  if (n < 2) return;
+  g.save();
+  g.lineCap = "butt";
+  g.lineJoin = "round";
+  g.globalCompositeOperation = "source-over";
+  g.globalAlpha = HIGHLIGHTER_OPACITY;
+  g.strokeStyle = resolveCanvasColor(stroke.color);
+  g.lineWidth = stroke.w;
+  g.beginPath();
+  g.moveTo(projectedPts[0].x, projectedPts[0].y);
+  for (let i = 1; i < n; i++) {
+    g.lineTo(projectedPts[i].x, projectedPts[i].y);
+  }
+  g.stroke();
+  g.restore();
+}
+
+function drawCircleStroke(g: CanvasRenderingContext2D, stroke: Stroke, projectedPts: Pt[]) {
+  const n = projectedPts.length;
+  if (n < 4) return;
+  g.save();
+  g.lineCap = "round";
+  g.lineJoin = "round";
+  g.globalCompositeOperation = "source-over";
+  g.strokeStyle = colorWithAlpha(stroke.color, 0.88);
+  g.lineWidth = stroke.w * 1.5;
+  g.beginPath();
+  g.moveTo(projectedPts[0].x, projectedPts[0].y);
+  for (let i = 1; i < n; i++) {
+    g.lineTo(projectedPts[i].x, projectedPts[i].y);
+  }
+  g.closePath();
+  g.stroke();
+  g.restore();
+}
+
 const MIN_POINT_DISTANCE = 0.55;
 const PRESSURE_SMOOTHING = 0.38;
 const BASE_POSITION_SMOOTHING = 0.58;
-const CORNER_PRESERVE_THRESHOLD = 0.72; // cosine; lower means sharper turn
+const CORNER_PRESERVE_THRESHOLD = 0.72;
 const MAX_POINTS_PER_STROKE = 9000;
 
 function clamp(n: number, min: number, max: number) {
@@ -96,24 +153,18 @@ function normalizePressure(p: number) {
 
 function resolveCanvasColor(input: string) {
   const color = input.trim();
-
   if (!color.startsWith("var(")) return color;
-
   const match = color.match(/var\(\s*(--[\w-]+)\s*(?:,\s*([^)]+))?\)/);
   if (!match) return INK_PALETTE.graphite;
-
   const varName = match[1];
   const fallback = match[2]?.trim();
-
   if (typeof window === "undefined") return fallback || INK_PALETTE.graphite;
-
   const value = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
   return value || fallback || INK_PALETTE.graphite;
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   const clean = hex.trim().replace("#", "");
-
   if (clean.length === 3) {
     return {
       r: Number.parseInt(clean[0] + clean[0], 16),
@@ -121,7 +172,6 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
       b: Number.parseInt(clean[2] + clean[2], 16),
     };
   }
-
   if (clean.length === 6) {
     return {
       r: Number.parseInt(clean.slice(0, 2), 16),
@@ -129,48 +179,40 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
       b: Number.parseInt(clean.slice(4, 6), 16),
     };
   }
-
   return null;
 }
 
 function colorWithAlpha(color: string, alpha: number) {
   const resolved = resolveCanvasColor(color);
   const a = clamp(alpha, 0, 1);
-
   if (resolved.startsWith("#")) {
     const rgb = hexToRgb(resolved);
     if (rgb) return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${a})`;
   }
-
   if (resolved.startsWith("rgb(")) {
     return resolved.replace("rgb(", "rgba(").replace(")", `, ${a})`);
   }
-
   if (resolved.startsWith("rgba(")) {
     return resolved.replace(
       /rgba\(([^,]+),([^,]+),([^,]+),([^)]+)\)/,
       `rgba($1,$2,$3,${a})`,
     );
   }
-
   return resolved;
 }
 
 function strokeSeed(stroke: Stroke) {
   const first = stroke.pts[0];
   if (!first) return 0.5;
-
   const raw = Math.sin(first.x * 12.9898 + first.y * 78.233 + stroke.w * 37.719) * 43758.5453;
   return raw - Math.floor(raw);
 }
 
 function segmentSpeed(pts: Pt[], index: number) {
   if (index <= 0) return 0;
-
   const a = pts[index - 1];
   const b = pts[index];
   const dt = Math.max(1, b.t - a.t);
-
   return distance(a, b) / dt;
 }
 
@@ -181,60 +223,44 @@ function turnCosine(a: Pt, b: Pt, c: Pt) {
   const vy = c.y - b.y;
   const u = Math.hypot(ux, uy);
   const v = Math.hypot(vx, vy);
-
   if (u < 0.01 || v < 0.01) return 1;
-
   return (ux * vx + uy * vy) / (u * v);
 }
 
 function pointWidth(stroke: Stroke, index: number) {
   if (stroke.erase) return Math.max(stroke.w * 4.8, 15);
-
   const pt = stroke.pts[index];
   const base = clamp(stroke.w, PEN_MIN_WIDTH, PEN_MAX_WIDTH);
   const pressure = normalizePressure(pt?.p ?? 0.5);
   const speed = segmentSpeed(stroke.pts, index);
-
   const pressureFactor = 0.82 + pressure * 0.48;
   const speedFactor = clamp(1.04 - speed * 0.14, 0.86, 1.05);
-
   return clamp(base * pressureFactor * speedFactor, PEN_MIN_WIDTH, PEN_MAX_WIDTH);
 }
 
 function pointOpacity(stroke: Stroke, index: number) {
   if (stroke.erase) return 1;
-
   const pt = stroke.pts[index];
   const pressure = normalizePressure(pt?.p ?? 0.5);
   const speed = segmentSpeed(stroke.pts, index);
-
   const pressureLift = pressure * 0.028;
   const speedDrop = clamp(speed * 0.028, 0, 0.048);
-
   return clamp(PEN_BASE_OPACITY - 0.036 + pressureLift - speedDrop, 0.82, PEN_BASE_OPACITY);
 }
 
 function smoothPoint(stroke: Stroke, raw: Pt): Pt | null {
   const pts = stroke.pts;
   const last = pts[pts.length - 1];
-
   if (!last) return raw;
-
   const d = distance(last, raw);
   if (d < MIN_POINT_DISTANCE) return null;
-
   const prev = pts[pts.length - 2];
   let smoothing = BASE_POSITION_SMOOTHING;
-
   if (prev) {
     const cos = turnCosine(prev, last, raw);
-    // Preserve sharp Persian letter turns and small loops.
     if (cos < CORNER_PRESERVE_THRESHOLD) smoothing = 0.76;
   }
-
-  // Longer/faster strokes can be a bit more direct to avoid lag.
   smoothing = clamp(smoothing + d / 120, smoothing, 0.84);
-
   return {
     x: lerp(last.x, raw.x, smoothing),
     y: lerp(last.y, raw.y, smoothing),
@@ -284,7 +310,6 @@ function drawCurvedSegment(
 
   g.globalCompositeOperation = "source-over";
 
-  // Soft paper body, subtle and deterministic. Keeps the ink from looking like a vector line.
   g.strokeStyle = colorWithAlpha(stroke.color, paperAlpha * 0.12);
   g.lineWidth = clamp(w * 1.35, PEN_MIN_WIDTH, PEN_MAX_WIDTH + 0.5);
   g.beginPath();
@@ -293,7 +318,6 @@ function drawCurvedSegment(
   else g.lineTo(b.x + nx * paperOffset, b.y + ny * paperOffset);
   g.stroke();
 
-  // Main ink.
   g.strokeStyle = colorWithAlpha(stroke.color, paperAlpha);
   g.lineWidth = w;
   g.beginPath();
@@ -302,7 +326,6 @@ function drawCurvedSegment(
   else g.lineTo(b.x, b.y);
   g.stroke();
 
-  // Dry-edge micro texture only on medium strokes; very low opacity.
   if (w >= 1.75) {
     g.strokeStyle = colorWithAlpha(stroke.color, paperAlpha * 0.055);
     g.lineWidth = Math.max(0.7, w * 0.5);
@@ -315,6 +338,9 @@ function drawCurvedSegment(
 }
 
 function drawProjectedStroke(g: CanvasRenderingContext2D, stroke: Stroke, projectedPts: Pt[]) {
+  if (stroke.highlight) { drawHighlighterSegment(g, stroke, projectedPts); return; }
+  if (stroke.isCircle)  { drawCircleStroke(g, stroke, projectedPts); return; }
+
   const n = projectedPts.length;
   if (n === 0) return;
 
@@ -326,7 +352,6 @@ function drawProjectedStroke(g: CanvasRenderingContext2D, stroke: Stroke, projec
   if (n === 1) {
     const pt = projectedPts[0];
     const w = pointWidth(stroke, 0);
-
     if (stroke.erase) {
       g.globalCompositeOperation = "destination-out";
       g.fillStyle = "rgba(0,0,0,1)";
@@ -334,7 +359,6 @@ function drawProjectedStroke(g: CanvasRenderingContext2D, stroke: Stroke, projec
       g.globalCompositeOperation = "source-over";
       g.fillStyle = colorWithAlpha(stroke.color, pointOpacity(stroke, 0));
     }
-
     g.beginPath();
     g.arc(pt.x, pt.y, w / 2, 0, Math.PI * 2);
     g.fill();
@@ -343,11 +367,9 @@ function drawProjectedStroke(g: CanvasRenderingContext2D, stroke: Stroke, projec
   }
 
   const seed = strokeSeed(stroke);
-
   for (let i = 1; i < n; i++) {
     drawCurvedSegment(g, stroke, projectedPts, i, seed);
   }
-
   g.restore();
 }
 
@@ -361,11 +383,12 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
       storageKey,
       scrollRef,
       contentSelector = DEFAULT_CONTENT_SELECTOR,
+      annotationStrokeWidth = 2.5,
+      highlighterWidth = HIGHLIGHTER_WIDTH,
     },
     ref,
   ) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-
     const strokes = useRef<Stroke[]>([]);
     const cur = useRef<Stroke | null>(null);
     const drawing = useRef(false);
@@ -377,40 +400,29 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
     const toolRef = useRef(tool);
     const activeRef = useRef(isActive);
     const storageKeyRef = useRef(storageKey);
+    const circleStart = useRef<Pt | null>(null);
+    const circleEnd = useRef<Pt | null>(null);
+    const annotStrokeRef = useRef(annotationStrokeWidth);
+    const hlWidthRef = useRef(highlighterWidth);
 
-    useEffect(() => {
-      colorRef.current = color || INK_PALETTE.graphite;
-    }, [color]);
-
-    useEffect(() => {
-      lwRef.current = clamp(lineWidth, PEN_MIN_WIDTH, PEN_MAX_WIDTH);
-    }, [lineWidth]);
-
-    useEffect(() => {
-      toolRef.current = tool;
-    }, [tool]);
-
-    useEffect(() => {
-      activeRef.current = isActive;
-    }, [isActive]);
-
-    useEffect(() => {
-      storageKeyRef.current = storageKey;
-    }, [storageKey]);
+    useEffect(() => { colorRef.current = color || INK_PALETTE.graphite; }, [color]);
+    useEffect(() => { lwRef.current = clamp(lineWidth, PEN_MIN_WIDTH, PEN_MAX_WIDTH); }, [lineWidth]);
+    useEffect(() => { annotStrokeRef.current = annotationStrokeWidth; }, [annotationStrokeWidth]);
+    useEffect(() => { hlWidthRef.current = highlighterWidth; }, [highlighterWidth]);
+    useEffect(() => { toolRef.current = tool; }, [tool]);
+    useEffect(() => { activeRef.current = isActive; }, [isActive]);
+    useEffect(() => { storageKeyRef.current = storageKey; }, [storageKey]);
 
     const getContentElement = useCallback((): HTMLElement | null => {
       if (typeof document === "undefined") return null;
-
       const fromScrollRef = scrollRef?.current?.querySelector<HTMLElement>(contentSelector);
       if (fromScrollRef) return fromScrollRef;
-
       return document.querySelector<HTMLElement>(contentSelector);
     }, [contentSelector, scrollRef]);
 
     const getAnchorRect = useCallback((): DOMRect | null => {
       const content = getContentElement();
       if (content) return content.getBoundingClientRect();
-
       const canvas = canvasRef.current;
       return canvas?.getBoundingClientRect() ?? null;
     }, [getContentElement]);
@@ -418,22 +430,8 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
     const toContentPoint = useCallback(
       (clientX: number, clientY: number, pressure: number, timestamp: number): Pt => {
         const anchorRect = getAnchorRect();
-
-        if (!anchorRect) {
-          return {
-            x: clientX,
-            y: clientY,
-            p: normalizePressure(pressure),
-            t: timestamp,
-          };
-        }
-
-        return {
-          x: clientX - anchorRect.left,
-          y: clientY - anchorRect.top,
-          p: normalizePressure(pressure),
-          t: timestamp,
-        };
+        if (!anchorRect) return { x: clientX, y: clientY, p: normalizePressure(pressure), t: timestamp };
+        return { x: clientX - anchorRect.left, y: clientY - anchorRect.top, p: normalizePressure(pressure), t: timestamp };
       },
       [getAnchorRect],
     );
@@ -442,11 +440,8 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
       (stroke: Stroke): Pt[] => {
         const canvas = canvasRef.current;
         const anchorRect = getAnchorRect();
-
         if (!canvas || !anchorRect) return stroke.pts;
-
         const canvasRect = canvas.getBoundingClientRect();
-
         return stroke.pts.map((pt) => ({
           ...pt,
           x: pt.x + anchorRect.left - canvasRect.left,
@@ -459,26 +454,44 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
     const redraw = useCallback(() => {
       const canvas = canvasRef.current;
       const g = canvas?.getContext("2d", { alpha: true, desynchronized: true });
-
       if (!canvas || !g) return;
-
       const cssW = canvas.clientWidth || window.innerWidth;
       const cssH = canvas.clientHeight || window.innerHeight;
-
       g.clearRect(0, 0, cssW, cssH);
-
       for (const stroke of strokes.current) {
         drawProjectedStroke(g, stroke, projectStrokeToCanvas(stroke));
       }
-
       if (cur.current) {
         drawProjectedStroke(g, cur.current, projectStrokeToCanvas(cur.current));
       }
-    }, [projectStrokeToCanvas]);
+      // Live circle preview while dragging
+      if (toolRef.current === "circle" && circleStart.current && circleEnd.current) {
+        const s = circleStart.current;
+        const e = circleEnd.current;
+        const cx = (s.x + e.x) / 2;
+        const cy = (s.y + e.y) / 2;
+        const rx = Math.abs(e.x - s.x) / 2;
+        const ry = Math.abs(e.y - s.y) / 2;
+        if (rx > 2 && ry > 2) {
+          const anchorRect = getAnchorRect();
+          const canvasRect = canvas.getBoundingClientRect();
+          const ox = anchorRect ? anchorRect.left - canvasRect.left : 0;
+          const oy = anchorRect ? anchorRect.top - canvasRect.top : 0;
+          g.save();
+          g.strokeStyle = colorWithAlpha(colorRef.current, 0.7);
+          g.lineWidth = annotStrokeRef.current;
+          g.setLineDash([6, 4]);
+          g.lineCap = "round";
+          g.beginPath();
+          g.ellipse(cx + ox, cy + oy, rx, ry, 0, 0, Math.PI * 2);
+          g.stroke();
+          g.restore();
+        }
+      }
+    }, [getAnchorRect, projectStrokeToCanvas]);
 
     const requestRedraw = useCallback(() => {
       if (raf.current) return;
-
       raf.current = requestAnimationFrame(() => {
         raf.current = 0;
         redraw();
@@ -488,22 +501,16 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
     const resizeCanvas = useCallback(() => {
       const canvas = canvasRef.current;
       const g = canvas?.getContext("2d", { alpha: true, desynchronized: true });
-
       if (!canvas || !g) return;
-
       const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
       const cssW = window.innerWidth;
       const cssH = window.innerHeight;
-
       const nextW = Math.floor(cssW * dpr);
       const nextH = Math.floor(cssH * dpr);
-
       if (canvas.width !== nextW) canvas.width = nextW;
       if (canvas.height !== nextH) canvas.height = nextH;
-
       canvas.style.width = `${cssW}px`;
       canvas.style.height = `${cssH}px`;
-
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
       redraw();
     }, [redraw]);
@@ -511,53 +518,36 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
     const persist = useCallback(() => {
       const key = storageKeyRef.current;
       if (!key) return;
-
       try {
         localStorage.setItem(
           `${STORAGE_PREFIX}${key}`,
-          JSON.stringify({
-            version: 3,
-            anchoredTo: contentSelector,
-            strokes: strokes.current,
-          }),
+          JSON.stringify({ version: 3, anchoredTo: contentSelector, strokes: strokes.current }),
         );
-      } catch {
-        // quota exceeded — skip silently
-      }
+      } catch { /* quota exceeded */ }
     }, [contentSelector]);
 
-    useImperativeHandle(
-      ref,
-      () => ({
-        clear() {
-          const key = storageKeyRef.current;
-
-          strokes.current = [];
-          cur.current = null;
-          drawing.current = false;
-          activePointerId.current = null;
-
-          redraw();
-
-          if (key) {
-            try {
-              localStorage.removeItem(`${STORAGE_PREFIX}${key}`);
-              localStorage.removeItem(`${PREVIOUS_STORAGE_PREFIX}${key}`);
-              localStorage.removeItem(`${LEGACY_STORAGE_PREFIX}${key}`);
-            } catch {
-              // ignore
-            }
-          }
-        },
-
-        undo() {
-          strokes.current.pop();
-          redraw();
-          persist();
-        },
-      }),
-      [persist, redraw],
-    );
+    useImperativeHandle(ref, () => ({
+      clear() {
+        const key = storageKeyRef.current;
+        strokes.current = [];
+        cur.current = null;
+        drawing.current = false;
+        activePointerId.current = null;
+        redraw();
+        if (key) {
+          try {
+            localStorage.removeItem(`${STORAGE_PREFIX}${key}`);
+            localStorage.removeItem(`${PREVIOUS_STORAGE_PREFIX}${key}`);
+            localStorage.removeItem(`${LEGACY_STORAGE_PREFIX}${key}`);
+          } catch { /* ignore */ }
+        }
+      },
+      undo() {
+        strokes.current.pop();
+        redraw();
+        persist();
+      },
+    }), [persist, redraw]);
 
     useEffect(() => {
       if (!isActive && drawing.current) {
@@ -570,13 +560,10 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
 
     useEffect(() => {
       resizeCanvas();
-
       const onResize = () => resizeCanvas();
       const onOrientation = () => window.setTimeout(resizeCanvas, 80);
-
       window.addEventListener("resize", onResize);
       window.addEventListener("orientationchange", onOrientation);
-
       return () => {
         window.removeEventListener("resize", onResize);
         window.removeEventListener("orientationchange", onOrientation);
@@ -586,10 +573,8 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
     useEffect(() => {
       const scrollEl = scrollRef?.current;
       const onScroll = () => requestRedraw();
-
       window.addEventListener("scroll", onScroll, { passive: true });
       scrollEl?.addEventListener("scroll", onScroll, { passive: true });
-
       return () => {
         window.removeEventListener("scroll", onScroll);
         scrollEl?.removeEventListener("scroll", onScroll);
@@ -598,30 +583,17 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
 
     useEffect(() => {
       if (!storageKey) return;
-
       try {
         const raw = localStorage.getItem(`${STORAGE_PREFIX}${storageKey}`);
-
-        if (!raw) {
-          strokes.current = [];
-          redraw();
-          return;
-        }
-
+        if (!raw) { strokes.current = []; redraw(); return; }
         const parsed = JSON.parse(raw) as unknown;
-
         if (Array.isArray(parsed)) {
           strokes.current = parsed as Stroke[];
-        } else if (
-          parsed &&
-          typeof parsed === "object" &&
-          Array.isArray((parsed as { strokes?: unknown }).strokes)
-        ) {
+        } else if (parsed && typeof parsed === "object" && Array.isArray((parsed as { strokes?: unknown }).strokes)) {
           strokes.current = (parsed as { strokes: Stroke[] }).strokes;
         } else {
           strokes.current = [];
         }
-
         redraw();
       } catch {
         strokes.current = [];
@@ -632,135 +604,132 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
     const appendPoint = useCallback((raw: Pt) => {
       const stroke = cur.current;
       if (!stroke || stroke.pts.length >= MAX_POINTS_PER_STROKE) return;
-
       const next = smoothPoint(stroke, raw);
       if (!next) return;
-
       stroke.pts.push(next);
     }, []);
 
-    const finishStroke = useCallback(
-      (e: PointerEvent) => {
-        if (!drawing.current) return;
-        if (activePointerId.current !== null && e.pointerId !== activePointerId.current) return;
-
-        e.preventDefault();
-
-        drawing.current = false;
-        activePointerId.current = null;
-
-        if (cur.current && cur.current.pts.length > 0) {
-          strokes.current.push(cur.current);
+    const finishStroke = useCallback((e: PointerEvent) => {
+      if (!drawing.current) return;
+      if (activePointerId.current !== null && e.pointerId !== activePointerId.current) return;
+      e.preventDefault();
+      drawing.current = false;
+      activePointerId.current = null;
+      if (circleStart.current && circleEnd.current) {
+        const s = circleStart.current;
+        const en = circleEnd.current;
+        const rx = Math.abs(en.x - s.x) / 2;
+        const ry = Math.abs(en.y - s.y) / 2;
+        if (rx > 4 && ry > 4) {
+          const cx = (s.x + en.x) / 2;
+          const cy = (s.y + en.y) / 2;
+          strokes.current.push({
+            pts: generateEllipsePoints(cx, cy, rx, ry, 0.5, s.t),
+            color: colorRef.current || INK_PALETTE.graphite,
+            w: annotStrokeRef.current,
+            erase: false,
+            isCircle: true,
+          });
           persist();
         }
+        circleStart.current = null;
+        circleEnd.current = null;
+      } else if (cur.current && cur.current.pts.length > 0) {
+        strokes.current.push(cur.current);
+        persist();
+      }
+      cur.current = null;
+      redraw();
+    }, [persist, redraw]);
 
+    const onDown = useCallback((e: PointerEvent) => {
+      if (!activeRef.current) return;
+      if (!["pen", "touch", "mouse"].includes(e.pointerType)) return;
+      if (activePointerId.current !== null && e.pointerId !== activePointerId.current) return;
+      const target = e.target as Element | null;
+      if (target?.closest("input, textarea, [contenteditable=true]")) return;
+      e.preventDefault();
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      canvas.setPointerCapture(e.pointerId);
+      activePointerId.current = e.pointerId;
+      drawing.current = true;
+      const startPt = toContentPoint(
+        e.clientX, e.clientY,
+        e.pressure && e.pressure > 0 ? e.pressure : 0.5,
+        e.timeStamp || performance.now(),
+      );
+      if (toolRef.current === "circle") {
+        circleStart.current = startPt;
+        circleEnd.current = startPt;
         cur.current = null;
-        redraw();
-      },
-      [persist, redraw],
-    );
-
-    const onDown = useCallback(
-      (e: PointerEvent) => {
-        if (!activeRef.current) return;
-        if (!["pen", "touch", "mouse"].includes(e.pointerType)) return;
-        if (activePointerId.current !== null && e.pointerId !== activePointerId.current) return;
-
-        const target = e.target as Element | null;
-        if (target?.closest("input, textarea, [contenteditable=true]")) return;
-
-        e.preventDefault();
-
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-
-        canvas.setPointerCapture(e.pointerId);
-        activePointerId.current = e.pointerId;
-        drawing.current = true;
-
+      } else {
+        circleStart.current = null;
+        circleEnd.current = null;
         cur.current = {
-          pts: [
-            toContentPoint(
-              e.clientX,
-              e.clientY,
-              e.pressure && e.pressure > 0 ? e.pressure : 0.5,
-              e.timeStamp || performance.now(),
-            ),
-          ],
+          pts: [startPt],
           color: colorRef.current || INK_PALETTE.graphite,
-          w: clamp(lwRef.current || 2.05, PEN_MIN_WIDTH, PEN_MAX_WIDTH),
+          w: toolRef.current === "highlighter"
+            ? hlWidthRef.current
+            : clamp(lwRef.current || 2.05, PEN_MIN_WIDTH, PEN_MAX_WIDTH),
           erase: toolRef.current === "eraser",
+          highlight: toolRef.current === "highlighter",
         };
+      }
+      requestRedraw();
+    }, [requestRedraw, toContentPoint]);
 
+    const onMove = useCallback((e: PointerEvent) => {
+      if (!activeRef.current || !drawing.current) return;
+      if (!["pen", "touch", "mouse"].includes(e.pointerType)) return;
+      if (activePointerId.current !== null && e.pointerId !== activePointerId.current) return;
+      e.preventDefault();
+      if (toolRef.current === "circle") {
+        circleEnd.current = toContentPoint(
+          e.clientX, e.clientY,
+          e.pressure && e.pressure > 0 ? e.pressure : 0.5,
+          e.timeStamp || performance.now(),
+        );
         requestRedraw();
-      },
-      [requestRedraw, toContentPoint],
-    );
-
-    const onMove = useCallback(
-      (e: PointerEvent) => {
-        if (!activeRef.current || !drawing.current || !cur.current) return;
-        if (!["pen", "touch", "mouse"].includes(e.pointerType)) return;
-        if (activePointerId.current !== null && e.pointerId !== activePointerId.current) return;
-
-        e.preventDefault();
-
-        const samples =
-          typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : [];
-
-        if (samples.length > 0) {
-          for (const sample of samples) {
-            appendPoint(
-              toContentPoint(
-                sample.clientX,
-                sample.clientY,
-                sample.pressure && sample.pressure > 0 ? sample.pressure : e.pressure || 0.5,
-                sample.timeStamp || e.timeStamp || performance.now(),
-              ),
-            );
-          }
-        } else {
-          appendPoint(
-            toContentPoint(
-              e.clientX,
-              e.clientY,
-              e.pressure && e.pressure > 0 ? e.pressure : 0.5,
-              e.timeStamp || performance.now(),
-            ),
-          );
+        return;
+      }
+      if (!cur.current) return;
+      const samples = typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : [];
+      if (samples.length > 0) {
+        for (const sample of samples) {
+          appendPoint(toContentPoint(
+            sample.clientX, sample.clientY,
+            sample.pressure && sample.pressure > 0 ? sample.pressure : e.pressure || 0.5,
+            sample.timeStamp || e.timeStamp || performance.now(),
+          ));
         }
+      } else {
+        appendPoint(toContentPoint(
+          e.clientX, e.clientY,
+          e.pressure && e.pressure > 0 ? e.pressure : 0.5,
+          e.timeStamp || performance.now(),
+        ));
+      }
+      requestRedraw();
+    }, [appendPoint, requestRedraw, toContentPoint]);
 
-        requestRedraw();
-      },
-      [appendPoint, requestRedraw, toContentPoint],
-    );
-
-    const onUp = useCallback(
-      (e: PointerEvent) => {
-        finishStroke(e);
-      },
-      [finishStroke],
-    );
+    const onUp = useCallback((e: PointerEvent) => { finishStroke(e); }, [finishStroke]);
 
     useEffect(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
-
       const opts: AddEventListenerOptions = { passive: false };
-
       canvas.addEventListener("pointerdown", onDown, opts);
       canvas.addEventListener("pointermove", onMove, opts);
       canvas.addEventListener("pointerup", onUp, opts);
       canvas.addEventListener("pointercancel", onUp, opts);
       canvas.addEventListener("lostpointercapture", onUp, opts);
-
       return () => {
         canvas.removeEventListener("pointerdown", onDown, opts);
         canvas.removeEventListener("pointermove", onMove, opts);
         canvas.removeEventListener("pointerup", onUp, opts);
         canvas.removeEventListener("pointercancel", onUp, opts);
         canvas.removeEventListener("lostpointercapture", onUp, opts);
-
         if (raf.current) {
           cancelAnimationFrame(raf.current);
           raf.current = 0;
@@ -778,7 +747,12 @@ export const DrawingLayer = forwardRef<DrawingLayerHandle, DrawingLayerProps>(
           inset: 0,
           zIndex: 35,
           pointerEvents: isActive ? "auto" : "none",
-          cursor: isActive ? (tool === "eraser" ? "cell" : "crosshair") : "default",
+          cursor: isActive
+            ? tool === "eraser" ? "cell"
+              : tool === "circle" ? "crosshair"
+              : tool === "highlighter" ? "cell"
+              : "crosshair"
+            : "default",
           touchAction: isActive ? "none" : "auto",
           overscrollBehavior: isActive ? "contain" : "auto",
           WebkitUserSelect: isActive ? "none" : "auto",

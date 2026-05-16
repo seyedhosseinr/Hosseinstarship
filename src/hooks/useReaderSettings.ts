@@ -4,6 +4,37 @@ import { useCallback, useEffect, useState } from "react";
 
 export type ReaderFontFamily = "sans" | "serif" | "mono";
 
+export type ReaderBgTheme =
+  | "paper"
+  | "parchment"
+  | "warm"
+  | "cool"
+  | "night"
+  | "slate"
+  | "eyecare"
+  | "amoled";
+
+export type ReaderToolbarStyle = "popup" | "rail" | "both";
+
+export type BgThemeConfig = {
+  id: ReaderBgTheme;
+  label: string;
+  swatch: string;
+  isDark: boolean;
+  bgHsl: string;
+};
+
+export const BG_THEMES: BgThemeConfig[] = [
+  { id: "paper",     label: "کاغذ",       swatch: "#FAF9F7", isDark: false, bgHsl: "40 24% 97%" },
+  { id: "parchment", label: "پارشمن",     swatch: "#F5EDD6", isDark: false, bgHsl: "38 55% 90%" },
+  { id: "warm",      label: "گرم",        swatch: "#FBF4E4", isDark: false, bgHsl: "38 72% 94%" },
+  { id: "cool",      label: "خنک",        swatch: "#FFFFFF", isDark: false, bgHsl: "0 0% 100%" },
+  { id: "night",     label: "شب",         swatch: "#1C1B1A", isDark: true,  bgHsl: "30 4% 11%" },
+  { id: "slate",     label: "تیره آبی",   swatch: "#131C2B", isDark: true,  bgHsl: "220 38% 12%" },
+  { id: "eyecare",   label: "مراقبت چشم", swatch: "#0F1A13", isDark: true,  bgHsl: "135 26% 8%" },
+  { id: "amoled",    label: "مشکی",       swatch: "#080808", isDark: true,  bgHsl: "0 0% 3%" },
+];
+
 export const READER_FONT_STACKS: Record<ReaderFontFamily, string> = {
   sans: "var(--lib-font-persian, var(--font-vazir, Vazirmatn)), Tahoma, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
   serif: "var(--font-serif-latin, Georgia), Tahoma, 'Times New Roman', serif",
@@ -18,6 +49,8 @@ export type ReaderSettings = {
   showHighYield: boolean;
   showKeyExam: boolean;
   showMissedQuestions: boolean;
+  bgTheme: ReaderBgTheme;
+  toolbarStyle: ReaderToolbarStyle;
 };
 
 const STORAGE_KEY = "starship:reader-settings";
@@ -28,10 +61,12 @@ const DEFAULTS: ReaderSettings = {
   fontFamily: "sans",
   fontSize: 20,
   lineHeight: 1.8,
-  maxWidth: FULL_WIDTH_MAX,
+  maxWidth: 750,
   showHighYield: true,
   showKeyExam: true,
   showMissedQuestions: false,
+  bgTheme: "paper",
+  toolbarStyle: "popup",
 };
 
 function load(): ReaderSettings {
@@ -44,7 +79,7 @@ function load(): ReaderSettings {
       ...DEFAULTS,
       ...stored,
       maxWidth: stored.maxWidth === LEGACY_DEFAULT_MAX_WIDTH
-        ? FULL_WIDTH_MAX
+        ? DEFAULTS.maxWidth
         : (stored.maxWidth ?? DEFAULTS.maxWidth),
     };
   } catch {

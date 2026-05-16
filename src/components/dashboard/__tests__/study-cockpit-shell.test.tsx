@@ -42,8 +42,9 @@ describe("StudyCockpitShell synthetic dashboard wiring", () => {
           daysUntilBoard={109}
           focusTopic="Synthetic Weak Chapter"
           fsrsStatsByChapter={[
-            { chapterId: "dashboard-smoke-ch-strong", totalCards: 8, avgRetention: 94 },
-            { chapterId: "dashboard-smoke-ch-overdue", totalCards: 6, avgRetention: 45 },
+            // avgStability exercises the direct-stability path in curveStabilities
+            { chapterId: "dashboard-smoke-ch-strong",  totalCards: 8, avgRetention: 94, avgStability: 21 },
+            { chapterId: "dashboard-smoke-ch-overdue", totalCards: 6, avgRetention: 45, avgStability: 3 },
           ]}
           onStartStudy={onStartStudy}
           onCreateMCQ={onCreateMCQ}

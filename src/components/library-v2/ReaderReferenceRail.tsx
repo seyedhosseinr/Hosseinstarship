@@ -1,30 +1,13 @@
 "use client";
 
 /**
- * ReaderReferenceRail — slim right-side navigation minimap for ChapterReaderV2.
+ * ReaderReferenceRail — slim right-side navigation minimap.
  *
- * Renders a thin vertical rail in the right gutter of the reader.  Small marker
- * dots sit at the proportional scroll-height position of each meaningful frame or
- * section heading.  Hovering a marker opens a compact preview card to the left of
- * the rail; clicking / pressing the "پرش به این بخش" button scrolls the target
- * into view and flashes it with the existing reader-anchor-flash animation.
+ * Desktop: hover dot → preview card, click → jump.
+ * iPad / touch: tap dot → preview card, tap "پرش" button → jump.
+ * Preview auto-dismisses after 3 s on touch devices.
  *
- * Marker kinds (Phase 1 — data-only, no schema changes):
- *   • section          — every section heading
- *   • keypoint         — kind === "keypoint"
- *   • high-yield       — kind === "high_yield" | highYield | v8Flags.highYield
- *   • pearl            — kind === "pearl"
- *   • warning          — kind === "warning" | "pitfall" | "trap"
- *   • algorithm        — kind === "algorithm"
- *   • clinical-decision — kind === "clinical_decision"
- *   • question-link    — linkedQuestions.length > 0 (other kinds covered above)
- *
- * Layout safety:
- *   • hidden below lg (1024 px) — avoids gutter overlap on narrow screens
- *   • hidden when annotations panel is open (both occupy right side)
- *   • z-20 (below toolbar z-40, below progress pill z-30, above content z-0)
- *   • bottom-16 clears the fixed progress pill (bottom-4 ≈ 16 px + ~28 px height)
- *   • top-16 clears the floating toolbar
+ * Visible from md (768 px) — covers iPad portrait.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -32,9 +15,7 @@ import type { RefObject } from "react";
 import type { NoteViewerModel } from "@/lib/contract/note-viewer.types";
 import { cn } from "@/lib/utils";
 
-/* ─────────────────────────────────────────────────────────────
-   Types
-───────────────────────────────────────────────────────────── */
+/* ─── Types ─────────────────────────────────────────────── */
 
 type RailMarkerKind =
   | "section"
@@ -51,41 +32,34 @@ type RailMarkerKind =
 
 interface RailMarker {
   id: string;
-  /** id attribute value (sections) or data-frame-id value (frames). */
   targetId: string;
   targetAttr: "id" | "frame";
   kind: RailMarkerKind;
   title: string;
-  /** Short content preview shown in the hover card. */
   snippet?: string;
-  /** 0–100: position within scrollHeight; -1 = target not found in DOM yet. */
   percent: number;
 }
 
-/* ─────────────────────────────────────────────────────────────
-   Kind metadata (colour + Persian label)
-───────────────────────────────────────────────────────────── */
+/* ─── Kind config ────────────────────────────────────────── */
 
 const KIND_CFG: Record<
   RailMarkerKind,
-  { dot: string; ring: string; label: string }
+  { color: string; label: string; icon: string }
 > = {
-  section:             { dot: "bg-lib-border",              ring: "ring-lib-border",       label: "بخش"            },
-  keypoint:            { dot: "bg-emerald-500",             ring: "ring-emerald-400/60",   label: "نکته کلیدی"     },
-  "high-yield":        { dot: "bg-amber-300",               ring: "ring-amber-400/60",     label: "پربازده"         },
-  pearl:               { dot: "bg-cyan-300",                ring: "ring-cyan-400/60",      label: "نکته بالینی"    },
-  warning:             { dot: "bg-rose-500",                ring: "ring-rose-400/60",      label: "هشدار"           },
-  algorithm:           { dot: "bg-violet-500",              ring: "ring-violet-400/60",    label: "الگوریتم"        },
-  "clinical-decision": { dot: "bg-teal-300",                ring: "ring-teal-400/60",      label: "تصمیم بالینی"   },
-  "question-link":     { dot: "bg-sky-400",                 ring: "ring-sky-400/60",       label: "منبع سؤال"      },
-  threshold:           { dot: "bg-orange-300",              ring: "ring-orange-400/60",    label: "آستانه بالینی"  },
-  differential:        { dot: "bg-indigo-400",              ring: "ring-indigo-400/60",    label: "تشخیص افتراقی"  },
-  complication:        { dot: "bg-rose-400",                ring: "ring-rose-400/60",      label: "عارضه"           },
+  section:             { color: "#94A3B8", label: "بخش",             icon: "≡"  },
+  keypoint:            { color: "#4D9375", label: "نکته کلیدی",      icon: "★"  },
+  "high-yield":        { color: "#C8923D", label: "پربازده",         icon: "⚡" },
+  pearl:               { color: "#3B93A0", label: "نکته بالینی",     icon: "◈"  },
+  warning:             { color: "#BF5050", label: "هشدار",           icon: "⚠"  },
+  algorithm:           { color: "#7760C4", label: "الگوریتم",        icon: "⊡"  },
+  "clinical-decision": { color: "#3A9E8F", label: "تصمیم بالینی",    icon: "◉"  },
+  "question-link":     { color: "#4A87C4", label: "منبع سؤال",       icon: "?"  },
+  threshold:           { color: "#C4784A", label: "آستانه بالینی",   icon: "▲"  },
+  differential:        { color: "#5C72C4", label: "تشخیص افتراقی",  icon: "±"  },
+  complication:        { color: "#B05070", label: "عارضه",           icon: "!"  },
 };
 
-/* ─────────────────────────────────────────────────────────────
-   Build raw markers from note data (no DOM access)
-───────────────────────────────────────────────────────────── */
+/* ─── Build markers from note data ───────────────────────── */
 
 type RawMarker = Omit<RailMarker, "percent">;
 
@@ -95,7 +69,6 @@ function buildRawMarkers(notes: NoteViewerModel[]): RawMarker[] {
 
   for (const note of notes) {
     for (const section of note.sections) {
-      // Section heading
       out.push({
         id: `rail-s${seq++}`,
         targetId: section.id,
@@ -104,49 +77,31 @@ function buildRawMarkers(notes: NoteViewerModel[]): RawMarker[] {
         title: section.title,
       });
 
-      // Frames
       for (const frame of section.frames) {
         const fk = frame.kind;
         let kind: RailMarkerKind | null = null;
 
-        if (fk === "keypoint") {
-          kind = "keypoint";
-        } else if (
-          fk === "high_yield" ||
-          frame.highYield === true ||
-          frame.v8Flags?.highYield === true
-        ) {
-          kind = "high-yield";
-        } else if (fk === "pearl") {
-          kind = "pearl";
-        } else if (fk === "warning" || fk === "pitfall" || fk === "trap") {
-          kind = "warning";
-        } else if (fk === "algorithm") {
-          kind = "algorithm";
-        } else if (fk === "clinical_decision") {
-          kind = "clinical-decision";
-        } else if (fk === "threshold" || fk === "indication") {
-          kind = "threshold";
-        } else if (fk === "differential") {
-          kind = "differential";
-        } else if (fk === "complication" || fk === "follow_up") {
-          kind = "complication";
-        } else if ((frame.linkedQuestions?.length ?? 0) > 0) {
-          kind = "question-link";
-        }
+        if (fk === "keypoint") kind = "keypoint";
+        else if (fk === "high_yield" || frame.highYield === true || frame.v8Flags?.highYield === true) kind = "high-yield";
+        else if (fk === "pearl") kind = "pearl";
+        else if (fk === "warning" || fk === "pitfall" || fk === "trap") kind = "warning";
+        else if (fk === "algorithm") kind = "algorithm";
+        else if (fk === "clinical_decision") kind = "clinical-decision";
+        else if (fk === "threshold" || fk === "indication") kind = "threshold";
+        else if (fk === "differential") kind = "differential";
+        else if (fk === "complication" || fk === "follow_up") kind = "complication";
+        else if ((frame.linkedQuestions?.length ?? 0) > 0) kind = "question-link";
 
         if (!kind) continue;
 
         const raw = frame.summary ?? frame.body;
-        const snippet = raw.length > 90 ? raw.slice(0, 90) + "…" : raw;
-
         out.push({
           id: `rail-f${seq++}`,
           targetId: frame.id,
           targetAttr: "frame",
           kind,
           title: frame.title,
-          snippet,
+          snippet: raw.length > 100 ? raw.slice(0, 100) + "…" : raw,
         });
       }
     }
@@ -155,47 +110,39 @@ function buildRawMarkers(notes: NoteViewerModel[]): RawMarker[] {
   return out;
 }
 
-/* ─────────────────────────────────────────────────────────────
-   DOM position helper
-───────────────────────────────────────────────────────────── */
+/* ─── DOM position helper ────────────────────────────────── */
 
-function elementPercent(
-  m: RawMarker,
-  scrollEl: HTMLElement,
-): number {
+function elementPercent(m: RawMarker, scrollEl: HTMLElement): number {
   const sh = scrollEl.scrollHeight;
   if (sh <= 0) return -1;
 
   const target =
     m.targetAttr === "id"
       ? document.getElementById(m.targetId)
-      : document.querySelector<HTMLElement>(
-          `[data-frame-id="${CSS.escape(m.targetId)}"]`,
-        );
+      : document.querySelector<HTMLElement>(`[data-frame-id="${CSS.escape(m.targetId)}"]`);
   if (!target) return -1;
 
-  // Walk offsetParent chain up to the scroll container
   let top = 0;
   let node: HTMLElement | null = target;
   while (node && node !== scrollEl) {
     top += node.offsetTop;
     node = node.offsetParent as HTMLElement | null;
   }
-
-  // Clamp to 0–97 so the last marker doesn't press against the rail bottom
   return Math.max(0, Math.min(97, (top / sh) * 100));
 }
 
-/* ─────────────────────────────────────────────────────────────
-   Preview card (rendered beside the rail on hover/focus)
-───────────────────────────────────────────────────────────── */
+/* ─── Preview card ───────────────────────────────────────── */
 
 function PreviewCard({
   marker,
   onJump,
+  onDismiss,
+  isTouch,
 }: {
   marker: RailMarker;
   onJump: () => void;
+  onDismiss: () => void;
+  isTouch: boolean;
 }) {
   const cfg = KIND_CFG[marker.kind];
 
@@ -203,83 +150,100 @@ function PreviewCard({
     <div
       dir="rtl"
       role="tooltip"
-      /* Position: to the left of the outer rail container, vertically centred
-         on the marker's scroll-percent position.  The outer container is
-         `relative` so `absolute right-full` escapes to its left edge. */
       className={cn(
-        "pointer-events-auto absolute right-full z-50 mr-2.5",
-        "w-48",
+        "pointer-events-auto absolute right-full z-50",
+        "mr-3 w-56",
         "-translate-y-1/2",
-        "rounded-[10px] border border-lib-border/55",
-        "bg-lib-glass/95 backdrop-blur-xl",
-        "shadow-[0_8px_32px_-10px_hsl(var(--foreground)/0.22)]",
-        "px-3 py-2.5",
-        "animate-in fade-in slide-in-from-right-1 duration-100",
+        "rounded-2xl border border-lib-border/50",
+        "bg-lib-glass/98 backdrop-blur-2xl",
+        "shadow-[0_12px_40px_-8px_hsl(var(--foreground)/0.18),0_2px_8px_-2px_hsl(var(--foreground)/0.08)]",
+        "px-3.5 py-3",
+        "animate-in fade-in slide-in-from-right-2 duration-150",
       )}
       style={{ top: `${marker.percent}%` }}
     >
-      {/* Kind badge row */}
-      <div className="mb-1 flex items-center gap-1.5">
-        <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", cfg.dot)} />
-        <span className="text-[9px] font-semibold uppercase tracking-[0.13em] text-lib-text-muted">
+      <div className="mb-2 flex items-center gap-1.5">
+        <span
+          className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold text-white"
+          style={{ backgroundColor: cfg.color }}
+        >
+          {cfg.icon}
+        </span>
+        <span className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-lib-text-muted">
           {cfg.label}
         </span>
       </div>
 
-      {/* Title */}
-      <p className="line-clamp-2 text-[12px] font-semibold leading-snug text-lib-text">
+      <p className="line-clamp-2 text-[12.5px] font-semibold leading-snug text-lib-text">
         {marker.title}
       </p>
 
-      {/* Snippet */}
       {marker.snippet && (
-        <p className="mt-1 line-clamp-2 text-[11px] leading-[1.55] text-lib-text-secondary">
+        <p className="mt-1.5 line-clamp-3 text-[11px] leading-relaxed text-lib-text-secondary">
           {marker.snippet}
         </p>
       )}
 
-      {/* Jump action */}
-      <button
-        type="button"
-        /* onMouseDown fires before the marker's onMouseLeave, so the card
-           doesn't vanish before the click registers. */
-        onMouseDown={onJump}
-        onClick={onJump}
-        className={cn(
-          "mt-2 inline-flex items-center rounded-full",
-          "border border-lib-accent/30 bg-lib-accent-soft px-2.5 py-[3px]",
-          "text-[10.5px] font-semibold text-lib-accent",
-          "transition-colors hover:bg-lib-accent/20",
+      <div className="mt-2.5 flex items-center gap-1.5">
+        <button
+          type="button"
+          onPointerDown={(e) => { e.stopPropagation(); onJump(); }}
+          className={cn(
+            "flex-1 rounded-xl py-2 text-center",
+            "bg-lib-accent text-lib-accent-fg",
+            "text-[11px] font-semibold",
+            "active:opacity-80 transition-opacity",
+            "min-h-[40px]",
+          )}
+        >
+          پرش به این بخش
+        </button>
+        {isTouch && (
+          <button
+            type="button"
+            onPointerDown={(e) => { e.stopPropagation(); onDismiss(); }}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-lib-border/50 text-lib-text-muted transition-colors active:bg-lib-hover"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M1 1l10 10M11 1L1 11" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
+            </svg>
+          </button>
         )}
-      >
-        پرش به این بخش
-      </button>
+      </div>
     </div>
   );
 }
 
-/* ─────────────────────────────────────────────────────────────
-   Main component
-───────────────────────────────────────────────────────────── */
+/* ─── Legend tooltip ─────────────────────────────────────── */
+
+function LegendDot({ kind }: { kind: RailMarkerKind }) {
+  const cfg = KIND_CFG[kind];
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="h-[2.5px] w-3 rounded-[1px]" style={{ backgroundColor: cfg.color }} />
+      <span className="text-[9px] text-lib-text-muted">{cfg.label}</span>
+    </div>
+  );
+}
+
+/* ─── Main component ─────────────────────────────────────── */
 
 interface ReaderReferenceRailProps {
   notes: NoteViewerModel[];
   scrollRef: RefObject<HTMLDivElement | null>;
-  /** Hide when the annotations side panel is open (both on right side). */
   annotationsPanelOpen?: boolean;
+  spineOpen?: boolean;
 }
 
 export function ReaderReferenceRail({
   notes,
   scrollRef,
   annotationsPanelOpen = false,
+  spineOpen = false,
 }: ReaderReferenceRailProps) {
   const rawMarkers = useMemo(() => buildRawMarkers(notes), [notes]);
 
-  // Computed DOM positions (0–100 or -1=missing)
-  const [percents, setPercents] = useState<number[]>(() =>
-    rawMarkers.map(() => 0),
-  );
+  const [percents, setPercents] = useState<number[]>(() => rawMarkers.map(() => 0));
   const rerafRef = useRef(0);
 
   const recompute = useCallback(() => {
@@ -291,7 +255,6 @@ export function ReaderReferenceRail({
     });
   }, [rawMarkers, scrollRef]);
 
-  // Recompute on mount, resize, and window resize
   useEffect(() => {
     recompute();
     const el = scrollRef.current;
@@ -306,7 +269,6 @@ export function ReaderReferenceRail({
     };
   }, [recompute, scrollRef]);
 
-  // Current scroll position as a percentage of scrollHeight
   const [scrollPct, setScrollPct] = useState(0);
   useEffect(() => {
     const el = scrollRef.current;
@@ -327,7 +289,6 @@ export function ReaderReferenceRail({
     };
   }, [scrollRef]);
 
-  // Merge percents into full markers; drop any that weren't found in the DOM
   const markers = useMemo<RailMarker[]>(
     () =>
       rawMarkers
@@ -336,37 +297,74 @@ export function ReaderReferenceRail({
     [rawMarkers, percents],
   );
 
-  // Active = closest marker at or before current scroll position (+small lead)
   const activeId = useMemo(() => {
     let best: RailMarker | null = null;
     for (const m of markers) {
-      if (m.percent <= scrollPct + 8) {
-        if (!best || m.percent > best.percent) best = m;
-      }
+      if (m.percent <= scrollPct + 8 && (!best || m.percent > best.percent)) best = m;
     }
     return best?.id ?? null;
   }, [markers, scrollPct]);
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const hoveredMarker = useMemo(
-    () => markers.find((m) => m.id === hoveredId) ?? null,
-    [markers, hoveredId],
+  const [pinnedId, setPinnedId] = useState<string | null>(null);
+  const touchDismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isTouch, setIsTouch] = useState(false);
+
+  useEffect(() => {
+    setIsTouch(typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0));
+  }, []);
+
+  const previewId = pinnedId ?? hoveredId;
+  const previewMarker = useMemo(
+    () => markers.find((m) => m.id === previewId) ?? null,
+    [markers, previewId],
+  );
+
+  const handleMarkerPointerDown = useCallback(
+    (m: RailMarker, e: React.PointerEvent) => {
+      if (e.pointerType === "touch" || e.pointerType === "pen") {
+        e.preventDefault();
+        if (m.kind === "section") {
+          const target =
+            m.targetAttr === "id"
+              ? document.getElementById(m.targetId)
+              : document.querySelector<HTMLElement>(`[data-frame-id="${CSS.escape(m.targetId)}"]`);
+          if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+            target.classList.add("reader-anchor-flash");
+            window.setTimeout(() => target.classList.remove("reader-anchor-flash"), 1800);
+          }
+          setPinnedId(null);
+          return;
+        }
+        setPinnedId((prev) => (prev === m.id ? null : m.id));
+        if (touchDismissTimer.current) clearTimeout(touchDismissTimer.current);
+        touchDismissTimer.current = setTimeout(() => setPinnedId(null), 4000);
+      }
+    },
+    [],
   );
 
   const jumpTo = useCallback((marker: RailMarker) => {
     const target =
       marker.targetAttr === "id"
         ? document.getElementById(marker.targetId)
-        : document.querySelector<HTMLElement>(
-            `[data-frame-id="${CSS.escape(marker.targetId)}"]`,
-          );
+        : document.querySelector<HTMLElement>(`[data-frame-id="${CSS.escape(marker.targetId)}"]`);
     if (!target) return;
     target.scrollIntoView({ behavior: "smooth", block: "start" });
-    // Reuse the existing reader-anchor-flash keyframe (reader-anchor.css)
     target.classList.add("reader-anchor-flash");
     window.setTimeout(() => target.classList.remove("reader-anchor-flash"), 1800);
     setHoveredId(null);
+    setPinnedId(null);
   }, []);
+
+  const [showLegend, setShowLegend] = useState(false);
+  const legendTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const legendKinds = useMemo(
+    () => [...new Set(markers.filter((m) => m.kind !== "section").map((m) => m.kind))],
+    [markers],
+  );
 
   if (markers.length === 0) return null;
 
@@ -374,23 +372,31 @@ export function ReaderReferenceRail({
     <div
       aria-hidden="true"
       className={cn(
-        // Fixed right gutter: hidden on narrow screens, fade out when
-        // annotations panel is open.
-        "pointer-events-none fixed right-6 z-20",
-        "top-16 bottom-16",
-        "hidden lg:block",
-        "w-5",
+        "pointer-events-none fixed right-3 z-20",
+        "top-16 bottom-20",
+        "hidden md:block",
+        "w-7",
         "transition-opacity duration-200",
-        annotationsPanelOpen ? "opacity-0" : "opacity-100",
+        annotationsPanelOpen || spineOpen ? "opacity-0 pointer-events-none" : "opacity-100",
       )}
     >
-      {/* Rail track — relative so child absolute positions are contained */}
-      <div className="pointer-events-auto relative h-full w-[2px] mx-auto rounded-full bg-lib-border/25">
-
-        {/* Scroll-progress fill (teal, grows downward) */}
+      {/* ── Track ── */}
+      <div
+        className="pointer-events-auto relative mx-auto h-full w-[3px] cursor-default rounded-full bg-lib-border/20"
+        onMouseEnter={() => {
+          if (legendTimer.current) clearTimeout(legendTimer.current);
+          legendTimer.current = setTimeout(() => setShowLegend(true), 600);
+        }}
+        onMouseLeave={() => {
+          if (legendTimer.current) clearTimeout(legendTimer.current);
+          setShowLegend(false);
+          setHoveredId(null);
+        }}
+      >
+        {/* Progress fill */}
         <div
           aria-hidden
-          className="absolute inset-x-0 top-0 rounded-full bg-lib-accent/35 transition-[height] duration-75"
+          className="absolute inset-x-0 top-0 rounded-full bg-lib-accent/40 transition-[height] duration-100"
           style={{ height: `${scrollPct}%` }}
         />
 
@@ -399,46 +405,83 @@ export function ReaderReferenceRail({
           const cfg = KIND_CFG[m.kind];
           const isSection = m.kind === "section";
           const isActive = m.id === activeId;
+          const hasPreview = previewId === m.id;
 
           return (
             <button
               key={m.id}
               type="button"
               aria-label={`${cfg.label}: ${m.title}`}
-              onClick={() => jumpTo(m)}
+              className={cn(
+                "absolute -left-[18px] -translate-y-1/2",
+                "flex h-[44px] w-[44px] items-center justify-center",
+                "focus:outline-none",
+                "cursor-pointer",
+              )}
+              style={{ top: `${m.percent}%` }}
+              onClick={(e) => {
+                if ((e.nativeEvent as PointerEvent).pointerType !== "touch") jumpTo(m);
+              }}
+              onPointerDown={(e) => handleMarkerPointerDown(m, e)}
               onMouseEnter={() => setHoveredId(m.id)}
               onMouseLeave={() => setHoveredId((id) => (id === m.id ? null : id))}
               onFocus={() => setHoveredId(m.id)}
               onBlur={() => setHoveredId((id) => (id === m.id ? null : id))}
-              className={cn(
-                "absolute left-1/2 -translate-x-1/2 -translate-y-1/2",
-                "rounded-full transition-all duration-150",
-                "focus:outline-none focus-visible:ring-1 focus-visible:ring-lib-accent/60",
-                isSection
-                  ? cn(
-                      "h-[3px]",
-                      isActive
-                        ? "w-3.5 bg-lib-text-muted/65"
-                        : "w-2.5 bg-lib-border/55 hover:w-3 hover:bg-lib-text-muted/50",
-                    )
-                  : cn(
-                      "h-1.5 w-1.5",
-                      cfg.dot,
-                      isActive
-                        ? cn("scale-[1.35] ring-2 ring-offset-[1.5px] ring-offset-lib-bg opacity-100", cfg.ring)
-                        : "opacity-45 hover:opacity-90 hover:scale-125",
-                    ),
+            >
+              {isSection ? (
+                <span
+                  className={cn(
+                    "block rounded-[1px] transition-all duration-200",
+                    "h-[1.5px]",
+                    isActive || hasPreview
+                      ? "w-5 bg-lib-accent/75"
+                      : "w-3.5 bg-lib-border/45",
+                  )}
+                />
+              ) : (
+                <span
+                  className={cn(
+                    "block rounded-[1px] transition-all duration-150",
+                    isActive || hasPreview
+                      ? "h-[3px] w-[14px] opacity-100"
+                      : "h-[2.5px] w-[10px] opacity-40 hover:opacity-75 hover:w-[12px]",
+                  )}
+                  style={{ backgroundColor: cfg.color }}
+                />
               )}
-              style={{ top: `${m.percent}%` }}
-            />
+            </button>
           );
         })}
       </div>
 
-      {/* Preview card — child of outer container so `right-full` is relative
-          to the 20 px-wide rail container (not the 2 px track). */}
-      {hoveredMarker && (
-        <PreviewCard marker={hoveredMarker} onJump={() => jumpTo(hoveredMarker)} />
+      {/* Legend — appears on long hover over track */}
+      {showLegend && legendKinds.length > 0 && (
+        <div
+          dir="rtl"
+          className={cn(
+            "pointer-events-none absolute right-full top-1/2 -translate-y-1/2",
+            "mr-3 w-36 rounded-xl border border-lib-border/40",
+            "bg-lib-glass/95 backdrop-blur-xl px-3 py-2.5",
+            "shadow-[0_4px_16px_-4px_hsl(var(--foreground)/0.12)]",
+            "space-y-1.5",
+            "animate-in fade-in duration-200",
+          )}
+        >
+          <p className="mb-2 text-[9px] font-semibold uppercase tracking-widest text-lib-text-muted">
+            راهنما
+          </p>
+          {legendKinds.map((k) => <LegendDot key={k} kind={k} />)}
+        </div>
+      )}
+
+      {/* Preview card */}
+      {previewMarker && (
+        <PreviewCard
+          marker={previewMarker}
+          onJump={() => jumpTo(previewMarker)}
+          onDismiss={() => setPinnedId(null)}
+          isTouch={isTouch}
+        />
       )}
     </div>
   );

@@ -100,7 +100,18 @@ export async function loadOutlinerAlgorithmIR(segmentId: string): Promise<Loaded
     db.outlinerValidationReports.get(segmentId),
     db.outlinerMdxMirrors.get(segmentId),
   ]);
-  if (!segment || !payload) return null;
+  if (!segment) {
+    console.warn("[outliner-local] segment row not found for segmentId:", segmentId);
+    return null;
+  }
+  if (!payload) {
+    console.warn(
+      "[outliner-local] IR payload missing for segmentId:", segmentId,
+      "— segment row exists but outlinerAlgorithmIR is empty.",
+      "Re-import from /import/outliner to fix.",
+    );
+    return null;
+  }
   return { segment, ir: normalizeAlgorithmIR(payload.rawJson as AlgorithmIR), validationRaw: report?.rawReportJson, mdxMirror: mdx?.rawMdx ?? null };
 }
 

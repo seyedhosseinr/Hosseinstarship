@@ -55,7 +55,10 @@ export function OutlinerWorkspace({ initialSegmentId }: OutlinerWorkspaceProps) 
       const loaded = await loadOutlinerAlgorithmIR(segmentId);
       if (!loaded) {
         setActive(null);
-        setError("This chapter is not available in local storage.");
+        setError(
+          `داده این فصل در حافظه محلی کامل نیست (segmentId: ${segmentId}). ` +
+          "لطفاً از صفحه ایمپورت، فایل‌ها را حذف و دوباره وارد کنید.",
+        );
         return;
       }
       setActiveSegmentId(segmentId);

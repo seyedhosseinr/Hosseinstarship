@@ -43,7 +43,14 @@ type FsrsStatsByChapterRow = {
   totalCards: number;
   dueCards: number;
   reviewedCards: number;
+  /**
+   * FSRS-5 retrievability R(t,S) averaged across reviewed cards using actual elapsed
+   * time since last review.  Formula: R = (1 + 19/81 × t/S)^(-0.5) × 100
+   * Range 0–100.  NULL when no card has been reviewed yet.
+   */
   avgRetention: number | null;
+  /** Average FSRS stability in days for reviewed cards in this chapter (NULL if none). */
+  avgStability: number | null;
   lastReviewedAt: string | null;
 };
 
@@ -166,6 +173,22 @@ export function buildMonthlyActivityRows(
   return Array.from(byDate.values());
 }
 
+/**
+ * Compute a scientifically calibrated readiness score for medical board preparation.
+ *
+ * Weights rationale (total 100 %):
+ *   Coverage  30 % — every topic must be seen before exam day
+ *   Accuracy  30 % — MCQ performance is the most direct exam proxy
+ *   Retention 25 % — actual FSRS-5 retrievability (R̄) across all reviewed cards;
+ *                    this is the probability of correct recall right now
+ *   Maturity  15 % — fraction of cards with interval ≥ 21 days (long-term consolidation)
+ *
+ * Penalty: −2 points per identified weak chapter area (capped to avoid negative scores).
+ *
+ * @param avgRetrievability  Weighted-average FSRS-5 R(t,S) across chapters (0–100).
+ *                           Pass 0 when no cards have been reviewed yet.
+ * @param matureCards        Count of cards in "review" state with scheduled_days ≥ 21.
+ */
 function buildHostedReadiness(input: {
   totalIncluded: number;
   totalRead: number;
@@ -173,21 +196,45 @@ function buildHostedReadiness(input: {
   flashcardsTotal: number;
   dueToday: number;
   weakAreaCount: number;
+  /** Actual FSRS-5 retrievability average (0-100). 0 means no data yet. */
+  avgRetrievability: number;
+  /** Cards consolidated into long-term memory (interval >= 21 days). */
+  matureCards: number;
 }) {
   const coverage =
-    input.totalIncluded > 0 ? Math.round((input.totalRead / input.totalIncluded) * 100) : 0;
-  const retention =
-    input.flashcardsTotal > 0
-      ? Math.max(0, Math.round(((input.flashcardsTotal - input.dueToday) / input.flashcardsTotal) * 100))
+    input.totalIncluded > 0
+      ? Math.round((input.totalRead / input.totalIncluded) * 100)
       : 0;
-  const consistency = input.totalRead > 0 ? Math.min(100, 25 + input.totalRead) : 0;
+
+  // Retention = true FSRS-5 retrievability (probability of recall right now).
+  // Falls back to a coarser "not-yet-due" ratio when no retrievability data exists.
+  const retention =
+    input.avgRetrievability > 0
+      ? Math.round(input.avgRetrievability)
+      : input.flashcardsTotal > 0
+        ? Math.max(0, Math.round(((input.flashcardsTotal - input.dueToday) / input.flashcardsTotal) * 100))
+        : 0;
+
+  // Maturity = fraction of cards truly consolidated into long-term memory (≥21-day interval).
+  // A rising maturity score proves sustained review over weeks, not just cramming.
+  const maturity =
+    input.flashcardsTotal > 0
+      ? Math.round((input.matureCards / input.flashcardsTotal) * 100)
+      : 0;
+
   const weakAreas = Math.max(0, 100 - Math.min(60, input.weakAreaCount * 12));
 
   const score = Math.max(
     0,
     Math.min(
       100,
-      Math.round(coverage * 0.35 + input.accuracy * 0.35 + retention * 0.15 + consistency * 0.15 - input.weakAreaCount * 3),
+      Math.round(
+        coverage   * 0.30 +
+        input.accuracy * 0.30 +
+        retention  * 0.25 +
+        maturity   * 0.15 -
+        input.weakAreaCount * 2,
+      ),
     ),
   );
 
@@ -205,7 +252,9 @@ function buildHostedReadiness(input: {
       coverage,
       accuracy: input.accuracy,
       retention,
-      consistency,
+      // "consistency" slot repurposed: maturity is a better long-term study indicator
+      // than the old linear chapter-count proxy.
+      consistency: maturity,
       weakAreas,
     },
     trend: "stable" as const,
@@ -316,12 +365,33 @@ async function getFsrsStatsByChapterLite(): Promise<FsrsStatsByChapterRow[]> {
       reviewedCards: sql<number>`
         COUNT(*) FILTER (WHERE ${flashcards.fsrsReps} > 0)
       `,
+      /**
+       * FSRS-5 retrievability: R(t,S) = (1 + 19/81 × t/S)^(-0.5) × 100
+       * where t = actual elapsed days since last review (not a fixed 1-day proxy).
+       * Cards with no review (stability = 0) are excluded from the average.
+       */
       avgRetention: sql<number | null>`
         AVG(
-          CASE WHEN ${flashcards.fsrsStability} > 0
-          THEN EXP(-1.0 / ${flashcards.fsrsStability}) * 100
-          ELSE NULL END
+          CASE
+            WHEN ${flashcards.fsrsStability} > 0
+              AND ${flashcards.fsrsLastReview} IS NOT NULL
+            THEN POWER(
+              1.0 + (19.0 / 81.0)
+                * GREATEST(0.0,
+                    (${now}::float8 - CAST(${flashcards.fsrsLastReview} AS float8))
+                    / 86400000.0)
+                / ${flashcards.fsrsStability},
+              -0.5
+            ) * 100.0
+            WHEN ${flashcards.fsrsStability} > 0
+            THEN 100.0
+            ELSE NULL
+          END
         )
+      `,
+      /** Average stability in days for reviewed cards (NULLIF excludes unreviewed). */
+      avgStability: sql<number | null>`
+        AVG(NULLIF(${flashcards.fsrsStability}, 0))
       `,
       lastReviewedAt: sql<string | null>`
         MAX(${flashcards.fsrsLastReview})::text
@@ -342,7 +412,8 @@ async function getFsrsStatsByChapterLite(): Promise<FsrsStatsByChapterRow[]> {
     totalCards: Number(row.totalCards) || 0,
     dueCards: Number(row.dueCards) || 0,
     reviewedCards: Number(row.reviewedCards) || 0,
-    avgRetention: row.avgRetention == null ? null : Number(row.avgRetention),
+    avgRetention: row.avgRetention == null ? null : Math.min(100, Math.max(0, Number(row.avgRetention))),
+    avgStability: row.avgStability == null ? null : Math.max(0, Number(row.avgStability)),
     lastReviewedAt: row.lastReviewedAt,
   }));
 }
@@ -962,6 +1033,19 @@ export async function getHostedDashboardLiteData() {
     getTrapQuestionsLite(),
   ]);
 
+  // Compute weighted-average FSRS-5 retrievability across all chapters.
+  // Weight each chapter by its reviewed-card count so larger chapters dominate.
+  const totalReviewedCards = fsrsStatsByChapter.reduce(
+    (sum, c) => sum + (c.reviewedCards || 0), 0,
+  );
+  const avgRetrievability =
+    totalReviewedCards > 0
+      ? fsrsStatsByChapter.reduce((sum, c) => {
+          if (c.avgRetention == null || c.reviewedCards === 0) return sum;
+          return sum + c.avgRetention * c.reviewedCards;
+        }, 0) / totalReviewedCards
+      : 0;
+
   const readinessScore = buildHostedReadiness({
     totalIncluded: libraryData.totalIncluded,
     totalRead: libraryData.totalRead,
@@ -969,6 +1053,8 @@ export async function getHostedDashboardLiteData() {
     flashcardsTotal: flashcardStats.total,
     dueToday: flashcardStats.dueToday,
     weakAreaCount: libraryData.weakChapters.length,
+    avgRetrievability: Math.round(avgRetrievability * 10) / 10,
+    matureCards: flashcardStats.matureCards,
   });
 
   const todayKey = new Date().toISOString().slice(0, 10);
