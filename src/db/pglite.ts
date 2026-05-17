@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
@@ -69,24 +69,18 @@ function clearStalePGlitePidFile(location: string) {
     );
     return;
   } catch {
-    // Fall back to the old quarantine path only if the stale pid file cannot be
-    // removed. Preserving the data directory is the normal path; wholesale
-    // quarantine loses planner progress after seed/dev restarts.
+    // On Windows the pid file can remain locked for a brief window while the
+    // previous process releases its file handles (hot reload / fast restart).
+    // Do NOT rename or delete the data directory — that destroys seeded data
+    // and accumulated progress on every dev-server restart.
+    // PGlite checks whether the recorded PID is alive; if the process is dead
+    // it removes the stale lock itself and continues normally. If a live
+    // instance really is running it will throw a clear error.
+    console.warn(
+      `[pglite] Could not remove stale postmaster.pid at ${pidFile}. ` +
+        `Opening database anyway — PGlite will throw if another instance is still running.`,
+    );
   }
-
-  const backupLocation = `${location}-unclean-${Date.now()}`;
-
-  try {
-    renameSync(location, backupLocation);
-  } catch {
-    rmSync(location, { recursive: true, force: true });
-  }
-
-  mkdirSync(location, { recursive: true });
-  console.warn(
-    `Reset stale PGlite data dir at ${location} after failing to remove postmaster.pid.` +
-      ` Previous files were moved to ${backupLocation}.`,
-  );
 }
 
 /**
