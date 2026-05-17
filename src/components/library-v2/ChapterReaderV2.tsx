@@ -24,6 +24,7 @@ import {
   Underline,
   Undo2,
 } from "lucide-react";
+import { toast } from "sonner";
 import type { NoteViewerModel } from "@/lib/contract/note-viewer.types";
 import type { CampbellChapterDetail, CampbellVolumeGroup } from "@/lib/library/queries";
 import type { ChapterStatus } from "@/lib/library/progress";
@@ -41,8 +42,10 @@ import { usePanelState } from "@/hooks/usePanelState";
 import { useReadingProgress } from "@/hooks/useReadingProgress";
 import { useScrollSpy } from "@/hooks/useScrollSpy";
 import { cn } from "@/lib/utils";
+import { resolveAnchorRange } from "@/lib/local-first/anchorResolver";
 
 import { DrawingLayer, type DrawingLayerHandle, type DrawTool } from "./DrawingLayer";
+import { PencilSqueezePalette } from "./PencilSqueezePalette";
 import { ReaderDisplaySettings } from "./ReaderDisplaySettings";
 import { LibraryShell } from "./LibraryShell";
 import { PencilGpuInkLayer } from "./PencilGpuInkLayer";
@@ -106,6 +109,65 @@ const DRAW_WIDTHS = [
   { value: 2.7, dot: 11, label: "Margin" },
 ] as const;
 
+// ── Pointer diagnostics ─────────────────────────────────────────────────────
+// Set NEXT_PUBLIC_READER_POINTER_DEBUG=1 to log all pen/touch pointer events.
+// Use this when validating Apple Pencil Pro button / gesture values on real
+// iPad Pro M5 hardware — do not infer field semantics from simulator output.
+const POINTER_DEBUG =
+  typeof process !== "undefined" &&
+  process.env.NEXT_PUBLIC_READER_POINTER_DEBUG === "1";
+
+// ── Software double-tap fallback gate ────────────────────────────────────────
+// Real Apple Pencil double-tap arrives via the native UIPencilInteraction
+// bridge ("starship:pencil-double-tap" CustomEvent). The software heuristic
+// below is DISABLED by default — it fires from ordinary PointerEvents and is
+// NOT a verified hardware gesture.
+// Enable only for debugging: NEXT_PUBLIC_READER_SOFTWARE_DOUBLE_TAP=1
+const SOFTWARE_DOUBLE_TAP_ENABLED =
+  typeof process !== "undefined" &&
+  process.env.NEXT_PUBLIC_READER_SOFTWARE_DOUBLE_TAP === "1";
+
+// altitudeAngle / azimuthAngle: in W3C spec; TS lib.dom may already declare
+// them as non-optional `number`. Use a loose intersection to avoid conflicts.
+type ExtPointerFields = { altitudeAngle?: number; azimuthAngle?: number };
+
+function logPointerEvent(label: string, e: PointerEvent): void {
+  if (!POINTER_DEBUG) return;
+  const ext = e as PointerEvent & ExtPointerFields;
+  console.log(`[ReaderPencil] ${label}`, {
+    pointerType: e.pointerType,
+    button: e.button,
+    buttons: e.buttons,
+    pressure: e.pressure,
+    tiltX: e.tiltX,
+    tiltY: e.tiltY,
+    ...(ext.altitudeAngle !== undefined && { altitudeAngle: ext.altitudeAngle }),
+    ...(ext.azimuthAngle !== undefined && { azimuthAngle: ext.azimuthAngle }),
+  });
+}
+
+// ── Annotation-range helpers ─────────────────────────────────────────────────
+
+function normalizeAnnotationText(s: string): string {
+  return s.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Returns true when DOM range `a` overlaps range `b` (strictly — not just touching).
+ * Swallows DOMException for cross-document comparisons.
+ */
+function rangesIntersect(a: Range, b: Range): boolean {
+  try {
+    // a.end > b.start  AND  a.start < b.end
+    return (
+      a.compareBoundaryPoints(Range.END_TO_START, b) > 0 &&
+      a.compareBoundaryPoints(Range.START_TO_END, b) < 0
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Stable selector for the reader content area.
  * Used by highlight, underline, annotation, and pen-selection hooks.
@@ -114,7 +176,7 @@ const DRAW_WIDTHS = [
 const READER_CONTENT_SELECTOR = "[data-reader-content]";
 
 /* ── Annotation tool (GoodNotes-style rail) ── */
-type AnnotationTool =
+export type AnnotationTool =
   | "cursor"
   | "highlight"
   | "underline"
@@ -215,6 +277,19 @@ export function ChapterReaderV2({
   // penTool is derived from annotationTool; kept as alias for DrawingLayer
   const penTool = activePenTool;
   const drawingLayerRef = useRef<DrawingLayerHandle>(null);
+
+  // ── Apple Pencil Pro squeeze palette ──────────────────────────────────────
+  //
+  // Opened ONLY via openPaletteFromVerifiedPencilSqueeze(), which is called
+  // exclusively by the "starship:pencil-squeeze" CustomEvent bridge.
+  // No PointerEvent (button===0/1/2, pointerType, etc.) opens this palette.
+  // PointerEvent.button values are NOT Apple Pencil Pro squeeze signals.
+  const [squeezePos, setSqueezePos] = useState<{ x: number; y: number } | null>(null);
+
+  // Software double-tap fallback tracking (pen↔eraser toggle only — NOT palette)
+  const lastPenTapRef = useRef(0);
+  const penDownRef = useRef<{ x: number; y: number } | null>(null);
+  const penMovedRef = useRef(false);
 
   const toggleEraser = useCallback(
     () => selectAnnotationTool("eraser"),
@@ -347,6 +422,246 @@ export function ChapterReaderV2({
     };
     document.addEventListener("reader:selection-settled", handler);
     return () => document.removeEventListener("reader:selection-settled", handler);
+  }, []);
+
+  // H key: remove highlight(s) overlapping the current selection.
+  // B key: scroll to top of reader.
+  // Both are suppressed inside any editable surface or form control.
+  useEffect(() => {
+    const EDITABLE_SELECTOR =
+      "input,textarea,select,[contenteditable]:not([contenteditable='false'])";
+
+    const handler = (e: KeyboardEvent) => {
+      if ((e.target as Element | null)?.closest(EDITABLE_SELECTOR)) return;
+
+      if (e.key === "h" || e.key === "H") {
+        const sel = window.getSelection();
+        const selText = sel?.toString().trim();
+        if (!selText || !sel || sel.rangeCount === 0) return;
+        const selRange = sel.getRangeAt(0);
+
+        const toRemove = annotations.filter((a) => {
+          if (a.type !== "highlight") return false;
+
+          // Primary: DOM-range intersection using stored character offsets.
+          // Requires the frame element to be in the current DOM.
+          if (
+            a.frameId &&
+            typeof a.blockOffsetStart === "number" &&
+            typeof a.blockOffsetEnd === "number" &&
+            a.blockOffsetEnd > a.blockOffsetStart
+          ) {
+            const frameEl = document.querySelector<HTMLElement>(
+              `[data-frame-id="${CSS.escape(a.frameId)}"]`,
+            );
+            if (frameEl) {
+              const annRange = resolveAnchorRange(frameEl, a.blockOffsetStart, a.blockOffsetEnd);
+              if (annRange) return rangesIntersect(annRange, selRange);
+            }
+          }
+
+          // Fallback: exact normalized text match only.
+          // No loose "includes" — that risks deleting unrelated highlights.
+          return normalizeAnnotationText(a.quote) === normalizeAnnotationText(selText);
+        });
+
+        if (toRemove.length > 0) {
+          toRemove.forEach((a) => removeAnnotation(a.id));
+          toast.success(
+            toRemove.length === 1 ? "هایلایت حذف شد" : `${toRemove.length} هایلایت حذف شد`,
+            { duration: 2000 },
+          );
+        }
+      }
+
+      if (e.key === "b" || e.key === "B") {
+        scrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [annotations, removeAnnotation]);
+
+  // ── Apple Pencil Pro squeeze → GoodNotes crescent palette ──────────────────
+  //
+  // Floating palette opens ONLY from a verified Apple Pencil Pro squeeze.
+  // No web PointerEvent fallback is allowed.
+  // PointerEvent.button values (0, 1, 2) are NOT Apple Pencil Pro squeeze.
+  // In pure PWA/Safari mode, this remains unavailable until a native
+  // iOS/WKWebView bridge dispatches the "starship:pencil-squeeze" CustomEvent.
+  //
+  // Bridge event shape:
+  //   new CustomEvent("starship:pencil-squeeze", {
+  //     detail: { x?: number; y?: number; phase?: "began" | "changed" | "ended" }
+  //   })
+  //
+  // The palette opens on phase === "ended" (or when phase is absent).
+  // x/y are the pencil tip viewport coordinates from the native side.
+
+  /** The ONLY function allowed to open the squeeze palette. */
+  const openPaletteFromVerifiedPencilSqueeze = useCallback(
+    (anchor: { x: number; y: number }) => {
+      setSqueezePos(anchor);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      const e = ev as CustomEvent<{ x?: number; y?: number; phase?: "began" | "changed" | "ended" }>;
+      const phase = e.detail?.phase;
+      // Open on phase "ended" or when phase is absent.
+      if (phase === "began" || phase === "changed") return;
+
+      // Fall back to viewport centre when native side omits coordinates.
+      const vw = typeof window !== "undefined" ? window.innerWidth  : 768;
+      const vh = typeof window !== "undefined" ? window.innerHeight : 1024;
+      const x = typeof e.detail?.x === "number" ? e.detail.x : vw / 2;
+      const y = typeof e.detail?.y === "number" ? e.detail.y : vh / 2;
+
+      openPaletteFromVerifiedPencilSqueeze({ x, y });
+    };
+
+    window.addEventListener("starship:pencil-squeeze", handler);
+    return () => window.removeEventListener("starship:pencil-squeeze", handler);
+  }, [openPaletteFromVerifiedPencilSqueeze]);
+
+  // Close palette when the user taps outside of it
+  useEffect(() => {
+    if (!squeezePos) return;
+    const onClose = (e: PointerEvent) => {
+      const el = document.querySelector("[data-pencil-squeeze-palette]");
+      if (!el || !el.contains(e.target as Node)) setSqueezePos(null);
+    };
+    document.addEventListener("pointerdown", onClose);
+    return () => document.removeEventListener("pointerdown", onClose);
+  }, [squeezePos]);
+
+  // ── Apple Pencil Pro hardware double-tap → pen ↔ eraser toggle ──────────────
+  //
+  // Hardware Apple Pencil double-tap is received only through the native
+  // UIPencilInteraction bridge. It is NOT the software heuristic below.
+  // No web PointerEvent fallback is treated as real Apple Pencil double-tap.
+  // Double-tap toggles pen ↔ eraser and never opens the squeeze palette.
+  //
+  // Bridge event shape:
+  //   new CustomEvent("starship:pencil-double-tap", {
+  //     detail: {
+  //       x?: number;             // pencil tip viewport X at double-tap
+  //       y?: number;             // pencil tip viewport Y at double-tap
+  //       preferredAction?: string;  // maps from UIPencilInteraction.preferredTapAction
+  //       source: "uipencilinteraction"  // required — verifies native origin
+  //     }
+  //   })
+
+  /** The ONLY function allowed to respond to a hardware Apple Pencil double-tap. */
+  const handleVerifiedPencilDoubleTap = useCallback(
+    (_detail: { x?: number; y?: number; preferredAction?: string; source: string }) => {
+      // Toggle pen ↔ eraser. Never opens the palette.
+      setAnnotationTool((prev) =>
+        prev === "eraser"
+          ? "pen"
+          : prev === "pen" || prev === "highlighter" || prev === "circle"
+          ? "eraser"
+          : prev,
+      );
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const handler = (ev: Event) => {
+      const e = ev as CustomEvent<{
+        x?: number;
+        y?: number;
+        preferredAction?: string;
+        source?: string;
+      }>;
+      // Guard: only accept events from the verified native UIPencilInteraction bridge.
+      // A missing or wrong source field is silently ignored.
+      if (e.detail?.source !== "uipencilinteraction") return;
+      handleVerifiedPencilDoubleTap({
+        x: e.detail.x,
+        y: e.detail.y,
+        preferredAction: e.detail.preferredAction,
+        source: e.detail.source,
+      });
+    };
+    window.addEventListener("starship:pencil-double-tap", handler);
+    return () => window.removeEventListener("starship:pencil-double-tap", handler);
+  }, [handleVerifiedPencilDoubleTap]);
+
+  // ── Software double-tap fallback (DISABLED by default) ───────────────────────
+  //
+  // This is a PointerEvent heuristic — two rapid no-stroke pen taps → toggle
+  // pen ↔ eraser. It is NOT the Apple Pencil Pro hardware double-tap.
+  // Real hardware double-tap goes through "starship:pencil-double-tap" above.
+  //
+  // Disabled by default. Enable only for debugging:
+  //   NEXT_PUBLIC_READER_SOFTWARE_DOUBLE_TAP=1
+  //
+  // Set NEXT_PUBLIC_READER_POINTER_DEBUG=1 to log all pointer fields when
+  // testing on real iPad Pro M5 + Apple Pencil Pro hardware.
+  useEffect(() => {
+    // Software double-tap fallback — disabled unless explicitly opted in.
+    if (!SOFTWARE_DOUBLE_TAP_ENABLED) return;
+    const onDown = (e: PointerEvent) => {
+      if (e.pointerType !== "pen" && e.pointerType !== "touch") return;
+      logPointerEvent("pointerdown", e);
+      if (e.button !== 0) return;
+      penDownRef.current = { x: e.clientX, y: e.clientY };
+      penMovedRef.current = false;
+    };
+
+    const onMove = (e: PointerEvent) => {
+      if (e.pointerType !== "pen" && e.pointerType !== "touch") return;
+      if (!penDownRef.current) return;
+      const dx = e.clientX - penDownRef.current.x;
+      const dy = e.clientY - penDownRef.current.y;
+      if (dx * dx + dy * dy > 64) penMovedRef.current = true;
+    };
+
+    const onUp = (e: PointerEvent) => {
+      if (e.pointerType !== "pen" && e.pointerType !== "touch") return;
+      logPointerEvent("pointerup", e);
+      if (e.button !== 0) return;
+      const moved = penMovedRef.current;
+      penDownRef.current = null;
+      if (moved) return;
+
+      // Software double-tap fallback: two rapid pen taps without a stroke.
+      // This toggles pen ↔ eraser only — it does NOT open any palette.
+      // This is NOT the Apple Pencil Pro hardware double-tap gesture.
+      const now = performance.now();
+      if (now - lastPenTapRef.current < 400) {
+        setAnnotationTool((prev) =>
+          prev === "eraser"
+            ? "pen"
+            : prev === "pen" || prev === "highlighter" || prev === "circle"
+            ? "eraser"
+            : prev,
+        );
+        lastPenTapRef.current = 0;
+      } else {
+        lastPenTapRef.current = now;
+      }
+    };
+
+    const onCancel = (e: PointerEvent) => {
+      if (e.pointerType !== "pen" && e.pointerType !== "touch") return;
+      penDownRef.current = null;
+    };
+
+    document.addEventListener("pointerdown", onDown, true);
+    document.addEventListener("pointermove", onMove, { capture: true, passive: true });
+    document.addEventListener("pointerup", onUp, true);
+    document.addEventListener("pointercancel", onCancel, true);
+    return () => {
+      document.removeEventListener("pointerdown", onDown, true);
+      document.removeEventListener("pointermove", onMove, true);
+      document.removeEventListener("pointerup", onUp, true);
+      document.removeEventListener("pointercancel", onCancel, true);
+    };
   }, []);
 
   const annotationsByFrameId = useMemo(() => {
@@ -829,6 +1144,22 @@ export function ChapterReaderV2({
             )}
           </div>
         </div>
+      )}
+
+      {/* ══ Apple Pencil Pro squeeze palette ══
+          Rendered ONLY when the "starship:pencil-squeeze" CustomEvent bridge fires.
+          No PointerEvent, toolbar button, long-press, touch-hold, or double-tap opens this. */}
+      {squeezePos && (
+        <PencilSqueezePalette
+          tipX={squeezePos.x}
+          tipY={squeezePos.y}
+          activeTool={annotationTool}
+          activeColor={penColor}
+          onSelectTool={(t) => { selectAnnotationTool(t); setSqueezePos(null); }}
+          onSelectColor={(c) => { setPenColor(c); }}
+          onUndo={() => { undoStroke(); setSqueezePos(null); }}
+          onClose={() => setSqueezePos(null)}
+        />
       )}
 
       {userNotesOpen && (
