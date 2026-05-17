@@ -225,6 +225,62 @@ export interface UserNoteRow {
 
 /* â”€â”€ Dexie class â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
+/* ── Outliner local-first rows ──────────────────────────── */
+
+/** Metadata row for one imported algorithm IR segment. */
+export interface OutlinerAlgorithmSegmentRow {
+  segmentId: string;
+  schemaVersion: string;
+  title: string | null;
+  sourceNoteSegmentId: string | null;
+  sourceNoteSchemaVersion: string | null;
+  sourceFileName: string | null;
+  jsonHash: string;
+  surfaceCount: number;
+  coverageBlockCount: number;
+  totalBlockCount: number;
+  validationStatus: string;
+  chapterNo: number | null;
+  importedAt: string;
+  updatedAt: string;
+}
+
+/** Raw IR JSON payload for one segment. */
+export interface OutlinerAlgorithmIRRow {
+  segmentId: string;
+  rawJson: unknown;
+  jsonHash: string;
+  importedAt: string;
+}
+
+/** Flat surface index entry (one row per surface per segment). */
+export interface OutlinerSurfaceIndexRow {
+  id: string; // `${segmentId}:${surfaceId}`
+  segmentId: string;
+  surfaceId: string;
+  surfaceType: string | null;
+  algorithmShape: string | null;
+  semanticRole: string | null;
+  title: string | null;
+  linkedBlockIds: string[];
+}
+
+/** Validation report for one segment. */
+export interface OutlinerValidationReportRow {
+  segmentId: string;
+  status: string;
+  rawReportJson: unknown;
+  warnings: string[];
+  importedAt: string;
+}
+
+/** Optional MDX mirror for one segment. */
+export interface OutlinerMdxMirrorRow {
+  segmentId: string;
+  rawMdx: string;
+  importedAt: string;
+}
+
 export class StarshipLocalFirstDb extends Dexie {
   outbox!: Table<OutboxRow, string>;
   idMap!: Table<IdMapRow, [EntityType, string]>;
@@ -242,6 +298,11 @@ export class StarshipLocalFirstDb extends Dexie {
   attachmentMap!: Table<AttachmentMapRow, string>;
   handwrittenNotes!: Table<HandwrittenNote, string>;
   userNotes!: Table<UserNoteRow, string>;
+  outlinerAlgorithmSegments!: Table<OutlinerAlgorithmSegmentRow, string>;
+  outlinerAlgorithmIR!: Table<OutlinerAlgorithmIRRow, string>;
+  outlinerSurfaceIndex!: Table<OutlinerSurfaceIndexRow, string>;
+  outlinerValidationReports!: Table<OutlinerValidationReportRow, string>;
+  outlinerMdxMirrors!: Table<OutlinerMdxMirrorRow, string>;
 
   constructor() {
     super("starship-local-first");
@@ -276,6 +337,13 @@ export class StarshipLocalFirstDb extends Dexie {
     this.version(4).stores({
       userNotes:
         "id, docId, segmentId, chapterNo, isDeleted, updatedAt, [docId+isDeleted]",
+    });
+    this.version(5).stores({
+      outlinerAlgorithmSegments: "segmentId, chapterNo, importedAt, updatedAt",
+      outlinerAlgorithmIR: "segmentId, jsonHash, importedAt",
+      outlinerSurfaceIndex: "id, segmentId, surfaceId, surfaceType",
+      outlinerValidationReports: "segmentId, status, importedAt",
+      outlinerMdxMirrors: "segmentId, importedAt",
     });
   }
 }

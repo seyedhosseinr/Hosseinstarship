@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import type { AlgorithmSurface } from "@/types/algorithm-ir";
+import type { AlgorithmIR, AlgorithmSurface } from "@/types/algorithm-ir";
 import type { StrokeAnnotationMetadata, StrokePoint } from "@/types/annotation";
 import {
   applyAnnotationOp,
@@ -10,7 +10,29 @@ import {
 } from "@/lib/outliner/annotation-repository";
 import { crdtManager } from "@/lib/crdt-manager";
 
-// ── Feature 7: Stepwise Reasoning Mode foundation ─────────────────────────────
+// ── Canonical study mode (single source of truth) ────────────────────────────
+export type OutlinerMode = "free" | "stepwise" | "traps" | "recall" | "exam";
+
+// Migration map: old StepwiseMode keys → OutlinerMode
+const MODE_MIGRATION: Record<string, OutlinerMode> = {
+  explore:  "free",
+  step:     "stepwise",
+  trap:     "traps",
+  recall:   "recall",
+  exam:     "exam",
+  weakness: "recall",
+};
+
+// Backward-compat bridge: OutlinerMode → legacy StepwiseMode (for existing renderers)
+const MODE_TO_STEPWISE: Record<OutlinerMode, StepwiseMode | null> = {
+  free:     null,
+  stepwise: "step",
+  traps:    "trap",
+  recall:   "recall",
+  exam:     "exam",
+};
+
+// ── Legacy StepwiseMode (kept for backward compat with renderers.tsx) ─────────
 export type StepwiseMode = "explore" | "step" | "trap" | "recall" | "exam" | "weakness";
 
 export interface SearchResult {
@@ -36,6 +58,15 @@ type AnnotationOp =
   | { op: "deleteStroke"; id: string; segmentId: string };
 
 interface OutlinerState {
+  // ── Canonical navigation + mode (Prompt 2) ──────────────────────────────
+  mode: OutlinerMode;
+  currentSegment: AlgorithmIR | null;
+  currentSurfaceIndex: number;
+  selectedNodeId: string | null;    // mirrors focusedNodeId; canonical for new components
+  isNavigatorOpen: boolean;
+  isFocusMode: boolean;
+
+  // ── Existing fields (kept for backward compat) ──────────────────────────
   segmentId: string | null;
   surfaces: AlgorithmSurface[];
   selectedSurfaceId: string | null;
@@ -61,7 +92,26 @@ interface OutlinerState {
   crdtReady: boolean;
   stepwiseMode: StepwiseMode | null;
 
-  setSegment: (segmentId: string, surfaces: AlgorithmSurface[]) => void;
+  // ── Immersive Graph Mode (Prompt 4) ─────────────────────────────────────
+  isImmersive: boolean;
+  setImmersive: (on: boolean) => void;
+  toggleImmersive: () => void;
+
+  // ── Recall / exam session reveal state (not persisted) ──────────────────
+  revealedNodeLabels: Set<string>;
+  revealedTestablePoints: Set<string>;
+
+  // ── New actions (Prompt 2) ───────────────────────────────────────────────
+  setMode: (next: OutlinerMode) => void;
+  setSurfaceIndex: (i: number) => void;
+  gotoNextSurface: () => void;
+  gotoPrevSurface: () => void;
+  setSelectedNodeId: (id: string | null) => void;
+  setNavigatorOpen: (open: boolean) => void;
+  setFocusMode: (on: boolean) => void;
+
+  // ── Existing actions ─────────────────────────────────────────────────────
+  setSegment: (segmentId: string, surfaces: AlgorithmSurface[], ir?: AlgorithmIR) => void;
   selectSurface: (surfaceId: string, nodeId?: string | null) => void;
   setSearch: (value: string) => void;
   setSearchResults: (results: SearchResult[]) => void;
@@ -86,9 +136,21 @@ interface OutlinerState {
   applyOp: (op: AnnotationOp) => Promise<void>;
   setZoom: (value: number) => void;
   setStepwiseMode: (mode: StepwiseMode | null) => void;
+  revealNodeLabel: (nodeId: string) => void;
+  revealTestablePoint: (nodeId: string) => void;
 }
 
 export const useOutlinerStore = create<OutlinerState>((set, get) => ({
+  // ── New canonical fields ─────────────────────────────────────────────────
+  mode: "free",
+  currentSegment: null,
+  currentSurfaceIndex: 0,
+  selectedNodeId: null,
+  isNavigatorOpen: false,
+  isFocusMode: false,
+  isImmersive: false,
+
+  // ── Existing initial state ────────────────────────────────────────────────
   segmentId: null,
   surfaces: [],
   selectedSurfaceId: null,
@@ -113,28 +175,116 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
   zoomLevel: 1,
   crdtReady: false,
   stepwiseMode: null,
+  revealedNodeLabels: new Set<string>(),
+  revealedTestablePoints: new Set<string>(),
 
-  setSegment: (segmentId, surfaces) =>
-    set((state) => ({
-      segmentId,
-      surfaces,
-      selectedSurfaceId:
-        state.segmentId === segmentId
-          ? (state.selectedSurfaceId ?? surfaces[0]?.id ?? null)
-          : (surfaces[0]?.id ?? null),
-      focusedNodeId: null,
-      searchResults: [],
-      activeSearchIndex: 0,
-      surfaceTrail: [],
-    })),
+  setSegment: (segmentId, surfaces, ir) =>
+    set((state) => {
+      const isSameSegment = state.segmentId === segmentId;
+      const defaultSurfaceId = surfaces[0]?.id ?? null;
+      const newSelectedId = isSameSegment
+        ? (state.selectedSurfaceId ?? defaultSurfaceId)
+        : defaultSurfaceId;
+      const newIndex = isSameSegment
+        ? Math.min(state.currentSurfaceIndex, Math.max(0, surfaces.length - 1))
+        : 0;
+      return {
+        segmentId,
+        surfaces,
+        currentSegment: ir ?? state.currentSegment,
+        currentSurfaceIndex: newIndex,
+        selectedSurfaceId: newSelectedId,
+        focusedNodeId: null,
+        selectedNodeId: null,
+        searchResults: [],
+        activeSearchIndex: 0,
+        surfaceTrail: [],
+      };
+    }),
 
   selectSurface: (surfaceId, nodeId = null) =>
-    set((state) => ({
-      selectedSurfaceId: surfaceId,
-      focusedNodeId: nodeId,
-      surfaceTrail: [surfaceId, ...state.surfaceTrail.filter((id) => id !== surfaceId)].slice(0, 8),
-    })),
+    set((state) => {
+      const idx = state.surfaces.findIndex((s) => s.id === surfaceId);
+      return {
+        selectedSurfaceId: surfaceId,
+        currentSurfaceIndex: idx >= 0 ? idx : state.currentSurfaceIndex,
+        focusedNodeId: nodeId,
+        selectedNodeId: nodeId,
+        surfaceTrail: [surfaceId, ...state.surfaceTrail.filter((id) => id !== surfaceId)].slice(0, 8),
+      };
+    }),
 
+  // ── New action implementations ────────────────────────────────────────────
+  setMode: (next) =>
+    set({
+      mode: next,
+      stepwiseMode: MODE_TO_STEPWISE[next],
+      trapModeActive: next === "traps",
+      thresholdModeActive: false,
+      checkpointModeActive: false,
+      revealedNodeLabels: new Set<string>(),
+      revealedTestablePoints: new Set<string>(),
+    }),
+
+  setSurfaceIndex: (i) =>
+    set((state) => {
+      const surface = state.surfaces[i];
+      if (!surface) return {};
+      return {
+        currentSurfaceIndex: i,
+        selectedSurfaceId: surface.id,
+        focusedNodeId: null,
+        selectedNodeId: null,
+        surfaceTrail: [surface.id, ...state.surfaceTrail.filter((id) => id !== surface.id)].slice(0, 8),
+        revealedNodeLabels: new Set<string>(),
+        revealedTestablePoints: new Set<string>(),
+      };
+    }),
+
+  gotoNextSurface: () =>
+    set((state) => {
+      const next = Math.min(state.currentSurfaceIndex + 1, state.surfaces.length - 1);
+      if (next === state.currentSurfaceIndex) return {};
+      const surface = state.surfaces[next];
+      if (!surface) return {};
+      return {
+        currentSurfaceIndex: next,
+        selectedSurfaceId: surface.id,
+        focusedNodeId: null,
+        selectedNodeId: null,
+        surfaceTrail: [surface.id, ...state.surfaceTrail.filter((id) => id !== surface.id)].slice(0, 8),
+        revealedNodeLabels: new Set<string>(),
+        revealedTestablePoints: new Set<string>(),
+      };
+    }),
+
+  gotoPrevSurface: () =>
+    set((state) => {
+      const prev = Math.max(state.currentSurfaceIndex - 1, 0);
+      if (prev === state.currentSurfaceIndex) return {};
+      const surface = state.surfaces[prev];
+      if (!surface) return {};
+      return {
+        currentSurfaceIndex: prev,
+        selectedSurfaceId: surface.id,
+        focusedNodeId: null,
+        selectedNodeId: null,
+        surfaceTrail: [surface.id, ...state.surfaceTrail.filter((id) => id !== surface.id)].slice(0, 8),
+        revealedNodeLabels: new Set<string>(),
+        revealedTestablePoints: new Set<string>(),
+      };
+    }),
+
+  setSelectedNodeId: (id) => set({ focusedNodeId: id, selectedNodeId: id }),
+
+  setNavigatorOpen: (open) => set({ isNavigatorOpen: open }),
+
+  setFocusMode: (on) => set({ isFocusMode: on }),
+
+  setImmersive: (on) => set({ isImmersive: on }),
+  toggleImmersive: () => set((state) => ({ isImmersive: !state.isImmersive })),
+
+  // ── Existing actions ─────────────────────────────────────────────────────
   setSearch: (value) => set({ searchQuery: value, activeSearchIndex: 0 }),
   setSearchResults: (results) => set({ searchResults: results, activeSearchIndex: 0 }),
   moveSearchCursor: (delta) =>
@@ -188,6 +338,7 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
   resetFocus: () =>
     set({
       focusedNodeId: null,
+      selectedNodeId: null,
       focusPathActive: false,
       trapModeActive: false,
       thresholdModeActive: false,
@@ -272,4 +423,8 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
 
   setZoom: (value) => set({ zoomLevel: Math.max(0.5, Math.min(1.5, value)) }),
   setStepwiseMode: (mode) => set({ stepwiseMode: mode }),
+  revealNodeLabel: (nodeId) =>
+    set((state) => ({ revealedNodeLabels: new Set([...state.revealedNodeLabels, nodeId]) })),
+  revealTestablePoint: (nodeId) =>
+    set((state) => ({ revealedTestablePoints: new Set([...state.revealedTestablePoints, nodeId]) })),
 }));

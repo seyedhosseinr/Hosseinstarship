@@ -64,7 +64,7 @@ export function BottomDock({
       {/* Right: prev / next */}
       <div className="flex items-center gap-1.5">
         <ConfirmButton variant="ghost" onClick={onPrev} disabled={isFirst} className="gap-1.5 border border-lib-border text-[13px]">
-          <ChevronLeft size={16} /> Previous
+          Previous <ChevronRight size={16} />
         </ConfirmButton>
         <ConfirmButton
           variant={isSubmitted ? "primary" : "ghost"}
@@ -72,7 +72,7 @@ export function BottomDock({
           disabled={isLast}
           className={cn("gap-1.5 text-[13px]", !isSubmitted && "border border-lib-border")}
         >
-          {isSubmitted ? "Next" : "Skip"} <ChevronRight size={16} />
+          <ChevronLeft size={16} /> {isSubmitted ? "Next" : "Skip"}
         </ConfirmButton>
       </div>
     </div>

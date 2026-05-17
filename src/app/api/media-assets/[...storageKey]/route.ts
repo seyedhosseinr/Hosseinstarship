@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { NextResponse } from "next/server";
 
 import { getDb } from "@/db";
-import { getMediaAssetPayloadByStorageKey } from "@/lib/starship-media/db";
+import { getMediaAssetPayload } from "@/lib/starship-media/db";
 import {
   inferContentTypeFromPath,
   normalizeBundledMediaStorageKey,
@@ -26,32 +26,31 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ ok: false, error: "invalid-storage-key" }, { status: 400 });
   }
 
-  try {
-    const db = await getDb();
-    const payload = await getMediaAssetPayloadByStorageKey(db, storageKey);
-
-    if (payload) {
-      return new Response(
-        Uint8Array.from(Buffer.from(payload.base64Data, "base64")),
-        {
-          status: 200,
-          headers: {
-            "content-type": payload.contentType,
-            "content-length": String(payload.byteLength),
-            "cache-control": "public, max-age=31536000, immutable",
-          },
-        },
-      );
-    }
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.warn("[media-assets] DB lookup failed:", err);
-  }
+  const dbResponse = await tryReadBundledDbPayload(storageKey);
+  if (dbResponse) return dbResponse;
 
   const fileResponse = await tryReadBundledPublicFile(storageKey);
   if (fileResponse) return fileResponse;
 
   return NextResponse.json({ ok: false, error: "not-found" }, { status: 404 });
+}
+
+async function tryReadBundledDbPayload(storageKey: string): Promise<Response | null> {
+  try {
+    const db = await getDb();
+    const payload = await getMediaAssetPayload(db, storageKey);
+    if (!payload) return null;
+    return new Response(Buffer.from(payload.bytes), {
+      status: 200,
+      headers: {
+        "content-type": payload.contentType || inferContentTypeFromPath(storageKey),
+        "content-length": String(payload.byteLength),
+        "cache-control": "public, max-age=3600",
+      },
+    });
+  } catch {
+    return null;
+  }
 }
 
 async function tryReadBundledPublicFile(storageKey: string): Promise<Response | null> {

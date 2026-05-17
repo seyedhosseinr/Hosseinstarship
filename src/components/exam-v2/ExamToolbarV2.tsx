@@ -83,16 +83,16 @@ export function ExamToolbarV2({
 
         <span className="mx-1.5 h-5 w-px bg-lib-bar-border" />
 
-        <BarButton onClick={onPrev} disabled={currentIndex === 0} title="سوال قبلی (←)">
-          <ChevronLeft size={14} />
+        <BarButton onClick={onPrev} disabled={currentIndex === 0} title="سوال قبلی (→)">
+          <ChevronRight size={14} />
         </BarButton>
 
         <span className="rounded-md bg-black/[0.04] px-2.5 py-0.5 text-xs font-semibold tabular-nums text-lib-bar-text dark:bg-white/[0.06]">
           Item {currentIndex + 1} of {total}
         </span>
 
-        <BarButton onClick={onNext} disabled={currentIndex >= total - 1} title="سوال بعدی (→)">
-          <ChevronRight size={14} />
+        <BarButton onClick={onNext} disabled={currentIndex >= total - 1} title="سوال بعدی (←)">
+          <ChevronLeft size={14} />
         </BarButton>
 
         <span className="mx-1.5 h-5 w-px bg-lib-bar-border" />

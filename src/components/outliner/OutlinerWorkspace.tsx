@@ -1,9 +1,16 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { BookOpen, ChevronRight, X } from "lucide-react";
 
 import { OutlinerSegmentView } from "@/components/outliner/OutlinerSegmentView";
-import { aggregateSurfaceStats, buildChapterNavItems, type ChapterNavItem, type SurfaceStats } from "@/components/outliner/navigation-labels";
+import { useOutlinerStore } from "@/components/outliner/outliner-store";
+import {
+  aggregateSurfaceStats,
+  buildChapterNavItems,
+  type ChapterNavItem,
+  type SurfaceStats,
+} from "@/components/outliner/navigation-labels";
 import {
   listOutlinerSegmentsLocal,
   loadOutlinerAlgorithmIR,
@@ -21,19 +28,32 @@ export function OutlinerWorkspace({ initialSegmentId }: OutlinerWorkspaceProps) 
   const [active, setActive] = useState<LoadedOutlinerAlgorithmSegment | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [chapterPanelCollapsed, setChapterPanelCollapsed] = useState(false);
-  const [focusMode, setFocusMode] = useState(false);
+  const [chapterPanelCollapsed, setChapterPanelCollapsed] = useState(true);
+  const isFocusMode = useOutlinerStore((s) => s.isFocusMode);
 
   const hasActive = useMemo(() => Boolean(active?.ir), [active]);
   const chapters = useMemo(() => buildChapterNavItems(segments), [segments]);
-  const activeChapterKey = useMemo(() => {
-    return chapters.find((chapter) => chapter.segments.some((segment) => segment.segmentId === activeSegmentId))?.key ?? chapters[0]?.key ?? null;
-  }, [activeSegmentId, chapters]);
-  const activeChapterStats = useMemo(() => (active?.ir ? aggregateSurfaceStats(active.ir.surfaces) : null), [active?.ir]);
+  const activeChapter = useMemo(
+    () =>
+      chapters.find((c) => c.segments.some((s) => s.segmentId === activeSegmentId)) ??
+      chapters[0] ??
+      null,
+    [activeSegmentId, chapters],
+  );
+  const activeChapterIndex = useMemo(
+    () => (activeChapter ? chapters.findIndex((c) => c.key === activeChapter.key) : -1),
+    [activeChapter, chapters],
+  );
+  const activeChapterStats = useMemo(
+    () => (active?.ir ? aggregateSurfaceStats(active.ir.surfaces) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [active?.ir],
+  );
 
   function openChapter(chapter: ChapterNavItem) {
     const firstSegment = chapter.segments[0];
     if (firstSegment) setActiveSegmentId(firstSegment.segmentId);
+    setChapterPanelCollapsed(true);
   }
 
   async function refreshSegments() {
@@ -57,7 +77,7 @@ export function OutlinerWorkspace({ initialSegmentId }: OutlinerWorkspaceProps) 
         setActive(null);
         setError(
           `داده این فصل در حافظه محلی کامل نیست (segmentId: ${segmentId}). ` +
-          "لطفاً از صفحه ایمپورت، فایل‌ها را حذف و دوباره وارد کنید.",
+            "لطفاً از صفحه ایمپورت، فایل‌ها را حذف و دوباره وارد کنید.",
         );
         return;
       }
@@ -82,37 +102,37 @@ export function OutlinerWorkspace({ initialSegmentId }: OutlinerWorkspaceProps) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSegmentId]);
 
-  return (
-    <main dir="rtl" className="outliner-workspace mx-auto w-full max-w-none px-3 py-4 lg:px-4">
-      <section className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-bold">Outliner</h1>
-          <p className="text-xs text-muted-foreground">Clinical algorithm browser</p>
-        </div>
-        <a
-          href="/import/outliner"
-          className="inline-flex min-h-11 items-center rounded-md border border-border/60 bg-background/70 px-3 text-xs font-medium hover:bg-background"
-        >
-          Import Algorithm IR
-        </a>
-      </section>
+  const showChapterStrip =
+    !isFocusMode && chapterPanelCollapsed && chapters.length > 0;
 
+  return (
+    <main className="outliner-workspace bg-white min-h-[calc(100vh-32px)]">
       {error && (
-        <section className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
+        <div className="border-b border-red-100 bg-red-50/80 px-4 py-2.5 text-xs text-red-700">
           {error}
-        </section>
+        </div>
       )}
 
       {segments.length === 0 ? (
-        <section className="rounded-md border border-border/60 bg-card/40 p-4 text-sm text-muted-foreground">
-          Import an Algorithm IR file to start browsing chapters.
+        <section className="flex min-h-[calc(100vh-32px)] flex-col items-center justify-center gap-4 p-8 text-center">
+          <BookOpen className="h-10 w-10 text-gray-200" />
+          <p className="text-sm font-medium text-gray-500">هنوز الگوریتمی وارد نشده است.</p>
+          <p className="text-xs text-gray-400">
+            برای شروع، یک فایل Algorithm IR را از صفحه ایمپورت وارد کنید.
+          </p>
         </section>
       ) : (
-        <div className={`grid min-h-[calc(100vh-112px)] grid-cols-1 gap-3 ${focusMode || chapterPanelCollapsed ? "lg:grid-cols-[minmax(0,1fr)]" : "lg:grid-cols-[280px_minmax(0,1fr)]"}`}>
-          {!focusMode && !chapterPanelCollapsed && (
+        <div
+          className={`grid min-h-[calc(100vh-32px)] grid-cols-1 ${
+            !isFocusMode && !chapterPanelCollapsed
+              ? "lg:grid-cols-[260px_minmax(0,1fr)]"
+              : ""
+          }`}
+        >
+          {!isFocusMode && !chapterPanelCollapsed && (
             <ChapterPanel
               chapters={chapters}
-              activeChapterKey={activeChapterKey}
+              activeChapterKey={activeChapter?.key ?? null}
               onOpenChapter={openChapter}
               loading={loading}
               activeStats={activeChapterStats}
@@ -120,18 +140,34 @@ export function OutlinerWorkspace({ initialSegmentId }: OutlinerWorkspaceProps) 
             />
           )}
 
-          <section className="min-w-0 overflow-hidden rounded-md border border-border/60 bg-card/30">
-            {!focusMode && chapterPanelCollapsed && (
-              <div className="border-b border-border/60 bg-card/70 p-2">
+          <section className="min-w-0">
+            {showChapterStrip && chapters.length > 1 && (
+              <div className="flex items-center gap-2 border-b border-gray-100 bg-white px-4 py-2">
                 <button
                   type="button"
-                  className="min-h-10 rounded-md border border-border/60 bg-background/70 px-3 text-xs font-medium hover:bg-background"
                   onClick={() => setChapterPanelCollapsed(false)}
+                  className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-50"
                 >
-                  Show chapters
+                  <BookOpen className="h-3.5 w-3.5" />
+                  فصل‌ها
+                  <span className="rounded-full bg-gray-100 px-1.5 py-px text-[10px] tabular-nums">
+                    {chapters.length}
+                  </span>
                 </button>
+                {activeChapter && (
+                  <>
+                    <ChevronRight className="h-3 w-3 text-gray-300" />
+                    <span className="text-xs font-medium text-gray-700" dir="rtl" lang="fa">
+                      {activeChapter.label}
+                    </span>
+                    <span className="ml-auto text-[10px] text-gray-400 tabular-nums">
+                      {activeChapterIndex + 1} / {chapters.length}
+                    </span>
+                  </>
+                )}
               </div>
             )}
+
             {hasActive && active ? (
               <OutlinerSegmentView
                 segmentId={active.segment.segmentId}
@@ -139,10 +175,11 @@ export function OutlinerWorkspace({ initialSegmentId }: OutlinerWorkspaceProps) 
                 parseWarnings={active.parseWarnings}
                 validationRaw={active.validationRaw}
                 mediaRaw={active.mediaRaw}
-                onFocusModeChange={setFocusMode}
               />
             ) : (
-              <div className="p-4 text-sm text-muted-foreground">Select a chapter to open its clinical algorithms.</div>
+              <div className="flex min-h-[calc(100vh-80px)] items-center justify-center p-8 text-sm text-gray-400">
+                {loading ? "در حال بارگذاری..." : "یک فصل را از فهرست انتخاب کنید."}
+              </div>
             )}
           </section>
         </div>
@@ -167,17 +204,22 @@ function ChapterPanel({
   onCollapse: () => void;
 }) {
   return (
-    <aside className="outliner-chapter-panel rounded-md border border-border/60 bg-card/70 p-3">
-      <div className="mb-3">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-bold">Chapters</h2>
-          <button type="button" className="min-h-10 rounded-md border border-border/60 px-2 text-[11px]" onClick={onCollapse}>
-            Collapse
+    <aside className="outliner-chapter-panel flex h-[calc(100vh-32px)] flex-col overflow-hidden border-r border-gray-100 bg-white">
+      <div className="shrink-0 flex items-center justify-between gap-2 border-b border-gray-100 px-4 py-3">
+        <h2 className="text-sm font-semibold text-gray-800">فصل‌ها</h2>
+        <div className="flex items-center gap-2">
+          {loading && <span className="text-[10px] text-gray-400">بارگذاری...</span>}
+          <button
+            type="button"
+            onClick={onCollapse}
+            className="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600"
+          >
+            <X className="h-4 w-4" />
           </button>
         </div>
-        <p className="text-[11px] text-muted-foreground">{loading ? "Loading..." : `${chapters.length} available`}</p>
       </div>
-      <nav className="space-y-1" aria-label="Outliner chapters">
+
+      <nav className="flex-1 space-y-1 overflow-y-auto p-3" aria-label="Outliner chapters">
         {chapters.map((chapter) => {
           const active = chapter.key === activeChapterKey;
           return (
@@ -185,23 +227,28 @@ function ChapterPanel({
               key={chapter.key}
               type="button"
               onClick={() => onOpenChapter(chapter)}
-              className={`min-h-11 w-full rounded-md border px-3 py-2 text-right transition ${
+              className={`min-h-11 w-full rounded-xl px-3 py-2.5 text-right transition ${
                 active
-                  ? "border-primary/70 bg-primary/10 text-foreground shadow-sm"
-                  : "border-transparent text-muted-foreground hover:border-border/70 hover:bg-background/70 hover:text-foreground"
+                  ? "bg-blue-50 text-blue-900"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               }`}
             >
-              <span className="block text-sm font-semibold leading-5">{chapter.label}</span>
-              <span className="mt-1 block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                {chapter.algorithmCount || chapter.segments.length} algorithms
+              <span className="block text-sm font-semibold leading-5" dir="rtl" lang="fa">
+                {chapter.label}
+              </span>
+              <span className="mt-0.5 block text-[10px] text-gray-400">
+                {chapter.algorithmCount ?? chapter.segments.length} الگوریتم
               </span>
               {active && activeStats && (
-                <span className="mt-2 flex flex-wrap gap-1 text-[10px] text-muted-foreground">
-                  <span>{activeStats.checkpoints} checkpoints</span>
-                  <span>{activeStats.traps} traps</span>
-                  <span>{activeStats.gates} gates</span>
-                  <span>{activeStats.matrices} matrices</span>
-                </span>
+                <div className="mt-1.5 flex flex-wrap gap-2 text-[10px] text-gray-400">
+                  {activeStats.checkpoints > 0 && (
+                    <span>{activeStats.checkpoints} چک‌پوینت</span>
+                  )}
+                  {activeStats.traps > 0 && (
+                    <span className="text-rose-400">{activeStats.traps} دام</span>
+                  )}
+                  {activeStats.gates > 0 && <span>{activeStats.gates} گیت</span>}
+                </div>
               )}
             </button>
           );
@@ -210,4 +257,3 @@ function ChapterPanel({
     </aside>
   );
 }
-

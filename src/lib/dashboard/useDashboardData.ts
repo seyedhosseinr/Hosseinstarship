@@ -120,6 +120,7 @@ type FsrsStatsByChapter = {
   dueCards: number;
   reviewedCards: number;
   avgRetention: number | null;
+  avgStability: number | null;
   lastReviewedAt: string | null;
 };
 
@@ -515,7 +516,8 @@ function normalizeStatsPayload(json: any): DashboardServerStats {
           totalCards: Number(item.totalCards) || 0,
           dueCards: Number(item.dueCards) || 0,
           reviewedCards: Number(item.reviewedCards) || 0,
-          avgRetention: item.avgRetention == null ? null : Number(item.avgRetention),
+          avgRetention: item.avgRetention == null ? null : Math.min(100, Math.max(0, Number(item.avgRetention))),
+          avgStability: item.avgStability == null ? null : Math.max(0, Number(item.avgStability)),
           lastReviewedAt: item.lastReviewedAt == null ? null : String(item.lastReviewedAt),
         }))
       : [],

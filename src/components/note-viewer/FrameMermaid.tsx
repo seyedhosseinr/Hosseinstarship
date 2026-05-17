@@ -38,8 +38,7 @@ function loadMermaid(): Promise<MermaidApi | null> {
     // opaque to bundler static analyzers. Keeps the component usable in
     // environments where `mermaid` is not yet installed (tests pre-install)
     // without breaking dev/prod bundling once it IS installed.
-    const specifier = "mermaid";
-    mermaidPromise = import(/* @vite-ignore */ specifier)
+    mermaidPromise = import(/* webpackIgnore: true */ "mermaid")
       .then((mod: unknown) => {
         const m = mod as { default?: MermaidApi } & MermaidApi;
         const api: MermaidApi | null = m?.default ?? (m as MermaidApi);

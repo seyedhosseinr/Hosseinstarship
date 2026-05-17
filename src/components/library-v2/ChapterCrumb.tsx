@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -55,7 +55,7 @@ export function ChapterCrumb({
         return (
           <span key={i} className="flex items-center gap-1">
             {i > 0 && (
-              <ChevronRight className="h-3 w-3 shrink-0 text-lib-text-muted" />
+              <ChevronLeft className="h-3 w-3 shrink-0 text-lib-text-muted" />
             )}
             {seg.href && !isLast ? (
               <Link

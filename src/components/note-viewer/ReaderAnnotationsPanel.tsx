@@ -52,7 +52,7 @@ function formatDate(value: string) {
 
 /* ════════════════════════════════════════════════════════
    ReaderAnnotationsPanel
-   ─ Desktop (≥1024px): fixed right rail, full height
+   ─ Desktop (≥1024px): fixed left rail, full height
    ─ Mobile/tablet (<1024px): bottom sheet drawer
 ════════════════════════════════════════════════════════ */
 
@@ -96,8 +96,8 @@ export function ReaderAnnotationsPanel({
         className={cn(
           "fixed z-[140] flex flex-col",
           "bg-lib-surface/98 backdrop-blur-xl",
-          // Desktop: right rail
-          "lg:inset-y-0 lg:right-0 lg:w-80 lg:border-l lg:border-lib-border lg:shadow-none",
+          // Desktop: left rail
+          "lg:inset-y-0 lg:left-0 lg:w-80 lg:border-r lg:border-lib-border lg:shadow-none",
           // Mobile/tablet: bottom sheet
           "max-lg:inset-x-0 max-lg:bottom-0 max-lg:max-h-[72vh]",
           "max-lg:rounded-t-2xl max-lg:border-t max-lg:border-lib-border max-lg:shadow-2xl",

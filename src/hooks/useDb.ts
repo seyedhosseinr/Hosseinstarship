@@ -66,6 +66,7 @@ export interface LocalFsrsStatsByChapter {
   dueCards: number;
   reviewedCards: number;
   avgRetention: number | null;
+  avgStability: number | null;
   lastReviewedAt: string | null;
 }
 
@@ -134,7 +135,20 @@ export async function getLocalFsrsStatsByChapter(): Promise<LocalFsrsStatsByChap
         CAST(COUNT(*) AS INTEGER) AS "totalCards",
         CAST(SUM(CASE WHEN fsrs_due IS NOT NULL AND fsrs_due <= $1 THEN 1 ELSE 0 END) AS INTEGER) AS "dueCards",
         CAST(SUM(CASE WHEN fsrs_reps > 0 THEN 1 ELSE 0 END) AS INTEGER) AS "reviewedCards",
-        AVG(CASE WHEN fsrs_stability > 0 THEN EXP(-1.0 / fsrs_stability) * 100 ELSE NULL END) AS "avgRetention",
+        AVG(
+          CASE
+            WHEN fsrs_stability > 0 AND fsrs_last_review IS NOT NULL
+            THEN POWER(
+              1.0 + (19.0 / 81.0)
+                * GREATEST(0.0, ($1::float8 - CAST(fsrs_last_review AS float8)) / 86400000.0)
+                / fsrs_stability,
+              -0.5
+            ) * 100.0
+            WHEN fsrs_stability > 0 THEN 100.0
+            ELSE NULL
+          END
+        ) AS "avgRetention",
+        AVG(NULLIF(fsrs_stability, 0)) AS "avgStability",
         CAST(MAX(fsrs_last_review) AS TEXT) AS "lastReviewedAt"
      FROM flashcards
      WHERE chapter_id IS NOT NULL
@@ -149,7 +163,8 @@ export async function getLocalFsrsStatsByChapter(): Promise<LocalFsrsStatsByChap
     totalCards: Number(row.totalCards) || 0,
     dueCards: Number(row.dueCards) || 0,
     reviewedCards: Number(row.reviewedCards) || 0,
-    avgRetention: row.avgRetention == null ? null : Number(row.avgRetention),
+    avgRetention: row.avgRetention == null ? null : Math.min(100, Math.max(0, Number(row.avgRetention))),
+    avgStability: row.avgStability == null ? null : Math.max(0, Number(row.avgStability)),
     lastReviewedAt: row.lastReviewedAt ?? null,
   }));
 }

@@ -33,11 +33,22 @@ const ARROW_HW           = 5.5;
 // ─── Colour tables ────────────────────────────────────────────────────────────
 
 const EDGE_RGBA: Record<string, readonly [number, number, number, number]> = {
-  escalation:       [0.937, 0.267, 0.267, 0.90],
-  trap:             [0.984, 0.447, 0.522, 0.90],
-  exception_branch: [0.976, 0.451, 0.086, 0.90],
-  threshold_split:  [0.961, 0.620, 0.043, 0.90],
-  default:          [0.610, 0.670, 0.750, 0.88],
+  // Full spec coverage — every edgeType maps to a distinct colour
+  progression:           [0.796, 0.835, 0.882, 0.88],
+  finding_to_action:     [0.133, 0.773, 0.369, 0.90],
+  test_to_result:        [0.055, 0.647, 0.914, 0.90],
+  yes_no:                [0.392, 0.455, 0.545, 0.90],
+  threshold_split:       [0.961, 0.620, 0.043, 0.90],
+  failure_branch:        [0.957, 0.247, 0.369, 0.90],
+  exception_branch:      [0.976, 0.451, 0.086, 0.90],
+  classification_branch: [0.388, 0.400, 0.945, 0.90],
+  risk_split:            [0.659, 0.333, 0.969, 0.90],
+  follow_up_trigger:     [0.078, 0.722, 0.651, 0.90],
+  concept_to_effect:     [0.055, 0.647, 0.914, 0.90],
+  trap:                  [0.863, 0.149, 0.149, 0.90],
+  // legacy / node-type overloads
+  escalation:            [0.937, 0.267, 0.267, 0.90],
+  default:               [0.610, 0.670, 0.750, 0.88],
 };
 function edgeRGBA(t?: string): readonly [number, number, number, number] {
   return EDGE_RGBA[t ?? "default"] ?? EDGE_RGBA.default;
@@ -278,6 +289,7 @@ function buildEdgeBuffers(
   zoom: number,
   ancestorSet?: Set<string>,
   nextSet?: Set<string>,
+  highlightSet?: Set<string>,
 ): { stripData: Float32Array; arrowData: Float32Array } {
   const strip: number[] = [];
   const arrow: number[] = [];
@@ -286,6 +298,9 @@ function buildEdgeBuffers(
     const le = edges[ei];
     const { edge, fromPos: f, toPos: to } = le;
     const [er, eg, eb, baseA] = edgeRGBA(edge.edgeType) as [number,number,number,number];
+
+    // Traps mode: dim edges not touching a highlighted (trap) node
+    const trapsDimFactor = (highlightSet && highlightSet.size > 0 && !highlightSet.has(edge.from) && !highlightSet.has(edge.to)) ? 0.15 : 1.0;
 
     // F2: next-decision edge leaves selected node toward an outgoing neighbor
     const isNext = selected !== null && edge.from === selected && (nextSet?.has(edge.to) ?? false);
@@ -298,7 +313,7 @@ function buildEdgeBuffers(
                 || visited.has(edge.from) || visited.has(edge.to)
                 || isPath || isNext;
     const dimmed = selected !== null && !isHi;
-    const alpha  = dimmed ? Math.max(baseA * 0.42, 0.34) : baseA;
+    const alpha  = (dimmed ? Math.max(baseA * 0.42, 0.34) : baseA) * trapsDimFactor;
     const hi     = isHi ? 1.0 : 0.0;
 
     // F2: next-decision edges get an emerald tint to signal "what to decide next"
@@ -508,6 +523,8 @@ export interface OutlinerWebGLCanvasProps {
   ancestorPath?: string[];          // F1: node IDs on clinical path from root → selected
   nextNodeIds?:  string[];          // F2: outgoing neighbors of selected (next decisions)
   eduHeat?:      Map<string, number>; // F6: educational heat override per nodeId (0-1)
+  // Study mode effects
+  highlightNodeIds?: string[];      // traps mode: these nodes stay full opacity; others dim
 }
 
 export function OutlinerWebGLCanvas({
@@ -522,6 +539,7 @@ export function OutlinerWebGLCanvas({
   ancestorPath,
   nextNodeIds,
   eduHeat,
+  highlightNodeIds,
 }: OutlinerWebGLCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glRef     = useRef<WebGL2RenderingContext | null>(null);
@@ -665,12 +683,13 @@ export function OutlinerWebGLCanvas({
     const gl = glRef.current;
     if (!gl || !eStripVAO.current || !edgeProgRef.current) return;
 
-    const visited     = new Set(visitedPath);
-    const ancestorSet = new Set(ancestorPath ?? []);
-    const nextSet     = new Set(nextNodeIds  ?? []);
+    const visited      = new Set(visitedPath);
+    const ancestorSet  = new Set(ancestorPath    ?? []);
+    const nextSet      = new Set(nextNodeIds      ?? []);
+    const highlightSet = new Set(highlightNodeIds ?? []);
 
     // Edge geometry — F1/F2: pass ancestor and next-decision sets for visual emphasis
-    const { stripData, arrowData } = buildEdgeBuffers(layoutEdges, selectedNodeId, visited, zoom, ancestorSet, nextSet);
+    const { stripData, arrowData } = buildEdgeBuffers(layoutEdges, selectedNodeId, visited, zoom, ancestorSet, nextSet, highlightSet);
     gl.bindBuffer(gl.ARRAY_BUFFER, eStripBuf.current);
     gl.bufferData(gl.ARRAY_BUFFER, stripData, gl.DYNAMIC_DRAW);
     eStripLen.current = stripData.length / ES;
@@ -844,7 +863,7 @@ export function OutlinerWebGLCanvas({
 
     draw();
     return () => cancelAnimationFrame(rafRef.current);
-  }, [layoutEdges, layoutNodes, selectedNodeId, visitedPath, canvasWidth, canvasHeight, zoom, ancestorPath, nextNodeIds, eduHeat]);
+  }, [layoutEdges, layoutNodes, selectedNodeId, visitedPath, canvasWidth, canvasHeight, zoom, ancestorPath, nextNodeIds, eduHeat, highlightNodeIds]);
 
   return (
     <canvas

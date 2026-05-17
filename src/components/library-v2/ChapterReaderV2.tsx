@@ -488,7 +488,7 @@ export function ChapterReaderV2({
                 title="Back to library"
                 className="inline-flex h-9 w-9 items-center justify-center rounded-full text-lib-text-secondary transition-colors hover:bg-lib-hover hover:text-lib-text"
               >
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowRight className="h-4 w-4" />
               </Link>
 
               <button
@@ -981,7 +981,7 @@ export function ChapterReaderV2({
                 href={`/library/campbell/chapter/${chapter.previousChapterNo}`}
                 className="inline-flex min-h-[var(--lib-touch-min)] items-center gap-2 rounded-lib-sm border border-lib-border bg-lib-surface px-4 py-2 text-sm text-lib-text-secondary transition-colors hover:bg-lib-hover"
               >
-                <ArrowLeft className="h-4 w-4" />
+                <ArrowRight className="h-4 w-4" />
                 Ch. {chapter.previousChapterNo}
               </Link>
             ) : <span />}
@@ -991,7 +991,7 @@ export function ChapterReaderV2({
                 className="inline-flex min-h-[var(--lib-touch-min)] items-center gap-2 rounded-lib-sm border border-lib-border bg-lib-surface px-4 py-2 text-sm text-lib-text-secondary transition-colors hover:bg-lib-hover"
               >
                 Ch. {chapter.nextChapterNo}
-                <ArrowRight className="h-4 w-4" />
+                <ArrowLeft className="h-4 w-4" />
               </Link>
             ) : <span />}
           </div>

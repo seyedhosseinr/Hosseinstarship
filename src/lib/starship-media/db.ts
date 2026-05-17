@@ -22,11 +22,18 @@
  *      `import-light/jsonField` convention.
  */
 
-import { eq, inArray, sql } from "drizzle-orm";
-import { mediaAssets } from "@/db/schema";
+import { eq, inArray, sql, asc } from "drizzle-orm";
+import { mediaAssets, mediaAssetPayloads } from "@/db/schema";
 import type { AppDrizzleInstance } from "@/db/index";
-import type { AssetUpserter, MediaAssetUpsertRow } from "./importer";
+import type { AssetUpserter, BundleStorage, MediaAssetUpsertRow } from "./importer";
 import type { MediaAsset, MediaAssetKind } from "./types";
+import {
+  buildBundledMediaServePath,
+  buildBundledMediaStorageKey,
+  inferContentTypeFromPath,
+  normalizeBundledMediaStorageKey,
+  storagePathToBundledMediaKey,
+} from "./storage";
 
 /**
  * Bulk upsert N media-asset rows into the `media_assets` table, keyed
@@ -108,6 +115,97 @@ export function drizzleUpserter(db: AppDrizzleInstance): AssetUpserter {
   };
 }
 
+interface MediaAssetPayloadUpsertRow {
+  storageKey: string;
+  contentType: string;
+  data: Uint8Array;
+}
+
+interface MediaAssetPayloadRecord {
+  storageKey: string;
+  contentType: string;
+  bytes: Uint8Array;
+  byteLength: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * DB-backed bundle storage for Vercel-safe imports. The importer writes the
+ * binary payload into `media_asset_payloads` and gets back the route path that
+ * the Reader can request later on any runtime.
+ */
+export function drizzleBundleStorage(db: AppDrizzleInstance): BundleStorage {
+  return {
+    async writeFile(relPath, data) {
+      const storageKey = normalizeBundledMediaStorageKey(relPath);
+      if (!storageKey) {
+        throw new Error(`invalid-storage-key:${relPath}`);
+      }
+      await upsertMediaAssetPayload(db, {
+        storageKey,
+        contentType: inferContentTypeFromPath(storageKey),
+        data,
+      });
+      return buildBundledMediaServePath(storageKey);
+    },
+  };
+}
+
+export async function upsertMediaAssetPayload(
+  db: AppDrizzleInstance,
+  row: MediaAssetPayloadUpsertRow,
+  now: number = Date.now(),
+): Promise<void> {
+  const storageKey = normalizeBundledMediaStorageKey(row.storageKey);
+  if (!storageKey) {
+    throw new Error(`invalid-storage-key:${row.storageKey}`);
+  }
+
+  await db
+    .insert(mediaAssetPayloads)
+    .values({
+      storageKey,
+      contentType: row.contentType,
+      base64Data: Buffer.from(row.data).toString("base64"),
+      byteLength: row.data.byteLength,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: mediaAssetPayloads.storageKey,
+      set: {
+        contentType: sql`excluded.content_type`,
+        base64Data: sql`excluded.base64_data`,
+        byteLength: sql`excluded.byte_length`,
+        updatedAt: sql`excluded.updated_at`,
+      },
+    });
+}
+
+export async function getMediaAssetPayload(
+  db: AppDrizzleInstance,
+  storageKeyInput: string,
+): Promise<MediaAssetPayloadRecord | null> {
+  const storageKey = normalizeBundledMediaStorageKey(storageKeyInput);
+  if (!storageKey) return null;
+
+  const [row] = await db
+    .select()
+    .from(mediaAssetPayloads)
+    .where(eq(mediaAssetPayloads.storageKey, storageKey));
+  if (!row) return null;
+
+  return {
+    storageKey: row.storageKey,
+    contentType: row.contentType || inferContentTypeFromPath(storageKey),
+    bytes: Uint8Array.from(Buffer.from(row.base64Data, "base64")),
+    byteLength: row.byteLength,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+}
+
 /**
  * Fetch every `media_assets` row for one chapter and convert each into
  * the client-shaped `MediaAsset`. Used by `GET /api/media-registry/:chapter`.
@@ -141,7 +239,7 @@ export function rowToMediaAsset(
     figureLabel: row.figureLabel,
     kind: row.kind as MediaAssetKind,
     filename: row.filename,
-    storagePath: row.storagePath,
+    storagePath: normalizeMediaAssetStoragePath(row),
     sourcePage: row.sourcePage,
     caption: row.caption,
     tags: parseTagsJson(row.tagsJson),
@@ -149,6 +247,54 @@ export function rowToMediaAsset(
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
+}
+
+function normalizeMediaAssetStoragePath(
+  row: typeof mediaAssets.$inferSelect,
+): string | null {
+  const storagePath = row.storagePath;
+  if (!storagePath && !row.filename) return null;
+
+  if (storagePath?.startsWith("/api/media-assets/")) {
+    return storagePath;
+  }
+
+  const legacyKey = storagePathToBundledMediaKey(storagePath);
+  if (legacyKey) {
+    return buildBundledMediaServePath(legacyKey);
+  }
+
+  const rawKey = normalizeBundledMediaStorageKey(storagePath ?? "");
+  if (rawKey) {
+    return buildBundledMediaServePath(rawKey);
+  }
+
+  if (row.filename) {
+    return buildBundledMediaServePath(
+      buildBundledMediaStorageKey(row.chapterNumber, row.filename),
+    );
+  }
+
+  return storagePath;
+}
+
+/** Fetch every `media_assets` row across all chapters, ordered by chapter then mediaId. */
+export async function listAllMediaAssets(db: AppDrizzleInstance): Promise<MediaAsset[]> {
+  const rows = await db
+    .select()
+    .from(mediaAssets)
+    .orderBy(asc(mediaAssets.chapterNumber), asc(mediaAssets.mediaId));
+  return rows.map(rowToMediaAsset);
+}
+
+/** Delete media assets by their mediaId list. Returns count of ids passed. */
+export async function deleteMediaAssetsByIds(
+  db: AppDrizzleInstance,
+  mediaIds: string[],
+): Promise<number> {
+  if (mediaIds.length === 0) return 0;
+  await db.delete(mediaAssets).where(inArray(mediaAssets.mediaId, mediaIds));
+  return mediaIds.length;
 }
 
 /**

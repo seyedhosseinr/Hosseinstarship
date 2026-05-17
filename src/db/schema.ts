@@ -2056,3 +2056,22 @@ export const mediaAssets = pgTable(
     ),
   }),
 );
+
+export const mediaAssetPayloads = pgTable(
+  "media_asset_payloads",
+  {
+    /** Stable bundle storage key, e.g. campbell/164/ch164_fig_164_1.png */
+    storageKey: text("storage_key").primaryKey(),
+    /** MIME type served by /api/media-assets/... */
+    contentType: text("content_type").notNull(),
+    /** Base64-encoded payload so Postgres + PGlite share one portable shape. */
+    base64Data: text("base64_data").notNull(),
+    /** Original byte length for response headers / diagnostics. */
+    byteLength: integer("byte_length").notNull(),
+    createdAt: integer("created_at").notNull().default(nowMs),
+    updatedAt: integer("updated_at").notNull().default(nowMs),
+  },
+  (t) => ({
+    updatedAtIdx: index("media_asset_payloads_updated_at_idx").on(t.updatedAt),
+  }),
+);

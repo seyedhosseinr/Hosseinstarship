@@ -710,7 +710,7 @@ export function NotePageV2({
                     href={chapterContext?.chapterHref ?? "/library"}
                     className="inline-flex items-center gap-1 text-lib-text-muted hover:text-lib-text"
                   >
-                    <ArrowLeft className="h-3 w-3" />
+                    <ArrowRight className="h-3 w-3" />
                     {chapterContext ? "Chapter" : "Library"}
                   </Link>
                   <span className="text-lib-text-muted/40">·</span>

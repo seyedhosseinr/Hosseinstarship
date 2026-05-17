@@ -1,12 +1,14 @@
 process.env.DB_RUNTIME = "pglite";
 process.env.PGLITE_DATA_DIR = "memory://media-payload-tests-bootstrap";
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { getDb, resetDbForTests } from "@/db/index";
 import {
-  getMediaAssetPayloadByStorageKey,
-  upsertMediaAssetPayloadsBatch,
+  drizzleBundleStorage,
+  getMediaAssetPayload,
+  listMediaAssetsForChapter,
+  upsertMediaAssetsBatch,
 } from "../db";
 
 const globalWithPGlite = globalThis as typeof globalThis & {
@@ -21,39 +23,47 @@ async function freshDb(label: string) {
   return getDb();
 }
 
-describe("media-asset payload DB adapter", () => {
-  it("upserts payload rows and reads them back by storage key", async () => {
-    const db = await freshDb("payloads-roundtrip");
+describe("media payload storage", () => {
+  beforeEach(() => {
+    /* each test gets a fresh in-memory db via freshDb() */
+  });
 
-    const first = await upsertMediaAssetPayloadsBatch(db, [
+  it("stores imported bytes in the DB and returns a Vercel-safe serve path", async () => {
+    const db = await freshDb("bundle-storage");
+    const storage = drizzleBundleStorage(db);
+    const bytes = Uint8Array.from([0x89, 0x50, 0x4e, 0x47]);
+
+    const storagePath = await storage.writeFile("campbell/164/ch164_fig_164_1.png", bytes);
+    expect(storagePath).toBe("/api/media-assets/campbell/164/ch164_fig_164_1.png");
+
+    const payload = await getMediaAssetPayload(db, "campbell/164/ch164_fig_164_1.png");
+    expect(payload?.contentType).toBe("image/png");
+    expect(Array.from(payload?.bytes ?? [])).toEqual(Array.from(bytes));
+    expect(payload?.byteLength).toBe(bytes.byteLength);
+  });
+
+  it("normalizes legacy /media storage paths into /api/media-assets paths on registry reads", async () => {
+    const db = await freshDb("legacy-normalization");
+    await upsertMediaAssetsBatch(db, [
       {
-        storageKey: "campbell/164/ch164_fig_164_1.png",
-        contentType: "image/png",
-        base64Data: "AQID",
-        byteLength: 3,
+        mediaId: "ch164_fig_164_1",
+        chapterNumber: 164,
+        segmentId: "164_01",
+        refId: "figure:164.1",
+        figureLabel: "Fig. 164.1",
+        kind: "figure",
+        filename: "ch164_fig_164_1.png",
+        storagePath: "/media/campbell/164/ch164_fig_164_1.png",
+        sourcePage: 2,
+        caption: "Imported asset",
+        tags: ["ultrasound"],
+        highYield: true,
       },
     ]);
-    expect(first).toEqual({ inserted: 1, updated: 0 });
 
-    const second = await upsertMediaAssetPayloadsBatch(db, [
-      {
-        storageKey: "campbell/164/ch164_fig_164_1.png",
-        contentType: "image/png",
-        base64Data: "AQIDBA==",
-        byteLength: 4,
-      },
-    ]);
-    expect(second).toEqual({ inserted: 0, updated: 1 });
-
-    const payload = await getMediaAssetPayloadByStorageKey(
-      db,
-      "campbell/164/ch164_fig_164_1.png",
+    const [asset] = await listMediaAssetsForChapter(db, 164);
+    expect(asset?.storagePath).toBe(
+      "/api/media-assets/campbell/164/ch164_fig_164_1.png",
     );
-    expect(payload).toEqual({
-      storageKey: "campbell/164/ch164_fig_164_1.png",
-      contentType: "image/png",
-      base64Data: "AQIDBA==",
-      byteLength: 4,
-    });
   });
 });

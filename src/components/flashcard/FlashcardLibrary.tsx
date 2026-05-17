@@ -12,6 +12,7 @@ import Link from 'next/link';
 import {
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
   Search,
   BookOpen,
   Brain,
@@ -826,7 +827,7 @@ export default function FlashcardLibrary({
             }}
             title="بازگشت به هاب فلش‌کارت"
           >
-            <ChevronLeft style={{ width: 11, height: 11 }} />
+            <ChevronRight style={{ width: 11, height: 11 }} />
             فلش‌کارت
           </Link>
           <div style={{ marginTop: 6, display: 'flex', alignItems: 'baseline', gap: 8 }}>

@@ -1,451 +1,283 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import {
-  AlertTriangle,
-  ArrowRight,
-  CheckCircle2,
-  FileArchive,
-  Image as ImageIcon,
-  Loader2,
   Upload,
+  Trash2,
+  CheckCircle2,
+  AlertTriangle,
+  Archive,
+  RefreshCw,
+  Image as ImageIcon,
+  Table as TableIcon,
+  FileImage,
 } from "lucide-react";
+import type { ImportSummary } from "@/lib/starship-media/importer";
+import type { MediaAsset } from "@/lib/starship-media/types";
 
-import { cn } from "@/lib/utils";
-import type {
-  ImportSummary,
-  ImportManifestErrorCode,
-} from "@/lib/starship-media/importer";
-
-const MANIFEST_ERROR_LABEL: Record<ImportManifestErrorCode, string> = {
-  "missing-manifest": "Bundle is missing manifest.json",
-  "manifest-not-json": "manifest.json is not valid JSON",
-  "not-an-object": "manifest.json must be a JSON object",
-  "missing-chapter-number": "manifest.chapterNumber is missing or not an integer",
-  "chapter-mismatch": "manifest.chapterNumber doesn't match the chapter you selected",
-  "missing-assets": "manifest.assets field is missing",
-  "assets-not-array": "manifest.assets must be an array",
-  "empty-assets": "manifest.assets is empty — nothing to import",
-  "zip-error": "Bundle could not be unzipped",
-};
-
-const REJECT_REASON_LABEL: Record<string, string> = {
-  "duplicate-media-id": "duplicate mediaId",
-  "invalid-kind": "invalid kind",
-  "invalid-filename": "invalid filename",
-  "invalid-media-id": "invalid mediaId",
-  "missing-required-field": "missing required field",
-};
-
-/**
- * Phase 3 — Chapter Media Bundle Importer panel.
- *
- * Standalone UI: chapter number input + ZIP file picker + submit. Sends
- * a multipart POST to `/api/import/media-bundle` and renders the
- * structured `ImportSummary` returned. Intentionally separate from
- * EdgeImportPanel — the Edge/V3 importer is untouched.
- *
- * Validation happens server-side; the UI only does shape checks
- * (chapter is a positive integer, file is selected) before sending.
- */
 export function MediaBundleImporter() {
   const [chapterNumber, setChapterNumber] = useState<number | "">(164);
-  const [file, setFile] = useState<File | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [assets, setAssets] = useState<MediaAsset[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  const canSubmit = useMemo(
-    () => !submitting && Number.isInteger(chapterNumber) && (chapterNumber as number) > 0 && !!file,
-    [chapterNumber, file, submitting],
-  );
-
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const next = e.target.files?.[0] ?? null;
-    setFile(next);
-    setSummary(null);
-    setError(null);
+  const refresh = useCallback(async () => {
+    try {
+      const res = await fetch("/api/import/media-bundle");
+      const data = (await res.json()) as { ok: boolean; assets?: MediaAsset[] };
+      if (data.ok && data.assets) setAssets(data.assets);
+    } catch {
+      // DB not ready — leave list empty
+    }
   }, []);
 
-  const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!file || !Number.isInteger(chapterNumber)) return;
-    setSubmitting(true);
+  useEffect(() => { void refresh(); }, [refresh]);
+
+  async function handleFile(file: File) {
+    if (!Number.isInteger(chapterNumber) || (chapterNumber as number) <= 0) {
+      setError("لطفاً شماره فصل معتبر وارد کنید.");
+      return;
+    }
+    setBusy(true);
     setError(null);
     setSummary(null);
-
     try {
       const fd = new FormData();
       fd.append("chapterNumber", String(chapterNumber));
       fd.append("bundle", file);
-      const res = await fetch("/api/import/media-bundle", {
-        method: "POST",
-        body: fd,
-      });
-      const body = (await res.json().catch(() => null)) as {
-        ok?: boolean;
-        summary?: ImportSummary;
-      } | null;
+      const res = await fetch("/api/import/media-bundle", { method: "POST", body: fd });
+      const body = (await res.json().catch(() => null)) as { ok?: boolean; summary?: ImportSummary } | null;
       if (!body?.summary) {
-        setError(`Server returned ${res.status} with no summary.`);
+        setError(`خطای سرور: ${res.status}`);
       } else {
         setSummary(body.summary);
+        await refresh();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Network or upload error");
+      setError(err instanceof Error ? err.message : "خطای شبکه یا آپلود");
     } finally {
-      setSubmitting(false);
+      setBusy(false);
     }
-  }, [chapterNumber, file]);
+  }
+
+  async function deleteSelected(mediaIds: string[]) {
+    if (mediaIds.length === 0) return;
+    setBusy(true);
+    try {
+      await fetch("/api/import/media-bundle", {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ mediaIds }),
+      });
+      setSelected(new Set());
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const chapters = new Set(assets.map((a) => a.chapterNumber)).size;
+  const highYield = assets.filter((a) => a.highYield).length;
+  const figures = assets.filter((a) => a.kind === "figure").length;
 
   return (
-    <section
-      data-panel="media-bundle-importer"
-      className={cn(
-        "rounded-2xl border border-lib-border bg-lib-surface p-6 shadow-sm",
-        "max-w-3xl mx-auto",
-      )}
-    >
-      <header className="mb-5 flex items-start gap-3">
-        <div
-          aria-hidden
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-300"
-        >
-          <FileArchive className="h-5 w-5" />
-        </div>
-        <div>
-          <h1 className="text-lg font-semibold text-lib-text">
-            Chapter Media Importer
-          </h1>
-          <p className="mt-1 text-sm text-lib-text-muted">
-            Upload a prepared <code>manifest.json</code> + image bundle (ZIP) to
-            populate the chapter&rsquo;s media registry. Uses the legacy import
-            path — Edge / V3 importer is untouched.
-          </p>
-        </div>
-      </header>
+    <main dir="rtl" className="min-h-screen bg-slate-50 p-4 text-slate-950 md:p-8">
+      <div className="mx-auto max-w-6xl space-y-6">
 
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-4"
-        data-testid="media-bundle-form"
-      >
-        <div className="grid gap-4 sm:grid-cols-[160px_1fr]">
+        {/* Header */}
+        <header className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-semibold text-sky-700">Starship Media — مدیا رجیستری</p>
+              <h1 className="mt-2 text-2xl font-black">ایمپورت باندل مدیا</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
+                آپلود فایل ZIP حاوی <code>manifest.json</code> و تصاویر برای پر کردن رجیستری مدیای فصل.
+                ایمپورتر Edge/V3 دست‌نخورده باقی می‌ماند.
+              </p>
+            </div>
+            <Link href="/import" className="rounded-2xl bg-slate-950 px-4 py-3 text-sm font-bold text-white">
+              بازگشت به ایمپورت
+            </Link>
+          </div>
+        </header>
+
+        {/* Chapter number input */}
+        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
           <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-lib-text-muted">
-              Chapter number
-            </span>
+            <span className="mb-2 block text-sm font-bold">شماره فصل (Chapter Number)</span>
             <input
               type="number"
               min={1}
               step={1}
               value={chapterNumber}
-              onChange={(e) => {
-                const v = e.target.value;
-                setChapterNumber(v === "" ? "" : Number(v));
-                setSummary(null);
-                setError(null);
-              }}
-              className={cn(
-                "w-full rounded-md border border-lib-border bg-lib-surface px-3 py-2",
-                "text-sm tabular-nums text-lib-text",
-                "focus:border-lib-accent focus:outline-none focus:ring-2 focus:ring-lib-accent/30",
-              )}
-              required
+              onChange={(e) => setChapterNumber(e.target.value === "" ? "" : Number(e.target.value))}
+              className="w-40 rounded-2xl border border-slate-200 px-4 py-2 text-sm focus:border-sky-400 focus:outline-none"
             />
           </label>
+        </div>
 
-          <label className="block">
-            <span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-lib-text-muted">
-              Bundle ZIP
-            </span>
-            <div
-              className={cn(
-                "flex items-center gap-3 rounded-md border border-dashed border-lib-border",
-                "bg-lib-hover/40 px-3 py-2",
-              )}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".zip,application/zip"
-                onChange={handleFileChange}
-                className="block w-full text-sm text-lib-text"
-                required
-                data-testid="bundle-file"
-              />
+        {/* Drop zone */}
+        <label
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            const f = e.dataTransfer.files[0];
+            if (f) void handleFile(f);
+          }}
+          className="flex min-h-56 cursor-pointer flex-col items-center justify-center rounded-3xl border-2 border-dashed border-sky-300 bg-white p-8 text-center shadow-sm transition hover:border-sky-500 hover:bg-sky-50/40"
+        >
+          <input
+            type="file"
+            accept=".zip,application/zip"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) void handleFile(f);
+            }}
+          />
+          <Upload className="h-10 w-10 text-sky-700" />
+          <div className="mt-4 text-lg font-black">فایل ZIP را اینجا رها کنید</div>
+          <div className="mt-2 flex gap-2 text-xs text-slate-500">
+            <span className="inline-flex items-center gap-1"><Archive className="h-3 w-3" /> ZIP Bundle</span>
+          </div>
+          {busy && (
+            <div className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-sky-700">
+              <RefreshCw className="h-4 w-4 animate-spin" /> در حال پردازش...
             </div>
-            {file && (
-              <span className="mt-1 block text-[11px] text-lib-text-muted">
-                {file.name} · {(file.size / 1024).toFixed(1)} KB
-              </span>
-            )}
-          </label>
-        </div>
+          )}
+        </label>
 
-        <div className="flex items-center gap-3">
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            data-testid="media-bundle-submit"
-            className={cn(
-              "inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium",
-              "bg-lib-accent text-white shadow-sm transition-colors",
-              "hover:bg-lib-accent/90",
-              "disabled:cursor-not-allowed disabled:opacity-50",
-            )}
-          >
-            {submitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+        {error && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            <AlertTriangle className="ml-1 inline h-4 w-4" />{error}
+          </div>
+        )}
+
+        {/* Import result */}
+        {summary && (
+          <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            {summary.manifestError ? (
+              <>
+                <h2 className="text-lg font-black text-red-700">خطا در manifest</h2>
+                <p className="mt-2 text-sm text-red-600">{summary.manifestError.message}</p>
+              </>
             ) : (
-              <Upload className="h-4 w-4" />
+              <>
+                <h2 className="text-lg font-black">
+                  {summary.ok ? "ایمپورت با موفقیت انجام شد." : "ایمپورت با مشکل انجام شد."}
+                </h2>
+                <div className="mt-3 grid gap-3 text-sm md:grid-cols-6">
+                  <Metric label="دریافت‌شده" value={summary.receivedAssets} />
+                  <Metric label="ایمپورت‌شده" value={summary.imported} />
+                  <Metric label="درج جدید" value={summary.inserted} />
+                  <Metric label="بروزرسانی" value={summary.updated} />
+                  <Metric label="رد شده" value={summary.skipped} />
+                  <Metric label="خطا" value={summary.failed} />
+                </div>
+              </>
             )}
-            {submitting ? "Importing…" : "Import bundle"}
-          </button>
-          <span className="text-[11px] text-lib-text-muted">
-            Files write to <code>public/media/campbell/&lt;chapter&gt;/</code>.
-          </span>
-        </div>
-      </form>
-
-      {error && (
-        <div
-          role="alert"
-          className={cn(
-            "mt-5 flex items-start gap-2 rounded-md border border-rose-500/40",
-            "bg-rose-500/[0.07] px-3 py-2 text-sm text-rose-700 dark:text-rose-300",
-          )}
-        >
-          <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {summary && (
-        <SummaryCard
-          summary={summary}
-          chapterNumber={Number.isInteger(chapterNumber) ? Number(chapterNumber) : null}
-        />
-      )}
-    </section>
-  );
-}
-
-/**
- * Post-import UX polish: when at least one row was imported, show a
- * single action button that navigates the browser to a Reader surface
- * for the same chapter. Two reasons this is a hard navigation
- * (`window.location.assign`) rather than a client-side `router.push`:
- *
- *   1. The Reader's `useMediaRegistry` hook keeps a module-level
- *      `CACHE` keyed by chapter. A fresh module instance on hard nav
- *      guarantees the importer's new rows are visible in the Reader
- *      without bespoke cache-invalidation plumbing.
- *
- *   2. The button is best-effort UX — if there's no Reader page yet
- *      for that chapter (the dev probe is the only generic surface),
- *      the user still lands somewhere useful. Cross-tab invalidation
- *      is intentionally out of scope.
- */
-function navigateToReader(chapterNumber: number) {
-  if (typeof window === "undefined") return;
-  const debugPath = "/debug/media-reader";
-  // Navigate to the dev probe by default in dev (it always renders the
-  // matched lightbox demo). In production builds the probe is a 404, so
-  // fall through to the chapter route.
-  if (process.env.NODE_ENV !== "production") {
-    window.location.assign(debugPath);
-  } else {
-    window.location.assign(`/library/campbell/chapter/${chapterNumber}`);
-  }
-}
-
-function SummaryCard({
-  summary,
-  chapterNumber,
-}: {
-  summary: ImportSummary;
-  chapterNumber: number | null;
-}) {
-  if (summary.manifestError) {
-    const code = summary.manifestError.error;
-    return (
-      <div
-        role="alert"
-        data-testid="summary-manifest-error"
-        className={cn(
-          "mt-5 rounded-md border border-rose-500/40 bg-rose-500/[0.06] p-4",
-          "text-sm text-rose-800 dark:text-rose-200",
+          </section>
         )}
-      >
-        <div className="flex items-center gap-2 font-semibold">
-          <AlertTriangle className="h-4 w-4" aria-hidden="true" />
-          {MANIFEST_ERROR_LABEL[code]}
-        </div>
-        <p className="mt-1 text-xs leading-relaxed">{summary.manifestError.message}</p>
-        {summary.manifestError.manifestChapterNumber !== undefined && (
-          <p className="mt-1 text-[11px] opacity-80">
-            Manifest reported chapterNumber ={" "}
-            <code>{summary.manifestError.manifestChapterNumber}</code>.
-          </p>
-        )}
-      </div>
-    );
-  }
 
-  return (
-    <div
-      data-testid="summary-success"
-      className={cn(
-        "mt-5 rounded-md border border-lib-border bg-lib-hover/30 p-4",
-      )}
-    >
-      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-lib-text">
-        {summary.ok ? (
-          <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-        ) : (
-          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-        )}
-        {summary.ok ? "Import complete" : "Import finished with issues"}
-      </div>
-
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[12.5px] tabular-nums text-lib-text">
-        <Stat label="Received" value={summary.receivedAssets} />
-        <Stat
-          label="Imported"
-          value={summary.imported}
-          accent={summary.imported > 0 ? "emerald" : undefined}
-        />
-        <Stat label="Inserted" value={summary.inserted} />
-        <Stat label="Updated" value={summary.updated} />
-        <Stat
-          label="Skipped"
-          value={summary.skipped}
-          accent={summary.skipped > 0 ? "amber" : undefined}
-        />
-        <Stat
-          label="Failed"
-          value={summary.failed}
-          accent={summary.failed > 0 ? "rose" : undefined}
-        />
-      </dl>
-
-      {summary.imported > 0 && chapterNumber !== null && (
-        <button
-          type="button"
-          data-testid="summary-open-reader"
-          onClick={() => navigateToReader(chapterNumber)}
-          className={cn(
-            "mt-4 inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-[12.5px] font-medium",
-            "border border-lib-border bg-lib-surface shadow-sm transition-colors",
-            "hover:bg-lib-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lib-accent/40",
-          )}
-        >
-          <ImageIcon className="h-3.5 w-3.5" aria-hidden="true" />
-          {process.env.NODE_ENV === "production"
-            ? `View chapter ${chapterNumber}`
-            : "Open debug reader"}
-          <ArrowRight className="h-3.5 w-3.5 opacity-70" aria-hidden="true" />
-        </button>
-      )}
-
-      {summary.importedMediaIds.length > 0 && (
-        <details className="mt-3">
-          <summary className="cursor-pointer text-[12px] font-semibold text-lib-text-muted">
-            Imported mediaIds ({summary.importedMediaIds.length})
-          </summary>
-          <ul
-            className="mt-2 list-disc pl-5 text-[11.5px] text-lib-text"
-            data-testid="summary-imported-list"
-          >
-            {summary.importedMediaIds.map((id) => (
-              <li key={id} className="font-mono">
-                <ImageIcon className="me-1 inline h-3 w-3" aria-hidden="true" />
-                {id}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-
-      {summary.rejected.length > 0 && (
-        <details className="mt-3" open>
-          <summary className="cursor-pointer text-[12px] font-semibold text-amber-700 dark:text-amber-300">
-            Skipped entries ({summary.rejected.length})
-          </summary>
-          <ul className="mt-2 space-y-0.5 text-[11.5px]">
-            {summary.rejected.map((r, i) => (
-              <li
-                key={`${r.index}-${i}`}
-                className="rounded bg-amber-500/[0.06] px-2 py-1"
+        {/* Assets list */}
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-black">فایل‌های ایمپورت‌شده</h2>
+            <div className="flex gap-2">
+              <button
+                className="rounded-xl border px-3 py-2 text-xs font-bold"
+                onClick={() => setSelected(new Set(assets.map((a) => a.mediaId)))}
               >
-                <code className="font-mono">{r.mediaId ?? `(index ${r.index})`}</code>{" "}
-                — {REJECT_REASON_LABEL[r.reason] ?? r.reason}
-                <span className="block text-[10.5px] opacity-80">{r.detail}</span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
+                انتخاب همه
+              </button>
+              <button
+                className="rounded-xl border px-3 py-2 text-xs font-bold"
+                onClick={() => void deleteSelected(Array.from(selected))}
+              >
+                حذف انتخاب‌شده
+              </button>
+              <button
+                className="rounded-xl border border-red-200 px-3 py-2 text-xs font-bold text-red-700"
+                onClick={() => void deleteSelected(assets.map((a) => a.mediaId))}
+              >
+                حذف همه
+              </button>
+            </div>
+          </div>
 
-      {summary.missingFiles.length > 0 && (
-        <details className="mt-3" open>
-          <summary className="cursor-pointer text-[12px] font-semibold text-amber-700 dark:text-amber-300">
-            Missing files ({summary.missingFiles.length})
-          </summary>
-          <ul className="mt-2 space-y-0.5 text-[11.5px]">
-            {summary.missingFiles.map((m) => (
-              <li key={m.mediaId} className="font-mono">
-                {m.mediaId} → {m.filename}
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
+          {/* Stats row */}
+          <div className="mt-3 grid gap-3 text-sm md:grid-cols-4">
+            <Metric label="کل مدیا" value={assets.length} />
+            <Metric label="فصل‌ها" value={chapters} />
+            <Metric label="تصویر" value={figures} />
+            <Metric label="High-Yield" value={highYield} />
+          </div>
 
-      {summary.writeFailures.length > 0 && (
-        <details className="mt-3" open>
-          <summary className="cursor-pointer text-[12px] font-semibold text-rose-700 dark:text-rose-300">
-            Write failures ({summary.writeFailures.length})
-          </summary>
-          <ul className="mt-2 space-y-0.5 text-[11.5px]">
-            {summary.writeFailures.map((w) => (
-              <li key={w.mediaId} className="font-mono">
-                {w.mediaId} ({w.filename}) — {w.reason}
-              </li>
+          <div className="mt-4 grid gap-2">
+            {assets.length === 0 && (
+              <div className="flex flex-col items-center gap-3 py-10 text-slate-400">
+                <FileImage className="h-10 w-10 opacity-40" />
+                <p className="text-sm">هنوز هیچ مدیایی ایمپورت نشده است.</p>
+              </div>
+            )}
+            {assets.map((item) => (
+              <label
+                key={item.mediaId}
+                className="flex items-center justify-between gap-3 rounded-2xl border border-slate-200 p-3"
+              >
+                <span className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(item.mediaId)}
+                    onChange={() =>
+                      setSelected((prev) => {
+                        const next = new Set(prev);
+                        next.has(item.mediaId) ? next.delete(item.mediaId) : next.add(item.mediaId);
+                        return next;
+                      })
+                    }
+                  />
+                  <span className="font-bold ltr text-sm">{item.mediaId}</span>
+                  <span className="rounded-lg bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+                    فصل {item.chapterNumber}
+                  </span>
+                  {item.figureLabel && (
+                    <span className="text-xs text-slate-400">{item.figureLabel}</span>
+                  )}
+                </span>
+                <span className="flex items-center gap-2 text-xs text-slate-500">
+                  {item.kind === "figure" ? (
+                    <ImageIcon className="h-4 w-4 text-sky-600" />
+                  ) : (
+                    <TableIcon className="h-4 w-4 text-purple-600" />
+                  )}
+                  <span>{item.kind}</span>
+                  {item.highYield && <CheckCircle2 className="h-4 w-4 text-teal-600" />}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); void deleteSelected([item.mediaId]); }}
+                    className="rounded-lg p-2 text-red-600 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </span>
+              </label>
             ))}
-          </ul>
-        </details>
-      )}
-    </div>
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }
 
-function Stat({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: number;
-  accent?: "emerald" | "amber" | "rose";
-}) {
+function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <>
-      <dt className="font-semibold uppercase tracking-[0.08em] text-lib-text-muted/85 text-[10.5px]">
-        {label}
-      </dt>
-      <dd
-        className={cn(
-          "font-mono",
-          accent === "emerald" && "text-emerald-700 dark:text-emerald-300",
-          accent === "amber" && "text-amber-700 dark:text-amber-300",
-          accent === "rose" && "text-rose-700 dark:text-rose-300",
-        )}
-      >
-        {value}
-      </dd>
-    </>
+    <div className="rounded-2xl bg-slate-50 p-3 text-center">
+      <div className="text-2xl font-black text-sky-700">{value}</div>
+      <div className="text-xs text-slate-500">{label}</div>
+    </div>
   );
 }

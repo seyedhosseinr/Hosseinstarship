@@ -13,6 +13,7 @@ import {
   ChevronsUpDown,
   CreditCard,
   FileDown,
+  Film,
   History,
   HardDrive,
   Inbox,
@@ -27,6 +28,7 @@ import {
   Settings2,
   Star,
   Sun,
+  Workflow,
   X,
 } from "lucide-react";
 
@@ -73,23 +75,16 @@ const SIDEBAR_CSS = `
 /* ── Brand avatar ─────────────────────────────────────────── */
 function WorkspaceAvatar({ size = 20 }: { size?: number }) {
   return (
-    <div
-      className="relative grid shrink-0 place-items-center overflow-hidden rounded-[5px]"
-      style={{
-        width: size,
-        height: size,
-        background:
-          "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.65) 100%)",
-      }}
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/pwa-icon.svg"
+      width={size}
+      height={size}
+      alt=""
       aria-hidden
-    >
-      <span
-        className="text-[10px] font-bold leading-none text-primary-foreground"
-        style={{ letterSpacing: "-0.03em" }}
-      >
-        HS
-      </span>
-    </div>
+      className="shrink-0 rounded-[5px]"
+      style={{ width: size, height: size }}
+    />
   );
 }
 
@@ -141,6 +136,7 @@ const NAV_SECTIONS: NavSection[] = [
         ],
       },
       { href: "/planner",            label: "برنامه‌ریز", icon: CalendarRange, shortcut: ["G", "P"] },
+      { href: "/outliner",           label: "Outliner",   icon: Workflow,      shortcut: ["G", "O"] },
     ],
   },
   {
@@ -157,7 +153,18 @@ const NAV_SECTIONS: NavSection[] = [
     title: "سیستم",
     defaultOpen: false,
     items: [
-      { href: "/import",        label: "ورودی",   icon: FileDown,  shortcut: ["G", "U"] },
+      {
+        href: "/import",
+        label: "ورودی",
+        icon: FileDown,
+        shortcut: ["G", "U"],
+        exact: true,
+        children: [
+          { href: "/import",          label: "محتوا",    icon: FileDown, exact: true },
+          { href: "/import/media",    label: "مدیا",     icon: Film },
+          { href: "/import/outliner", label: "Outliner", icon: Workflow },
+        ],
+      },
       { href: "/settings/data", label: "تنظیمات", icon: Settings2, shortcut: ["G", "S"] },
     ],
   },

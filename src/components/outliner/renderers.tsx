@@ -2,18 +2,139 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
+import {
+  Activity, AlertCircle, AlertOctagon, AlertTriangle, ArrowRightCircle,
+  BookOpen, CheckCircle2, ClipboardList, Cog, Eye, FlaskConical, HelpCircle,
+  Layers, PlayCircle, RefreshCw, Square, TrendingUp, Users, Zap,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAlgorithmLayout, NODE_W, NODE_H } from "@/components/algorithms/useAlgorithmLayout";
 import { AlgorithmEdgeLayer } from "@/components/algorithms/AlgorithmEdgeLayer";
 import { OutlinerWebGLCanvas, LOD_THRESHOLD } from "@/components/outliner/OutlinerWebGLCanvas";
-import { getNodeTypeLabel, type AlgorithmNodeV4, type AlgorithmEdgeV4 } from "@/types/algorithm-ir-v4";
+import type { AlgorithmNodeV4, AlgorithmEdgeV4 } from "@/types/algorithm-ir-v4";
 import type { AlgorithmSurface } from "@/types/algorithm-ir";
 import { readString } from "@/components/outliner/surface-families";
 import { useOutlinerStore } from "@/components/outliner/outliner-store";
+import type { OutlinerMode } from "@/components/outliner/outliner-store";
 
-// ── Clinical Cognition Layer — learning helpers ───────────────────────────────
+// ── Node colour / icon table — every nodeType has a distinct entry ────────────
 
-// F1: BFS backwards through edges to find every ancestor of targetNodeId
+const NODE_COLORS: Record<string, string> = {
+  entry:          "#3B82F6",
+  question:       "#8B5CF6",
+  mechanism:      "#0EA5E9",
+  concept:        "#0EA5E9",
+  clinical_effect:"#0EA5E9",
+  treatment:      "#22C55E",
+  action:         "#22C55E",
+  threshold:      "#F59E0B",
+  observation:    "#94A3B8",
+  finding:        "#94A3B8",
+  test:           "#0EA5E9",
+  follow_up:      "#14B8A6",
+  endpoint:       "#9CA3AF",
+  escalation:     "#DC2626",
+  complication:   "#DC2626",
+  exception:      "#F97316",
+  classification: "#6366F1",
+  risk_group:     "#A855F7",
+  trap:           "#F43F5E",
+};
+const DEFAULT_NODE_COLOR = "#94A3B8";
+
+function nodeColor(nodeType: string): string {
+  return NODE_COLORS[nodeType] ?? DEFAULT_NODE_COLOR;
+}
+
+type IconComponent = React.FC<{ size?: number; color?: string; strokeWidth?: number }>;
+
+const NODE_ICONS: Record<string, IconComponent> = {
+  entry:          ArrowRightCircle,
+  question:       HelpCircle,
+  mechanism:      Cog,
+  concept:        BookOpen,
+  clinical_effect:Activity,
+  treatment:      CheckCircle2,
+  action:         PlayCircle,
+  threshold:      Zap,
+  observation:    Eye,
+  finding:        ClipboardList,
+  test:           FlaskConical,
+  follow_up:      RefreshCw,
+  endpoint:       Square,
+  escalation:     TrendingUp,
+  complication:   AlertTriangle,
+  exception:      AlertOctagon,
+  classification: Layers,
+  risk_group:     Users,
+  trap:           AlertCircle,
+};
+
+// ── memoryRole pill table ─────────────────────────────────────────────────────
+
+interface PillStyle { label: string; bg: string; text: string }
+
+const MEMORY_ROLE_PILLS: Record<string, PillStyle> = {
+  entry_anchor:  { label: "ورود",       bg: "#DBEAFE", text: "#1D4ED8" },
+  decision_gate: { label: "تصمیم",      bg: "#EDE9FE", text: "#6D28D9" },
+  golden_number: { label: "عدد طلایی",  bg: "#FEF3C7", text: "#92400E" },
+  red_flag:      { label: "پرچم قرمز",  bg: "#FEE2E2", text: "#B91C1C" },
+  trap:          { label: "دام",         bg: "#FFE4E6", text: "#BE123C" },
+  review_hook:   { label: "مرور",        bg: "#CCFBF1", text: "#0F766E" },
+  exception:     { label: "استثنا",      bg: "#FFEDD5", text: "#C2410C" },
+  endpoint:      { label: "پایان",       bg: "#F3F4F6", text: "#374151" },
+};
+
+// ── nodeType → Persian role label ─────────────────────────────────────────────
+
+const NODE_TYPE_ROLE_LABELS: Record<string, string> = {
+  entry:          "نقطه ورود بالینی",
+  question:       "تصمیم کلیدی",
+  mechanism:      "مکانیسم",
+  concept:        "مفهوم",
+  clinical_effect:"اثر بالینی",
+  test:           "آزمایش/تست",
+  treatment:      "اقدام درمانی",
+  action:         "اقدام",
+  threshold:      "آستانه عددی",
+  observation:    "یافته بالینی",
+  finding:        "یافته",
+  follow_up:      "پیگیری",
+  endpoint:       "پایان مسیر",
+  escalation:     "تشدید مسیر",
+  complication:   "عارضه",
+  exception:      "استثنا",
+  classification: "طبقه‌بندی",
+  risk_group:     "گروه خطر",
+  trap:           "دام بوردی",
+};
+
+// ── Edge style table — every edgeType has a distinct entry ────────────────────
+
+interface EdgeStyle { color: string; dash: string }
+
+const EDGE_STYLES: Record<string, EdgeStyle> = {
+  progression:           { color: "#CBD5E1", dash: "none" },
+  finding_to_action:     { color: "#22C55E", dash: "none" },
+  test_to_result:        { color: "#0EA5E9", dash: "none" },
+  yes_no:                { color: "#64748B", dash: "none" },
+  threshold_split:       { color: "#F59E0B", dash: "6 3" },
+  failure_branch:        { color: "#F43F5E", dash: "6 3" },
+  exception_branch:      { color: "#F97316", dash: "6 3" },
+  classification_branch: { color: "#6366F1", dash: "6 3" },
+  risk_split:            { color: "#A855F7", dash: "6 3" },
+  follow_up_trigger:     { color: "#14B8A6", dash: "2 3" },
+  concept_to_effect:     { color: "#0EA5E9", dash: "2 3" },
+  trap:                  { color: "#DC2626", dash: "6 3" },
+};
+const DEFAULT_EDGE_STYLE: EdgeStyle = { color: "#94A3B8", dash: "none" };
+
+function edgeStyle(edgeType?: string): EdgeStyle {
+  return EDGE_STYLES[edgeType ?? ""] ?? DEFAULT_EDGE_STYLE;
+}
+
+// ── Clinical Cognition Layer ───────────────────────────────────────────────────
+
 function computeAncestorPath(edges: AlgorithmEdgeV4[], targetNodeId: string): Set<string> {
   const parents = new Map<string, string[]>();
   for (const edge of edges) {
@@ -32,7 +153,6 @@ function computeAncestorPath(edges: AlgorithmEdgeV4[], targetNodeId: string): Se
   return result;
 }
 
-// F6: educational heat 0-1 for a node from its metadata — no fake importance
 function nodeEduHeat(node: AlgorithmNodeV4, cpCount: number): number {
   let h = 0;
   if (node.nodeType === "trap" || node.memoryRole === "trap") h += 0.40;
@@ -42,74 +162,53 @@ function nodeEduHeat(node: AlgorithmNodeV4, cpCount: number): number {
   if (node.testablePoint)                                     h += 0.25;
   if ((node.linkedBlockIds ?? []).length > 0)                 h += 0.10;
   if (cpCount > 0)                                            h += 0.15;
-  // Return 0 (neutral) when no meaningful metadata exists — no invented importance
   return h > 0 ? Math.min(1.0, h) : 0;
 }
 
-// ── Node type styles — Apple-HIG palette ─────────────────────────────────────
+// ── NodeCard — the new spec-compliant card ────────────────────────────────────
 
-interface NodeStyle {
-  stripe: string;   // top accent strip bg class
-  card:   string;   // border + bg
-  badge:  string;   // type label text color
-  glow?:  string;   // optional shadow for urgent types
-}
-
-const NODE_STYLES: Record<string, NodeStyle> = {
-  entry:          { stripe: "bg-blue-500",    card: "bg-blue-50/98 dark:bg-blue-950/90 border-blue-300/70 dark:border-blue-600/70",       badge: "text-blue-700 dark:text-blue-300" },
-  question:       { stripe: "bg-violet-500",  card: "bg-violet-50/98 dark:bg-violet-950/90 border-violet-300/70 dark:border-violet-600/70", badge: "text-violet-700 dark:text-violet-300" },
-  test:           { stripe: "bg-sky-500",     card: "bg-sky-50/98 dark:bg-sky-950/90 border-sky-300/70 dark:border-sky-600/70",           badge: "text-sky-700 dark:text-sky-300" },
-  finding:        { stripe: "bg-slate-500",   card: "bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600",                 badge: "text-slate-700 dark:text-slate-300" },
-  threshold:      { stripe: "bg-amber-500",   card: "bg-amber-50/98 dark:bg-amber-950/90 border-amber-300/75 dark:border-amber-600/70",   badge: "text-amber-700 dark:text-amber-300" },
-  treatment:      { stripe: "bg-green-500",   card: "bg-green-50/98 dark:bg-green-950/90 border-green-300/70 dark:border-green-600/70",   badge: "text-green-700 dark:text-green-300" },
-  escalation:     { stripe: "bg-red-500",     card: "bg-red-50/98 dark:bg-red-950/90 border-red-300/80 dark:border-red-600/75",           badge: "text-red-700 dark:text-red-300", glow: "shadow-[0_0_0_1px_rgba(239,68,68,0.12)]" },
-  endpoint:       { stripe: "bg-slate-600",   card: "bg-slate-50/98 dark:bg-slate-900 border-slate-300 dark:border-slate-600",           badge: "text-slate-700 dark:text-slate-300" },
-  trap:           { stripe: "bg-rose-500",    card: "bg-rose-50/98 dark:bg-rose-950/90 border-rose-300/80 dark:border-rose-600/75",       badge: "text-rose-700 dark:text-rose-300", glow: "shadow-[0_0_0_1px_rgba(244,63,94,0.12)]" },
-  exception:      { stripe: "bg-orange-500",  card: "bg-orange-50/98 dark:bg-orange-950/90 border-orange-300/75 dark:border-orange-600/70", badge: "text-orange-700 dark:text-orange-300" },
-  mechanism:      { stripe: "bg-purple-500",  card: "bg-purple-50/98 dark:bg-purple-950/90 border-purple-300/70 dark:border-purple-600/70", badge: "text-purple-700 dark:text-purple-300" },
-  clinical_effect:{ stripe: "bg-teal-500",    card: "bg-teal-50/98 dark:bg-teal-950/90 border-teal-300/70 dark:border-teal-600/70",       badge: "text-teal-700 dark:text-teal-300" },
-  classification: { stripe: "bg-indigo-500",  card: "bg-indigo-50/98 dark:bg-indigo-950/90 border-indigo-300/70 dark:border-indigo-600/70", badge: "text-indigo-700 dark:text-indigo-300" },
-};
-
-const DEFAULT_STYLE: NodeStyle = {
-  stripe: "bg-border",
-  card:   "bg-card border-border/70",
-  badge:  "text-foreground/70",
-};
-
-function getNodeStyle(nodeType: string): NodeStyle {
-  return NODE_STYLES[nodeType] ?? DEFAULT_STYLE;
-}
-
-// ── DAG node card — compact Apple-style ───────────────────────────────────────
-
-interface OutlinerDagNodeCardProps {
+interface NodeCardProps {
   node: AlgorithmNodeV4;
   surfaceId: string;
-  x: number;
-  y: number;
+  x?: number;
+  y?: number;
   isSelected: boolean;
-  isConnected: boolean;
   isInPath: boolean;
-  // Clinical Cognition Layer props — all optional so existing code paths are safe
-  isAncestorPath?: boolean;  // F1: node is on clinical path from root to selected
-  isNextDecision?: boolean;  // F2: node is the next step to decide from selected
-  hasEvidence?: boolean;     // F4: node has source/ref anchors
-  hasCheckpoint?: boolean;   // F5: node is linked to a checkpoint/flashcard
+  isConnected: boolean;
+  isAncestorPath?: boolean;
+  isNextDecision?: boolean;
+  hasCheckpoint?: boolean;
+  mode: OutlinerMode;
+  isLabelRevealed: boolean;
+  modeOpacity: number;
+  modeFilter: string;
   onClick: (nodeId: string) => void;
-  onBlockClick?: (blockId: string) => void;
 }
 
-function OutlinerDagNodeCard({
+function NodeCard({
   node, surfaceId, x, y,
-  isSelected, isConnected, isInPath,
-  isAncestorPath = false, isNextDecision = false,
-  hasEvidence = false, hasCheckpoint = false,
-  onClick, onBlockClick,
-}: OutlinerDagNodeCardProps) {
-  const style   = getNodeStyle(node.nodeType);
-  const isTrap  = node.nodeType === "trap" || node.memoryRole === "trap";
-  const notDim  = isSelected || isConnected || isInPath || isAncestorPath || isNextDecision;
+  isSelected, isAncestorPath = false, isNextDecision = false,
+  hasCheckpoint = false,
+  mode, isLabelRevealed, modeOpacity, modeFilter,
+  onClick,
+}: NodeCardProps) {
+  const color    = nodeColor(node.nodeType);
+  const isTrap   = node.nodeType === "trap" || node.memoryRole === "trap";
+  const pill     = node.memoryRole ? MEMORY_ROLE_PILLS[node.memoryRole] : null;
+  const Icon     = NODE_ICONS[node.nodeType] ?? AlertCircle;
+  const showTP   = mode !== "recall" && mode !== "exam";
+  const label    = mode === "recall" && !isLabelRevealed ? "؟" : node.label;
+
+  // Box shadow per state
+  let shadow = "0 1px 4px rgba(0,0,0,0.06)";
+  if (isSelected) shadow = `0 0 0 2px ${color}, 0 4px 20px rgba(0,0,0,0.12)`;
+  else if (isTrap) shadow = "0 0 0 3px rgba(244,63,94,0.15), 0 4px 16px rgba(0,0,0,0.10)";
+  else if (isNextDecision) shadow = "0 0 0 2px #34D399, 0 2px 10px rgba(52,211,153,0.20)";
+  else if (isAncestorPath) shadow = "0 0 0 1px rgba(59,130,246,0.45), 0 1px 4px rgba(0,0,0,0.06)";
+
+  const positionStyle: React.CSSProperties = x !== undefined && y !== undefined
+    ? { position: "absolute", left: x, top: y, width: NODE_W, zIndex: 2 }
+    : {};
 
   return (
     <div
@@ -120,101 +219,141 @@ function OutlinerDagNodeCard({
       aria-current={isSelected ? "true" : undefined}
       data-surface-id={surfaceId}
       data-node-id={node.nodeId}
+      data-selected={isSelected ? "true" : undefined}
+      data-trap={isTrap ? "true" : undefined}
       onClick={() => onClick(node.nodeId)}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick(node.nodeId); }}
-      style={{ position: "absolute", left: x, top: y, width: NODE_W, minHeight: NODE_H, zIndex: 2 }}
-      className={cn(
-        "overflow-hidden rounded-lg border cursor-pointer",
-        "transition-all duration-150 ease-out",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-        "shadow-[0_1px_3px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.06)]",
-        style.card,
-        style.glow,
-        // F0: selected node — primary ring, lifted
-        isSelected && "ring-2 ring-offset-2 ring-primary border-primary/80 shadow-[0_4px_16px_rgba(15,23,42,0.14)] scale-[1.02] z-30",
-        // F2: next-decision — emerald ring signals "decide here next"
-        !isSelected && isNextDecision && "ring-2 ring-emerald-500/70 border-emerald-500/70 shadow-[0_2px_10px_rgba(52,211,153,0.16)] z-20",
-        // F1: ancestor path — subtle primary ring traces the clinical route
-        !isSelected && !isNextDecision && isAncestorPath && "ring-1 ring-blue-500/45 border-blue-400/60 bg-blue-50/95 dark:bg-blue-950/90",
-        // Study Clarity Mode: unrelated branches recede without blurring or washing out text.
-        !notDim && "opacity-85",
-      )}
+      style={{
+        ...positionStyle,
+        borderRadius: 12,
+        padding: "10px 12px",
+        minWidth: 180,
+        maxWidth: 240,
+        background: "white",
+        border: `1px solid #E2E8F0`,
+        borderLeft: `3px solid ${color}`,
+        boxShadow: shadow,
+        opacity: modeOpacity,
+        filter: modeFilter,
+        transition: "box-shadow 180ms ease, transform 120ms ease, opacity 180ms ease",
+        cursor: "pointer",
+        transform: isSelected ? "translateY(-2px)" : undefined,
+      }}
     >
-      {/* ── Colored top stripe — F3: trap nodes pulse to signal board risk ── */}
-      <div className={cn("h-[3px] w-full shrink-0", style.stripe, isTrap && "animate-pulse")} />
-
-      {/* ── Card body ── */}
-      <div className="px-2.5 pb-2 pt-1.5">
-        {/* Type badge + learning markers row */}
-        <div className="mb-0.5 flex items-center gap-1 flex-wrap">
-          <span className={cn("text-[10px] font-bold uppercase tracking-wide shrink-0", style.badge)}>
-            {getNodeTypeLabel(node.nodeType)}
+      {/* Top row: memory role pill + icon */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, minHeight: 20 }}>
+        {pill ? (
+          <span style={{
+            borderRadius: 999, padding: "2px 8px", fontSize: 10, fontWeight: 600,
+            letterSpacing: "0.03em", background: pill.bg, color: pill.text,
+          }}>
+            {pill.label}
           </span>
-          {/* F3: trap/warning signal — pulsing indicator */}
-          {isTrap && (
-            <span className="animate-pulse text-[9px] font-bold text-rose-700 dark:text-rose-300 shrink-0">دام</span>
-          )}
-          {/* F4: evidence/source pulse — sky dot for source-anchored nodes */}
-          {hasEvidence && (
-            <span
-              title="source evidence"
-              className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400"
-            />
-          )}
-          {/* F5: MCQ/flashcard link marker */}
-          {hasCheckpoint && (
-            <span className="shrink-0 rounded border border-emerald-400/45 bg-emerald-50/80 px-1 text-[8px] font-bold leading-4 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-400">
-              ✓
-            </span>
-          )}
-          {/* F2: "next" badge on the target node (supplement to ring) */}
-          {isNextDecision && !isSelected && (
-            <span className="shrink-0 rounded bg-emerald-600 px-1 text-[8px] font-bold leading-4 text-white">
-              بعدی
-            </span>
-          )}
-        </div>
-
-        {/* Label */}
-        <p className="text-[13px] font-semibold leading-snug text-foreground">{node.label}</p>
-
-        {/* Detail — 2 lines max */}
-        {node.detail && (
-          <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-foreground/75">
-            {node.detail}
-          </p>
-        )}
-
-        {/* Testable point */}
-        {node.testablePoint && (
-          <p className="mt-1 text-[10px] font-medium text-amber-600 dark:text-amber-400 line-clamp-1">
-            نکته بوردی: {node.testablePoint}
-          </p>
-        )}
-
-        {/* Source chips */}
-        {(node.linkedBlockIds ?? []).length > 0 && (
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            {(node.linkedBlockIds ?? []).slice(0, 3).map((blockId, idx) => (
-              <span
-                key={blockId}
-                role="button"
-                tabIndex={0}
-                onClick={(e) => { e.stopPropagation(); onBlockClick?.(blockId); }}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onBlockClick?.(blockId); } }}
-                className="cursor-pointer rounded border border-sky-400/50 bg-sky-50 px-1.5 py-0.5 text-[9px] font-semibold text-sky-700 hover:border-sky-500 dark:bg-sky-950/70 dark:text-sky-300"
-              >
-                ref {idx + 1}
-              </span>
-            ))}
-          </div>
-        )}
+        ) : <span />}
+        <Icon size={14} color={color} strokeWidth={2} />
       </div>
+
+      {/* Label */}
+      <p style={{ fontSize: 15, fontWeight: 500, color: "#0F172A", margin: 0, lineHeight: 1.4 }}>
+        {label}
+      </p>
+
+      {/* testablePoint — clamped 2 lines, hidden in recall/exam */}
+      {showTP && node.testablePoint && (
+        <p style={{
+          fontSize: 13, color: "#64748B", marginTop: 4, margin: "4px 0 0 0",
+          display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+        }}>
+          {node.testablePoint}
+        </p>
+      )}
+
+      {/* Checkpoint marker */}
+      {hasCheckpoint && (
+        <span style={{
+          display: "inline-block", marginTop: 4, fontSize: 9, fontWeight: 700,
+          border: "1px solid #6EE7B7", borderRadius: 4, padding: "1px 5px",
+          background: "#ECFDF5", color: "#065F46",
+        }}>
+          ✓ چک‌پوینت
+        </span>
+      )}
     </div>
   );
 }
 
-// ── Surface header ────────────────────────────────────────────────────────────
+// ── Node mode visibility ───────────────────────────────────────────────────────
+
+function getNodeModeOpacity(
+  mode: OutlinerMode,
+  node: AlgorithmNodeV4,
+  isSelected: boolean,
+  isOutgoing: boolean,
+  isAncestorPath = false,
+): number {
+  if (mode === "free" || mode === "recall" || mode === "exam") return 1;
+  if (mode === "stepwise") {
+    if (isSelected || isOutgoing) return 1;
+    if (isAncestorPath) return 0.35;
+    return 0.08;
+  }
+  if (mode === "traps") {
+    const isTrap = node.nodeType === "trap" || node.memoryRole === "trap";
+    return isTrap ? 1 : 0.15;
+  }
+  return 1;
+}
+
+function getNodeModeFilter(
+  mode: OutlinerMode,
+  node: AlgorithmNodeV4,
+  isSelected: boolean,
+  isOutgoing: boolean,
+): string {
+  if (mode === "traps") {
+    const isTrap = node.nodeType === "trap" || node.memoryRole === "trap";
+    if (!isTrap) return "grayscale(1)";
+  }
+  return "none";
+}
+
+// ── Edge condition label ───────────────────────────────────────────────────────
+
+function EdgeConditionLabel({
+  label, x, y, edgeType,
+}: { label: string; x: number; y: number; edgeType?: string }) {
+  const es = edgeStyle(edgeType);
+  return (
+    <div
+      dir="rtl"
+      style={{
+        position: "absolute", left: x, top: y,
+        transform: "translate(-50%,-50%)", zIndex: 25, pointerEvents: "none",
+      }}
+    >
+      <span style={{
+        display: "inline-block",
+        background: "white",
+        border: `1px solid ${es.color}`,
+        borderRadius: 999,
+        padding: "2px 8px",
+        fontSize: 11,
+        color: es.color,
+        fontWeight: 500,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+        maxWidth: 160,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+      }}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+// ── Surface header (legacy renderers) ─────────────────────────────────────────
 
 function SurfaceHeader({ surface }: { surface: AlgorithmSurface }) {
   const shape = surface.algorithmShape ?? surface.surfaceType ?? "";
@@ -236,8 +375,6 @@ function SurfaceHeader({ surface }: { surface: AlgorithmSurface }) {
     </div>
   );
 }
-
-// ── Shared frame ──────────────────────────────────────────────────────────────
 
 function SurfaceFrame({ surface, children }: { surface: AlgorithmSurface; children: React.ReactNode }) {
   return (
@@ -263,7 +400,7 @@ function GateBanner({ surface }: { surface: AlgorithmSurface }) {
             {gate.entryCondition && <p className="mt-0.5 text-[11px] text-muted-foreground">{gate.entryCondition}</p>}
             <div className="mt-1.5 flex gap-3 text-[11px]">
               {gate.actionIfPass && <span className="text-emerald-600 dark:text-emerald-400">✓ {gate.actionIfPass}</span>}
-              {gate.actionIfFail  && <span className="text-rose-600 dark:text-rose-400">✗ {gate.actionIfFail}</span>}
+              {gate.actionIfFail && <span className="text-rose-600 dark:text-rose-400">✗ {gate.actionIfFail}</span>}
             </div>
           </div>
         </div>
@@ -295,149 +432,78 @@ function ThresholdSection({ surface }: { surface: AlgorithmSurface }) {
   );
 }
 
-// ── Selected node inspector panel ─────────────────────────────────────────────
+// ── Mini-map ──────────────────────────────────────────────────────────────────
 
-function learningRoleLabel(node: AlgorithmNodeV4): string {
-  if (node.nodeType === "entry") return "ورود";
-  if (node.nodeType === "trap" || node.memoryRole === "trap") return "دام";
-  if (node.nodeType === "treatment" || node.nodeType === "escalation") return "اقدام";
-  if (node.nodeType === "endpoint") return "پایان";
-  return "تصمیم";
-}
-
-function selectedTrapSummary(surface: AlgorithmSurface, node: AlgorithmNodeV4): string {
-  const direct = (surface.boardTraps ?? []).find((trap) => (trap.linkedNodeIds ?? []).includes(node.nodeId));
-  if (direct) return readString(direct, ["trapTitle", "wrongPath", "whyItMatters"]) ?? "دام ثبت شده برای این گره";
-  if (node.nodeType === "trap" || node.memoryRole === "trap") return node.testablePoint ?? node.detail ?? node.label;
-  return "ثبت نشده";
-}
-
-function SelectedNodePanel({
-  surface,
-  node,
-  nextNodes,
-  checkpointCount,
-  onBlockClick,
+function MiniMap({
+  nodes, canvasWidth, canvasHeight, selectedNodeId,
 }: {
-  surface: AlgorithmSurface;
-  node: AlgorithmNodeV4 | undefined;
-  nextNodes: AlgorithmNodeV4[];
-  checkpointCount: number;
-  onBlockClick?: (blockId: string) => void;
+  nodes: Array<{ node: AlgorithmNodeV4; x: number; y: number }>;
+  canvasWidth: number;
+  canvasHeight: number;
+  selectedNodeId: string | null;
 }) {
-  if (!node) {
-    return (
-      <div className="mt-3 rounded-xl border border-border/70 bg-card p-4 shadow-sm" dir="rtl" lang="fa">
-        <p className="text-[13px] font-semibold leading-7 text-foreground">
-          برای شروع، یک کارت الگوریتم را انتخاب کنید تا مسیر بالینی، تصمیم بعدی و دام‌های بوردی نمایش داده شود.
-        </p>
-      </div>
-    );
-  }
-
-  const style = getNodeStyle(node.nodeType);
-  const nextDecision = nextNodes.length > 0
-    ? nextNodes.map((next) => next.label).join(" / ")
-    : "تصمیم بعدی مستقیم ثبت نشده";
-  const hasSource = (node.linkedBlockIds ?? []).length > 0 || !!node.sourceSupport;
-  const hasCheckpoint = checkpointCount > 0;
+  const W = 120, H = 80;
+  const scaleX = W / (canvasWidth || 1);
+  const scaleY = H / (canvasHeight || 1);
 
   return (
-    <div className="mt-3 overflow-hidden rounded-xl border border-primary/40 bg-card shadow-sm">
-      <div className={cn("h-[3px] w-full", style.stripe)} />
-      <div className="grid gap-3 px-4 py-3 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)]" dir="rtl" lang="fa">
-        <div>
-          <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-primary">پنل یادگیری گره انتخاب‌شده</p>
-          <p className="text-[15px] font-bold leading-7 text-foreground">{node.label}</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            <LearningPill label="نقش آموزشی" value={learningRoleLabel(node)} />
-            <LearningPill label="منبع/ref" value={hasSource ? "دارد" : "ندارد"} tone={hasSource ? "source" : "neutral"} />
-            <LearningPill label="checkpoint/MCQ/flashcard" value={hasCheckpoint ? `${checkpointCount}` : "ندارد"} tone={hasCheckpoint ? "review" : "neutral"} />
-          </div>
-        </div>
-
-        <div className="grid gap-2 text-[12px] leading-6">
-          <LearningFact label="چرا مهم است؟" value={node.testablePoint ?? node.detail ?? node.sourceSupport ?? "نکته جداگانه‌ای ثبت نشده"} />
-          <LearningFact label="تصمیم بعدی چیست؟" value={nextDecision} tone="next" />
-          <LearningFact label="دام امتحانی مرتبط چیست؟" value={selectedTrapSummary(surface, node)} tone="trap" />
-        </div>
-
-        {node.sourceSupport && (
-          <p className="md:col-span-2 text-[11px] leading-6 text-foreground/70">{node.sourceSupport}</p>
-        )}
-        {(node.linkedBlockIds ?? []).length > 0 && (
-          <div className="md:col-span-2 flex flex-wrap gap-1.5">
-            {(node.linkedBlockIds ?? []).map((blockId, idx) => (
-              <button
-                key={blockId}
-                type="button"
-                onClick={() => onBlockClick?.(blockId)}
-                className="min-h-7 rounded-md border border-sky-400/50 bg-sky-50 px-2 text-[10px] font-semibold text-sky-700 hover:border-sky-500 dark:bg-sky-950/70 dark:text-sky-300"
-              >
-                منبع {idx + 1}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+    <div style={{
+      position: "absolute", bottom: 52, right: 12, zIndex: 10,
+      width: W, height: H,
+      background: "rgba(255,255,255,0.88)",
+      border: "1px solid #E2E8F0",
+      borderRadius: 8,
+      overflow: "hidden",
+      pointerEvents: "none",
+    }}>
+      <svg width={W} height={H}>
+        {nodes.map((ln) => {
+          const cx = (ln.x + NODE_W / 2) * scaleX;
+          const cy = (ln.y + NODE_H / 2) * scaleY;
+          const color = nodeColor(ln.node.nodeType);
+          const r = ln.node.nodeId === selectedNodeId ? 4 : 2.5;
+          return (
+            <circle
+              key={ln.node.nodeId}
+              cx={cx} cy={cy} r={r}
+              fill={color}
+              opacity={ln.node.nodeId === selectedNodeId ? 1 : 0.6}
+            />
+          );
+        })}
+      </svg>
     </div>
   );
 }
 
-function LearningPill({
-  label,
-  value,
-  tone = "neutral",
-}: {
-  label: string;
-  value: string;
-  tone?: "neutral" | "source" | "review";
+// ── Zoom pill ─────────────────────────────────────────────────────────────────
+
+function ZoomPill({ zoom, onReset, onZoomIn, onZoomOut }: {
+  zoom: number;
+  onReset: () => void;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
 }) {
   return (
-    <span className={cn(
-      "rounded-full border px-2 py-0.5 text-[10px] font-semibold",
-      tone === "source" ? "border-sky-400/60 bg-sky-50 text-sky-700 dark:bg-sky-950/70 dark:text-sky-300" :
-      tone === "review" ? "border-amber-400/60 bg-amber-50 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300" :
-      "border-border/70 bg-background text-foreground/75",
-    )}>
-      {label}: {value}
-    </span>
-  );
-}
-
-function LearningFact({
-  label,
-  value,
-  tone = "neutral",
-}: {
-  label: string;
-  value: string;
-  tone?: "neutral" | "next" | "trap";
-}) {
-  return (
-    <div className={cn(
-      "rounded-lg border px-3 py-2",
-      tone === "next" ? "border-emerald-400/50 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/70 dark:text-emerald-100" :
-      tone === "trap" ? "border-rose-400/50 bg-rose-50 text-rose-900 dark:bg-rose-950/70 dark:text-rose-100" :
-      "border-border/60 bg-background text-foreground",
-    )}>
-      <span className="font-bold">{label} </span>
-      <span>{value}</span>
-    </div>
-  );
-}
-
-// ── Edge condition label ───────────────────────────────────────────────────────
-
-function EdgeConditionLabel({ label, x, y }: { label: string; x: number; y: number }) {
-  return (
-    <div
-      dir="rtl"
-      style={{ position: "absolute", left: x, top: y, transform: "translate(-50%,-50%)", zIndex: 25, pointerEvents: "none" }}
-    >
-      <span className="inline-block rounded-full border border-border/80 bg-background px-2 py-0.5 text-[10px] font-semibold text-foreground whitespace-nowrap shadow-sm">
-        {label}
-      </span>
+    <div style={{
+      position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)",
+      zIndex: 10, display: "flex", alignItems: "center", gap: 0,
+      background: "white", border: "1px solid #E2E8F0",
+      borderRadius: 999, boxShadow: "0 1px 4px rgba(0,0,0,0.10)",
+      overflow: "hidden",
+    }}>
+      <button type="button" onClick={onZoomOut}
+        style={{ padding: "6px 10px", fontSize: 14, cursor: "pointer", border: "none", background: "none", color: "#64748B" }}>
+        −
+      </button>
+      <button type="button" onClick={onReset}
+        style={{ padding: "6px 4px", fontSize: 11, fontWeight: 600, cursor: "pointer", border: "none", background: "none", color: "#0F172A", minWidth: 44, textAlign: "center" }}>
+        {Math.round(zoom * 100)}%
+      </button>
+      <button type="button" onClick={onZoomIn}
+        style={{ padding: "6px 10px", fontSize: 14, cursor: "pointer", border: "none", background: "none", color: "#64748B" }}>
+        +
+      </button>
     </div>
   );
 }
@@ -455,17 +521,22 @@ export function DagRenderer({
   const v4edges = surface.edges as unknown as AlgorithmEdgeV4[];
   const layout  = useAlgorithmLayout(v4nodes, v4edges);
 
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [visitedPath,    setVisitedPath]    = useState<string[]>([]);
-  const [useWebGL,       setUseWebGL]       = useState(true);
-  const [zoom,           setZoom]           = useState(1.0);
+  // ── Store reads ──────────────────────────────────────────────────────────
+  const selectedNodeId      = useOutlinerStore((s) => s.focusedNodeId);
+  const storeSetSelectedId  = useOutlinerStore((s) => s.setSelectedNodeId);
+  const activateFocusPath   = useOutlinerStore((s) => s.activateFocusPath);
+  const mode                = useOutlinerStore((s) => s.mode);
+  const revealedNodeLabels  = useOutlinerStore((s) => s.revealedNodeLabels);
+  const revealNodeLabel     = useOutlinerStore((s) => s.revealNodeLabel);
+
+  const [visitedPath, setVisitedPath] = useState<string[]>([]);
+  const [useWebGL,    setUseWebGL]    = useState(true);
+  const [zoom,        setZoom]        = useState(1.0);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const activateFocusPath = useOutlinerStore((s) => s.activateFocusPath);
   const handleWebGLFallback = useCallback(() => setUseWebGL(false), []);
 
-  // ── Clinical Cognition Layer — memos ──────────────────────────────────────
-  // F5: how many checkpoints link to each node (for MCQ/flashcard marker)
+  // ── Memos ────────────────────────────────────────────────────────────────
   const checkpointNodeCounts = useMemo(() => {
     const counts = new Map<string, number>();
     for (const cp of (surface.checkpoints ?? []) as Array<{ linkedNodeIds?: string[] }>) {
@@ -476,13 +547,11 @@ export function DagRenderer({
     return counts;
   }, [surface.checkpoints]);
 
-  // F5: set of nodeIds with linked checkpoints
   const checkpointedNodes = useMemo(
     () => new Set(checkpointNodeCounts.keys()),
     [checkpointNodeCounts],
   );
 
-  // F6: educational heat per nodeId — only when metadata justifies it
   const eduHeatMap = useMemo(() => {
     const map = new Map<string, number>();
     for (const node of v4nodes) {
@@ -492,13 +561,11 @@ export function DagRenderer({
     return map;
   }, [v4nodes, checkpointNodeCounts]);
 
-  // F1: ancestor path — all node IDs from root to selected (BFS backwards)
   const ancestorPath = useMemo(
     () => selectedNodeId ? computeAncestorPath(v4edges, selectedNodeId) : new Set<string>(),
     [v4edges, selectedNodeId],
   );
 
-  // F2: outgoing neighbors of selected node (next decisions)
   const nextDecisionNodes = useMemo(
     () => {
       if (!selectedNodeId) return new Set<string>();
@@ -507,12 +574,18 @@ export function DagRenderer({
     [v4edges, selectedNodeId],
   );
 
-  // Stable arrays for WebGL props (avoid identity churn)
   const ancestorArr = useMemo(() => [...ancestorPath],      [ancestorPath]);
   const nextArr     = useMemo(() => [...nextDecisionNodes], [nextDecisionNodes]);
-  // ─────────────────────────────────────────────────────────────────────────
 
-  // Non-passive Ctrl+wheel zoom (prevents browser from intercepting)
+  // Trap node IDs for WebGL traps-mode dimming
+  const trapNodeIds = useMemo(
+    () => mode === "traps"
+      ? v4nodes.filter((n) => n.nodeType === "trap" || n.memoryRole === "trap").map((n) => n.nodeId)
+      : [],
+    [mode, v4nodes],
+  );
+
+  // Non-passive Ctrl+wheel zoom
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -527,10 +600,14 @@ export function DagRenderer({
   }, []);
 
   function handleSelectNode(nodeId: string) {
-    if (selectedNodeId === nodeId) { setSelectedNodeId(null); return; }
-    setSelectedNodeId(nodeId);
+    if (selectedNodeId === nodeId) {
+      storeSetSelectedId(null);
+      return;
+    }
+    storeSetSelectedId(nodeId);
     setVisitedPath((prev) => prev.includes(nodeId) ? prev : [...prev, nodeId]);
     activateFocusPath(nodeId);
+    if (mode === "recall") revealNodeLabel(nodeId);
   }
 
   const connectedIds = new Set<string>();
@@ -541,58 +618,39 @@ export function DagRenderer({
     }
   }
 
-  const selectedNode = v4nodes.find((n) => n.nodeId === selectedNodeId);
-  const selectedNextNodes = selectedNodeId
-    ? v4nodes.filter((node) => nextDecisionNodes.has(node.nodeId))
-    : [];
-  const selectedCheckpointCount = selectedNodeId ? checkpointNodeCounts.get(selectedNodeId) ?? 0 : 0;
-  const visitedSet   = new Set(visitedPath);
-  const lodMode      = zoom < LOD_THRESHOLD; // DOM cards hidden, WebGL quads take over
+  const visitedSet = new Set(visitedPath);
+  const lodMode    = zoom < LOD_THRESHOLD;
 
   return (
     <SurfaceFrame surface={surface}>
       <GateBanner surface={surface} />
 
-      {/* ── Zoom hint ── */}
-      {zoom !== 1.0 && (
-        <div className="mb-1.5 flex items-center justify-between gap-2">
-          <span className="text-[10px] text-muted-foreground">Ctrl+scroll to zoom</span>
-          <button
-            type="button"
-            onClick={() => setZoom(1.0)}
-            className="rounded-full border border-border/50 bg-muted/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground"
-          >
-            {Math.round(zoom * 100)}% · reset
-          </button>
-        </div>
-      )}
-
       {/* ── Canvas scroll container ── */}
       <div
         ref={scrollRef}
         className="overflow-auto rounded-xl border border-border/30 shadow-inner"
-        style={{ background: "var(--outliner-canvas-bg, #f6f7f9)", minHeight: "clamp(360px, 58vh, 680px)" }}
+        style={{
+          backgroundColor: "var(--sp-canvas-bg, #FAFAFA)",
+          backgroundImage: "radial-gradient(circle, var(--sp-canvas-dot, #E2E8F0) 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
+          minHeight: "clamp(360px, 58vh, 680px)",
+          position: "relative",
+        }}
       >
-        {/* Size proxy: tells the scroll container how big the zoomed content is */}
+        {/* Size proxy */}
         <div style={{ width: layout.canvasWidth * zoom, height: layout.canvasHeight * zoom, position: "relative" }}>
 
           {/* Scaled content layer */}
           <div
             className="relative"
             style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: layout.canvasWidth,
-              height: layout.canvasHeight,
-              transform: `scale(${zoom})`,
-              transformOrigin: "0 0",
-              backgroundImage: "radial-gradient(circle, var(--outliner-dot-color) 1px, transparent 1px)",
-              backgroundSize: "20px 20px",
+              position: "absolute", top: 0, left: 0,
+              width: layout.canvasWidth, height: layout.canvasHeight,
+              transform: `scale(${zoom})`, transformOrigin: "0 0",
             }}
             data-surface-id={surface.id}
           >
-            {/* ── GPU layer — WebGL2 canvas (heatmap + edges + particles + LOD + DOF) ── */}
+            {/* ── GPU layer ── */}
             {useWebGL ? (
               <OutlinerWebGLCanvas
                 layoutEdges={layout.edges}
@@ -606,6 +664,7 @@ export function DagRenderer({
                 ancestorPath={ancestorArr}
                 nextNodeIds={nextArr}
                 eduHeat={eduHeatMap}
+                highlightNodeIds={trapNodeIds}
               />
             ) : (
               <AlgorithmEdgeLayer
@@ -618,27 +677,38 @@ export function DagRenderer({
               />
             )}
 
-            {/* ── DOM node cards (hidden in LOD mode — WebGL quads take over) ── */}
-            {!lodMode && layout.nodes.map((ln) => (
-              <OutlinerDagNodeCard
-                key={ln.node.nodeId}
-                node={ln.node}
-                surfaceId={surface.id}
-                x={ln.x}
-                y={ln.y}
-                isSelected={ln.node.nodeId === selectedNodeId}
-                isInPath={visitedSet.has(ln.node.nodeId)}
-                isConnected={connectedIds.has(ln.node.nodeId)}
-                isAncestorPath={ancestorPath.has(ln.node.nodeId) && ln.node.nodeId !== selectedNodeId}
-                isNextDecision={nextDecisionNodes.has(ln.node.nodeId)}
-                hasEvidence={(ln.node.linkedBlockIds ?? []).length > 0 || !!ln.node.sourceSupport}
-                hasCheckpoint={checkpointedNodes.has(ln.node.nodeId)}
-                onClick={handleSelectNode}
-                onBlockClick={onBlockClick}
-              />
-            ))}
+            {/* ── DOM node cards ── */}
+            {!lodMode && layout.nodes.map((ln) => {
+              const isSelected    = ln.node.nodeId === selectedNodeId;
+              const isOutgoing    = nextDecisionNodes.has(ln.node.nodeId);
+              const isAncPath     = ancestorPath.has(ln.node.nodeId) && !isSelected;
+              const opacity       = getNodeModeOpacity(mode, ln.node, isSelected, isOutgoing, isAncPath);
+              const filter        = getNodeModeFilter(mode, ln.node, isSelected, isOutgoing);
+              const labelRevealed = revealedNodeLabels.has(ln.node.nodeId);
 
-            {/* ── Edge condition labels (shown when edge is traversed or active) ── */}
+              return (
+                <NodeCard
+                  key={ln.node.nodeId}
+                  node={ln.node}
+                  surfaceId={surface.id}
+                  x={ln.x}
+                  y={ln.y}
+                  isSelected={isSelected}
+                  isInPath={visitedSet.has(ln.node.nodeId)}
+                  isConnected={connectedIds.has(ln.node.nodeId)}
+                  isAncestorPath={isAncPath}
+                  isNextDecision={isOutgoing}
+                  hasCheckpoint={checkpointedNodes.has(ln.node.nodeId)}
+                  mode={mode}
+                  isLabelRevealed={labelRevealed}
+                  modeOpacity={opacity}
+                  modeFilter={filter}
+                  onClick={handleSelectNode}
+                />
+              );
+            })}
+
+            {/* ── Edge condition labels ── */}
             {!lodMode && layout.edges
               .filter((le) => {
                 if (!le.edge.condition) return false;
@@ -652,19 +722,29 @@ export function DagRenderer({
                   label={le.edge.condition!}
                   x={(le.fromPos.x + le.toPos.x) / 2}
                   y={(le.fromPos.y + le.toPos.y) / 2}
+                  edgeType={le.edge.edgeType}
                 />
               ))}
           </div>
         </div>
+
+        {/* Mini-map */}
+        <MiniMap
+          nodes={layout.nodes}
+          canvasWidth={layout.canvasWidth}
+          canvasHeight={layout.canvasHeight}
+          selectedNodeId={selectedNodeId}
+        />
+
+        {/* Zoom pill */}
+        <ZoomPill
+          zoom={zoom}
+          onReset={() => setZoom(1.0)}
+          onZoomIn={() => setZoom((z) => Math.min(2.0, z * 1.08))}
+          onZoomOut={() => setZoom((z) => Math.max(0.25, z * 0.92))}
+        />
       </div>
 
-      <SelectedNodePanel
-        surface={surface}
-        node={selectedNode}
-        nextNodes={selectedNextNodes}
-        checkpointCount={selectedCheckpointCount}
-        onBlockClick={onBlockClick}
-      />
       <ThresholdSection surface={surface} />
     </SurfaceFrame>
   );
@@ -683,62 +763,39 @@ export function ChainRenderer({
   const v4edges = surface.edges as unknown as AlgorithmEdgeV4[];
   const layout  = useAlgorithmLayout(v4nodes, v4edges);
   const ordered = [...layout.nodes].sort((a, b) => a.y - b.y);
+  const mode    = useOutlinerStore((s) => s.mode);
 
   return (
     <SurfaceFrame surface={surface}>
       <ol className="space-y-1.5">
         {ordered.map((ln, index) => {
           const node  = ln.node;
-          const style = getNodeStyle(node.nodeType);
+          const color = nodeColor(node.nodeType);
           return (
             <li key={node.nodeId} className="flex gap-2.5">
-              {/* Step number column */}
               <div className="flex flex-col items-center">
-                <div className={cn(
-                  "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
-                  "border border-primary/40 bg-primary/10 text-primary",
-                )}>
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold border border-primary/40 bg-primary/10 text-primary">
                   {index + 1}
                 </div>
                 {index < ordered.length - 1 && (
                   <div className="mt-1 min-h-3 flex-1 border-l border-dashed border-border/50" />
                 )}
               </div>
-
-              {/* Card */}
               <div
-                dir="rtl"
-                lang="fa"
-                data-node-id={node.nodeId}
-                className={cn("min-w-0 flex-1 overflow-hidden rounded-lg border mb-0.5", style.card,
-                  "shadow-[0_1px_3px_rgba(0,0,0,0.07)]"
-                )}
+                dir="rtl" lang="fa" data-node-id={node.nodeId}
+                className="min-w-0 flex-1 overflow-hidden rounded-xl border mb-0.5 shadow-[0_1px_3px_rgba(0,0,0,0.07)] bg-white"
+                style={{ borderLeft: `3px solid ${color}` }}
               >
-                <div className={cn("h-[3px] w-full", style.stripe)} />
                 <div className="px-3 py-2">
-                  <span className={cn("text-[10px] font-bold uppercase tracking-wide", style.badge)}>
-                    {getNodeTypeLabel(node.nodeType)}
-                  </span>
+                  <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color }}>
+                    {NODE_TYPE_ROLE_LABELS[node.nodeType] ?? node.nodeType}
+                  </p>
                   <p className="mt-0.5 text-[13px] font-semibold text-foreground">{node.label}</p>
                   {node.detail && <p className="mt-1 text-[11px] leading-relaxed text-foreground/75">{node.detail}</p>}
-                  {node.testablePoint && (
-                    <p className="mt-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
-                      📋 {node.testablePoint}
+                  {mode !== "recall" && mode !== "exam" && node.testablePoint && (
+                    <p className="mt-1 text-[10px] font-medium" style={{ color: "#92400E" }}>
+                      {node.testablePoint}
                     </p>
-                  )}
-                  {(node.linkedBlockIds ?? []).length > 0 && (
-                    <div className="mt-1.5 flex flex-wrap gap-1">
-                      {(node.linkedBlockIds ?? []).map((blockId, idx) => (
-                        <button
-                          key={blockId}
-                          type="button"
-                          onClick={() => onBlockClick?.(blockId)}
-                          className="min-h-6 rounded border border-border/50 px-1.5 text-[9px] text-muted-foreground hover:bg-background"
-                        >
-                          منبع {idx + 1}
-                        </button>
-                      ))}
-                    </div>
                   )}
                 </div>
               </div>
@@ -760,36 +817,38 @@ export function CardGridRenderer({
   surface: AlgorithmSurface;
   onBlockClick?: (blockId: string) => void;
 }) {
+  const mode = useOutlinerStore((s) => s.mode);
+
   return (
     <SurfaceFrame surface={surface}>
       <GateBanner surface={surface} />
       <div className="grid gap-2 sm:grid-cols-2">
         {(surface.nodes ?? []).map((node) => {
           const v4    = node as unknown as AlgorithmNodeV4;
-          const style = getNodeStyle(v4.nodeType);
+          const color = nodeColor(v4.nodeType);
+          const pill  = v4.memoryRole ? MEMORY_ROLE_PILLS[v4.memoryRole] : null;
           return (
             <div
               key={node.id}
-              dir="rtl"
-              lang="fa"
-              data-node-id={node.id}
-              className={cn(
-                "overflow-hidden rounded-lg border text-right",
-                "shadow-[0_1px_3px_rgba(0,0,0,0.07)]",
-                style.card,
-              )}
+              dir="rtl" lang="fa" data-node-id={node.id}
+              className="overflow-hidden rounded-xl border text-right shadow-[0_1px_3px_rgba(0,0,0,0.07)] bg-white"
+              style={{ borderLeft: `3px solid ${color}` }}
             >
-              <div className={cn("h-[3px] w-full", style.stripe)} />
               <div className="px-3 py-2">
-                <span className={cn("text-[10px] font-bold uppercase tracking-wide", style.badge)}>
-                  {getNodeTypeLabel(v4.nodeType)}
-                </span>
+                <div className="flex items-center justify-between mb-1">
+                  {pill ? (
+                    <span style={{ borderRadius: 999, padding: "2px 7px", fontSize: 9, fontWeight: 700, background: pill.bg, color: pill.text }}>
+                      {pill.label}
+                    </span>
+                  ) : <span />}
+                  <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color }}>
+                    {NODE_TYPE_ROLE_LABELS[v4.nodeType] ?? v4.nodeType}
+                  </span>
+                </div>
                 <p className="mt-0.5 text-[13px] font-semibold text-foreground">{v4.label}</p>
                 {v4.detail && <p className="mt-1 text-[11px] leading-relaxed text-foreground/75 line-clamp-3">{v4.detail}</p>}
-                {v4.testablePoint && (
-                  <p className="mt-1 text-[10px] font-medium text-amber-600 dark:text-amber-400">
-                    📋 {v4.testablePoint}
-                  </p>
+                {mode !== "recall" && mode !== "exam" && v4.testablePoint && (
+                  <p className="mt-1 text-[10px] font-medium" style={{ color: "#92400E" }}>{v4.testablePoint}</p>
                 )}
               </div>
             </div>
@@ -815,18 +874,16 @@ function TrapSurfaceRenderer({
       <div className="space-y-3">
         {(surface.boardTraps ?? []).map((trap) => (
           <article key={trap.id} className="overflow-hidden rounded-xl border border-rose-400/40">
-            {/* Trap header */}
             <div className="border-b border-rose-400/30 bg-rose-50 dark:bg-rose-950/50 px-4 py-2.5">
               <p className="text-[12px] font-bold text-rose-700 dark:text-rose-400">
                 ⚠ {readString(trap, ["trapTitle"]) ?? "Board trap"}
               </p>
             </div>
-            {/* Wrong / correct */}
             <div className="grid gap-0 sm:grid-cols-2">
               {trap.wrongPath && (
                 <div className="border-b border-border/40 sm:border-b-0 sm:border-l p-3">
                   <p className="mb-1 text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wide">✗ مسیر اشتباه</p>
-                <p className="text-[12px] leading-5 text-foreground/75" dir="rtl" lang="fa">{trap.wrongPath}</p>
+                  <p className="text-[12px] leading-5 text-foreground/75" dir="rtl" lang="fa">{trap.wrongPath}</p>
                 </div>
               )}
               {trap.correctPath && (
@@ -911,3 +968,7 @@ export function renderSurface(
 
   return null;
 }
+
+// ── Re-export nodeType role labels for use in LearningPanel ──────────────────
+export { NODE_TYPE_ROLE_LABELS, NODE_COLORS, MEMORY_ROLE_PILLS, EDGE_STYLES, DEFAULT_EDGE_STYLE };
+export type { EdgeStyle };

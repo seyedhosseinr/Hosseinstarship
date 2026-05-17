@@ -6,7 +6,7 @@
  */
 
 import { useState, useMemo } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronLeft } from "lucide-react";
 
 export interface SidebarSubject {
   id: string;
@@ -88,7 +88,7 @@ export function QBankSidebar({
             >
               {isExpanded
                 ? <ChevronDown size={13} className="QB-sub-chev" />
-                : <ChevronRight size={13} className="QB-sub-chev" />}
+                : <ChevronLeft size={13} className="QB-sub-chev" />}
               <span className="QB-sub-name">{sub.label}</span>
               <span className="QB-cnt">{subCount}</span>
             </button>
@@ -113,7 +113,7 @@ export function QBankSidebar({
                   >
                     {sysExpanded
                       ? <ChevronDown size={11} className="QB-sys-chev" />
-                      : <ChevronRight size={11} className="QB-sys-chev" />}
+                      : <ChevronLeft size={11} className="QB-sys-chev" />}
                     <span className="QB-sys-name">{sys.label}</span>
                     <span className="QB-cnt">{sysCount}</span>
                   </button>
