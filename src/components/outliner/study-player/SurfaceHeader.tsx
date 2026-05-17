@@ -52,18 +52,18 @@ export function SurfaceHeader({ surface }: SurfaceHeaderProps) {
   return (
     <header
       data-outliner-surface-header
-      className="border-b px-4 py-4 lg:px-6"
+      className="border-b px-4 py-3 lg:px-6"
       style={{ background: "var(--sp-surface)", borderColor: "var(--sp-border)" }}
     >
       {/* Title row */}
-      <div className="flex flex-wrap items-start gap-2" dir="rtl" lang="fa">
+      <div className="flex flex-wrap items-start gap-3" dir="rtl" lang="fa">
         <SurfaceIcon
           className="mt-0.5 h-5 w-5 shrink-0"
           style={{ color: "var(--sp-text-muted)" }}
           aria-hidden
         />
         <h2
-          className="flex-1 text-[18px] font-bold leading-snug"
+          className="flex-1 text-[17px] font-bold leading-snug lg:text-[18px]"
           style={{ color: "var(--sp-text)", minWidth: 0 }}
         >
           {surface.title}
@@ -81,7 +81,7 @@ export function SurfaceHeader({ surface }: SurfaceHeaderProps) {
       {/* Clinical question */}
       {clinicalQuestion && (
         <p
-          className="mt-2 text-[14px] italic leading-relaxed"
+          className="mt-1.5 text-[13px] leading-relaxed lg:text-[14px]"
           style={{ color: "var(--sp-text-muted)" }}
           dir="rtl"
           lang="fa"
@@ -93,7 +93,7 @@ export function SurfaceHeader({ surface }: SurfaceHeaderProps) {
       {/* Memory anchor card */}
       {memoryAnchor && (
         <div
-          className="mt-3 flex items-start gap-2.5 rounded-xl border px-3 py-2.5"
+          className="mt-2.5 flex items-start gap-2.5 rounded-lg border px-3 py-2"
           style={{
             background: "var(--sp-amber-bg)",
             borderColor: "var(--sp-amber-border)",

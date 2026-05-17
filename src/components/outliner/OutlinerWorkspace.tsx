@@ -106,15 +106,15 @@ export function OutlinerWorkspace({ initialSegmentId }: OutlinerWorkspaceProps) 
     !isFocusMode && chapterPanelCollapsed && chapters.length > 0;
 
   return (
-    <main className="outliner-workspace bg-white min-h-[calc(100vh-32px)]">
+    <main className="outliner-workspace flex h-full min-h-0 flex-col bg-[#F4F7F8]">
       {error && (
-        <div className="border-b border-red-100 bg-red-50/80 px-4 py-2.5 text-xs text-red-700">
+        <div className="shrink-0 border-b border-red-100 bg-red-50/80 px-4 py-2.5 text-xs text-red-700">
           {error}
         </div>
       )}
 
       {segments.length === 0 ? (
-        <section className="flex min-h-[calc(100vh-32px)] flex-col items-center justify-center gap-4 p-8 text-center">
+        <section className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
           <BookOpen className="h-10 w-10 text-gray-200" />
           <p className="text-sm font-medium text-gray-500">هنوز الگوریتمی وارد نشده است.</p>
           <p className="text-xs text-gray-400">
@@ -123,9 +123,9 @@ export function OutlinerWorkspace({ initialSegmentId }: OutlinerWorkspaceProps) 
         </section>
       ) : (
         <div
-          className={`grid min-h-[calc(100vh-32px)] grid-cols-1 ${
+          className={`grid flex-1 grid-cols-1 overflow-hidden ${
             !isFocusMode && !chapterPanelCollapsed
-              ? "lg:grid-cols-[260px_minmax(0,1fr)]"
+              ? "lg:grid-cols-[300px_minmax(0,1fr)]"
               : ""
           }`}
         >
@@ -140,13 +140,13 @@ export function OutlinerWorkspace({ initialSegmentId }: OutlinerWorkspaceProps) 
             />
           )}
 
-          <section className="min-w-0">
+          <section className="flex min-w-0 min-h-0 flex-col overflow-hidden">
             {showChapterStrip && chapters.length > 1 && (
-              <div className="flex items-center gap-2 border-b border-gray-100 bg-white px-4 py-2">
+              <div className="flex shrink-0 items-center gap-2 border-b border-slate-200 bg-white/90 px-4 py-2 backdrop-blur">
                 <button
                   type="button"
                   onClick={() => setChapterPanelCollapsed(false)}
-                  className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition hover:bg-gray-50"
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
                 >
                   <BookOpen className="h-3.5 w-3.5" />
                   فصل‌ها
@@ -177,7 +177,7 @@ export function OutlinerWorkspace({ initialSegmentId }: OutlinerWorkspaceProps) 
                 mediaRaw={active.mediaRaw}
               />
             ) : (
-              <div className="flex min-h-[calc(100vh-80px)] items-center justify-center p-8 text-sm text-gray-400">
+              <div className="flex flex-1 items-center justify-center p-8 text-sm text-gray-400">
                 {loading ? "در حال بارگذاری..." : "یک فصل را از فهرست انتخاب کنید."}
               </div>
             )}
@@ -204,8 +204,8 @@ function ChapterPanel({
   onCollapse: () => void;
 }) {
   return (
-    <aside className="outliner-chapter-panel flex h-[calc(100vh-32px)] flex-col overflow-hidden border-r border-gray-100 bg-white">
-      <div className="shrink-0 flex items-center justify-between gap-2 border-b border-gray-100 px-4 py-3">
+    <aside className="outliner-chapter-panel flex h-full flex-col overflow-hidden border-r border-slate-200 bg-white">
+      <div className="shrink-0 flex items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
         <h2 className="text-sm font-semibold text-gray-800">فصل‌ها</h2>
         <div className="flex items-center gap-2">
           {loading && <span className="text-[10px] text-gray-400">بارگذاری...</span>}

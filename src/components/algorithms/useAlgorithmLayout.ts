@@ -48,10 +48,10 @@ export function useAlgorithmLayout(
     graph.setDefaultEdgeLabel(() => ({}));
     graph.setGraph({
       rankdir: "TB",
-      nodesep: 56,
-      ranksep: 88,
-      marginx: 40,
-      marginy: 40,
+      nodesep: 72,
+      ranksep: 112,
+      marginx: 72,
+      marginy: 64,
     });
 
     for (const node of nodes) {

@@ -97,24 +97,24 @@ function RevealBox({ nodeId, content }: { nodeId: string; content: string }) {
   if (isRevealed) {
     return (
       <div style={{
-        background: "#EFF6FF", borderLeft: "3px solid #3B82F6",
+        background: "var(--sp-accent-soft, #E0F2F1)", borderRight: "3px solid var(--sp-accent, #0F766E)",
         borderRadius: 8, padding: "12px 14px",
       }} dir="rtl" lang="fa">
-        <p style={{ fontSize: 13, color: "#1E3A5F", lineHeight: 1.7 }}>{content}</p>
+        <p style={{ fontSize: 13, color: "#0F3F3A", lineHeight: 1.7 }}>{content}</p>
       </div>
     );
   }
 
   return (
     <div style={{
-      background: "#F8FAFC", border: "1px solid #E2E8F0",
+      background: "var(--sp-surface-alt, #F8FAFC)", border: "1px solid var(--sp-border, #D7E0E5)",
       borderRadius: 8, padding: "12px 14px", textAlign: "center",
     }}>
       <button
         type="button"
         onClick={() => revealTestablePoint(nodeId)}
         style={{
-          background: "#0F172A", color: "white", border: "none", borderRadius: 8,
+          background: "var(--sp-accent, #0F766E)", color: "white", border: "none", borderRadius: 8,
           padding: "8px 20px", fontSize: 12, fontWeight: 600, cursor: "pointer",
         }}
         lang="fa"
@@ -186,7 +186,7 @@ export function LearningPanelBody({
   });
 
   return (
-    <div style={{ padding: "16px 16px 12px", display: "flex", flexDirection: "column", gap: 0, overflowY: "auto", flex: 1 }} dir="rtl" lang="fa">
+    <div style={{ padding: "18px 18px 14px", display: "flex", flexDirection: "column", gap: 0, overflowY: "auto", flex: 1 }} dir="rtl" lang="fa">
 
       {/* 1. Label with nodeType icon */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 4 }}>
@@ -214,10 +214,10 @@ export function LearningPanelBody({
             <RevealBox nodeId={node.nodeId} content={node.testablePoint} />
           ) : mode === "recall" ? null : (
             <div style={{
-              background: "#EFF6FF", borderLeft: "3px solid #3B82F6",
+              background: "var(--sp-accent-soft, #E0F2F1)", borderRight: "3px solid var(--sp-accent, #0F766E)",
               borderRadius: 8, padding: "12px 14px",
             }}>
-              <p style={{ fontSize: 13, color: "#1E3A5F", lineHeight: 1.7 }}>{node.testablePoint}</p>
+              <p style={{ fontSize: 13, color: "#0F3F3A", lineHeight: 1.7 }}>{node.testablePoint}</p>
             </div>
           )}
         </div>
@@ -472,11 +472,11 @@ export function LearningPanel({ onBlockClick }: { onBlockClick?: (blockId: strin
       data-outliner-learning-panel
       aria-hidden={isEmpty}
       style={{
-        borderLeft: "1px solid var(--sp-border, #E2E8F0)",
-        background: "white",
+        borderLeft: "1px solid var(--sp-border, #D7E0E5)",
+        background: "var(--sp-surface)",
         display: isEmpty ? "none" : "flex",
         flexDirection: "column",
-        width: 300,
+        width: 340,
         flexShrink: 0,
         overflowY: "auto",
       }}
@@ -511,8 +511,8 @@ export function LearningPanelBottomSheet({ onBlockClick }: { onBlockClick?: (blo
 
   return (
     <div
-      className="fixed bottom-0 inset-x-0 z-30 flex max-h-[40vh] flex-col rounded-t-2xl border-t bg-white shadow-lg lg:hidden"
-      style={{ borderColor: "var(--sp-border, #E2E8F0)" }}
+      className="fixed bottom-0 inset-x-0 z-30 flex max-h-[52vh] flex-col rounded-t-lg border-t bg-white shadow-lg lg:hidden"
+      style={{ borderColor: "var(--sp-border, #D7E0E5)" }}
     >
       <div className="mx-auto mt-2 h-1 w-10 rounded-full" style={{ background: "#E2E8F0" }} />
       <div style={{ overflowY: "auto", flex: 1 }}>

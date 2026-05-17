@@ -19,6 +19,12 @@ const READER_ROUTES      = [
 ];
 /** Dashboard route: sidebar is kept, but no wrapper padding/max-width. */
 const DASHBOARD_ROUTES   = ["/dashboard"];
+/**
+ * Outliner route: full-bleed canvas app — no padding wrapper, overflow-hidden
+ * so the outliner manages its own scroll internally. Layout adapts to sidebar
+ * width changes automatically via flex-1 on <main>.
+ */
+const OUTLINER_ROUTES    = ["/outliner"];
 const ENABLE_SERVICE_WORKER =
   process.env.NODE_ENV === "production" &&
   process.env.NEXT_PUBLIC_ENABLE_SERVICE_WORKER === "1";
@@ -44,6 +50,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
   const isDashboard = DASHBOARD_ROUTES.some(
     (r) => pathname === r,
+  );
+  const isOutliner = OUTLINER_ROUTES.some(
+    (r) => pathname === r || pathname.startsWith(`${r}/`),
   );
 
   useEffect(() => {
@@ -90,10 +99,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main content — no topbar */}
       <main
-        className="relative z-[1] flex-1 overflow-y-auto"
+        className={cn(
+          "relative z-[1] flex-1",
+          // Outliner is a canvas app — it manages its own scroll internally.
+          // overflow-hidden lets flex-1 give it an exact height that h-full
+          // children can inherit; sidebar width changes propagate automatically.
+          isOutliner ? "overflow-hidden" : "overflow-y-auto",
+        )}
         style={{ WebkitOverflowScrolling: "touch" }}
       >
-        {isDashboard ? (
+        {isDashboard || isOutliner ? (
           children
         ) : (
           <div

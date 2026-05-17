@@ -2,15 +2,18 @@ import type React from "react";
 
 // ── Design tokens ────────────────────────────────────────────────────────────
 export const SP_TOKENS = {
-  shellBg:     "#F8FAFC",
-  canvasBg:    "#FAFAFA",
-  canvasDot:   "#E2E8F0",
+  shellBg:     "#F4F7F8",
+  canvasBg:    "#F7F9F6",
+  canvasDot:   "#DCE5DE",
   surface:     "#FFFFFF",
-  border:      "#E2E8F0",
+  surfaceAlt:  "#F8FAFC",
+  border:      "#D7E0E5",
   text:        "#0F172A",
-  textMuted:   "#64748B",
-  amberBg:     "#FEF3C7",
-  amberBorder: "#F59E0B",
+  textMuted:   "#5F6F7E",
+  accent:      "#0F766E",
+  accentSoft:  "#E0F2F1",
+  amberBg:     "#FFF4D6",
+  amberBorder: "#E7A821",
 } as const;
 
 // Applied as inline style on shell root so children can use var(--sp-*)
@@ -19,9 +22,12 @@ export const SP_ROOT_VARS: React.CSSProperties = {
   "--sp-canvas-bg":    SP_TOKENS.canvasBg,
   "--sp-canvas-dot":   SP_TOKENS.canvasDot,
   "--sp-surface":      SP_TOKENS.surface,
+  "--sp-surface-alt":  SP_TOKENS.surfaceAlt,
   "--sp-border":       SP_TOKENS.border,
   "--sp-text":         SP_TOKENS.text,
   "--sp-text-muted":   SP_TOKENS.textMuted,
+  "--sp-accent":       SP_TOKENS.accent,
+  "--sp-accent-soft":  SP_TOKENS.accentSoft,
   "--sp-amber-bg":     SP_TOKENS.amberBg,
   "--sp-amber-border": SP_TOKENS.amberBorder,
   fontFamily:          "'Vazirmatn', system-ui, sans-serif",

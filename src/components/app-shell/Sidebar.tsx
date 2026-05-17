@@ -984,10 +984,12 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Desktop layout spacer — reserves the current sidebar width. */}
+      {/* Desktop layout spacer — reserves the current sidebar width.
+          transition-[width] keeps it in sync with the fixed sidebar animation
+          so the main content area slides smoothly instead of jumping. */}
       <div
         aria-hidden
-        className="hidden shrink-0 lg:block"
+        className="hidden shrink-0 lg:block transition-[width] duration-200 ease-out"
         style={{ width: collapsed ? SIDEBAR_NARROW : SIDEBAR_WIDTH }}
       />
 

@@ -374,6 +374,36 @@ export function ChapterReaderV2({
   const { annotations, addAnnotation, removeAnnotation, annotationCountByFrameId } =
     useReaderAnnotations(`ch-${chapter.chapterNo}`, chapter.chapterNo);
 
+  // ── Live annotation-range registry ─────────────────────────────────────────
+  //
+  // ReaderHighlightLayer recomputes the exact text-DOM `Range` for every
+  // annotation it paints. We mirror those ranges here, keyed by annotation id,
+  // so the H-key handler can do exact intersection tests against the active
+  // selection — no quote/offset round-trip required.
+  //
+  // One annotation can resolve to multiple ranges (multi-text-node spans,
+  // cross-line splits, virtualised re-renders), so the value is `Range[]`.
+  // The registry is cleared on every repaint and on layer unmount; nothing
+  // here needs to leak across chapters or routes.
+  const annotationRangeRegistryRef = useRef<Map<string, Range[]>>(new Map());
+
+  const clearAnnotationRanges = useCallback(() => {
+    annotationRangeRegistryRef.current.clear();
+  }, []);
+
+  const registerAnnotationRange = useCallback(
+    (annotationId: string, range: Range) => {
+      const map = annotationRangeRegistryRef.current;
+      const existing = map.get(annotationId);
+      if (existing) {
+        existing.push(range);
+      } else {
+        map.set(annotationId, [range]);
+      }
+    },
+    [],
+  );
+
   // Auto-highlight is ON when annotation tool is "highlight"
   const { autoHighlight, toggleAutoHighlight } = useAutoHighlight({
     annotations,
@@ -426,10 +456,22 @@ export function ChapterReaderV2({
 
   // H key: remove highlight(s) overlapping the current selection.
   // B key: scroll to top of reader.
-  // Both are suppressed inside any editable surface or form control.
+  // Both are suppressed inside any editable surface, form control, dialog,
+  // command palette, or search box.
   useEffect(() => {
-    const EDITABLE_SELECTOR =
-      "input,textarea,select,[contenteditable]:not([contenteditable='false'])";
+    const EDITABLE_SELECTOR = [
+      "input",
+      "textarea",
+      "select",
+      "[contenteditable]:not([contenteditable='false'])",
+      "[role='dialog']",
+      "[role='alertdialog']",
+      "[role='searchbox']",
+      "[role='combobox']",
+      "[data-command-palette]",
+      "[cmdk-root]",
+      "[cmdk-input]",
+    ].join(",");
 
     const handler = (e: KeyboardEvent) => {
       if ((e.target as Element | null)?.closest(EDITABLE_SELECTOR)) return;
@@ -438,40 +480,131 @@ export function ChapterReaderV2({
         const sel = window.getSelection();
         const selText = sel?.toString().trim();
         if (!selText || !sel || sel.rangeCount === 0) return;
-        const selRange = sel.getRangeAt(0);
 
-        const toRemove = annotations.filter((a) => {
-          if (a.type !== "highlight") return false;
+        const selRanges: Range[] = [];
+        for (let i = 0; i < sel.rangeCount; i++) {
+          selRanges.push(sel.getRangeAt(i));
+        }
+        const selRange = selRanges[0];
 
-          // Primary: DOM-range intersection using stored character offsets.
-          // Requires the frame element to be in the current DOM.
-          if (
-            a.frameId &&
-            typeof a.blockOffsetStart === "number" &&
-            typeof a.blockOffsetEnd === "number" &&
-            a.blockOffsetEnd > a.blockOffsetStart
-          ) {
-            const frameEl = document.querySelector<HTMLElement>(
-              `[data-frame-id="${CSS.escape(a.frameId)}"]`,
-            );
-            if (frameEl) {
-              const annRange = resolveAnchorRange(frameEl, a.blockOffsetStart, a.blockOffsetEnd);
-              if (annRange) return rangesIntersect(annRange, selRange);
+        // ── Priority 1: live registry exact match ──────────────────────────
+        // Every painted annotation has its actual rendered Range registered
+        // by ReaderHighlightLayer. Selecting any sub-portion of a highlight
+        // — even a single word inside it — must intersect that Range.
+        const registry = annotationRangeRegistryRef.current;
+        const liveHits = new Set<string>();
+        for (const [annotationId, ranges] of registry) {
+          for (const annRange of ranges) {
+            for (const sRange of selRanges) {
+              if (rangesIntersect(annRange, sRange)) {
+                liveHits.add(annotationId);
+                break;
+              }
             }
+            if (liveHits.has(annotationId)) break;
           }
+        }
 
-          // Fallback: exact normalized text match only.
-          // No loose "includes" — that risks deleting unrelated highlights.
-          return normalizeAnnotationText(a.quote) === normalizeAnnotationText(selText);
-        });
+        const liveHighlightHits = annotations.filter(
+          (a) => a.type === "highlight" && liveHits.has(a.id),
+        );
 
-        if (toRemove.length > 0) {
-          toRemove.forEach((a) => removeAnnotation(a.id));
+        if (liveHighlightHits.length > 0) {
+          liveHighlightHits.forEach((a) => removeAnnotation(a.id));
           toast.success(
-            toRemove.length === 1 ? "هایلایت حذف شد" : `${toRemove.length} هایلایت حذف شد`,
+            liveHighlightHits.length === 1
+              ? "هایلایت حذف شد"
+              : `${liveHighlightHits.length} هایلایت حذف شد`,
             { duration: 2000 },
           );
+          return;
         }
+
+        // ── Priority 2: stored block-offset DOM-range intersection ─────────
+        // For annotations the layer has not (yet) registered — e.g. before
+        // the first paint, or for annotations whose frame is offscreen and
+        // not currently rendered — fall back to resolving the original
+        // anchor offsets and intersecting that range.
+        const offsetHits = annotations.filter((a) => {
+          if (a.type !== "highlight") return false;
+          if (
+            !a.frameId ||
+            typeof a.blockOffsetStart !== "number" ||
+            typeof a.blockOffsetEnd !== "number" ||
+            a.blockOffsetEnd <= a.blockOffsetStart
+          ) {
+            return false;
+          }
+          const frameEl = document.querySelector<HTMLElement>(
+            `[data-frame-id="${CSS.escape(a.frameId)}"]`,
+          );
+          if (!frameEl) return false;
+          const annRange = resolveAnchorRange(
+            frameEl,
+            a.blockOffsetStart,
+            a.blockOffsetEnd,
+          );
+          if (!annRange) return false;
+          return rangesIntersect(annRange, selRange);
+        });
+
+        if (offsetHits.length > 0) {
+          offsetHits.forEach((a) => removeAnnotation(a.id));
+          toast.success(
+            offsetHits.length === 1
+              ? "هایلایت حذف شد"
+              : `${offsetHits.length} هایلایت حذف شد`,
+            { duration: 2000 },
+          );
+          return;
+        }
+
+        // ── Priority 3: hardened text fallback ─────────────────────────────
+        // Used only when the registry and stored-offset paths both miss.
+        // Restricted to selections of 6+ characters and scoped to the same
+        // frame as the selection where possible. If the normalized text
+        // matches multiple stored quotes, refuse to delete and ask the user
+        // to expand the selection.
+        const sNormalized = normalizeAnnotationText(selText);
+        if (sNormalized.length < 6) {
+          toast.info("هایلایتی در انتخاب فعلی پیدا نشد", { duration: 2000 });
+          return;
+        }
+
+        const anchorEl =
+          selRange.commonAncestorContainer instanceof Element
+            ? (selRange.commonAncestorContainer as Element)
+            : (selRange.commonAncestorContainer.parentElement ?? null);
+        const selFrameId =
+          anchorEl?.closest<HTMLElement>("[data-frame-id]")?.dataset.frameId ??
+          null;
+
+        const textCandidates = annotations.filter((a) => {
+          if (a.type !== "highlight") return false;
+          if (selFrameId && a.frameId && a.frameId !== selFrameId) return false;
+          const q = normalizeAnnotationText(a.quote);
+          if (!q) return false;
+          if (q === sNormalized) return true;
+          if (q.includes(sNormalized)) return true;
+          if (sNormalized.includes(q) && q.length >= 6) return true;
+          return false;
+        });
+
+        if (textCandidates.length === 0) {
+          toast.info("هایلایتی در انتخاب فعلی پیدا نشد", { duration: 2000 });
+          return;
+        }
+
+        if (textCandidates.length > 1) {
+          toast.warning(
+            "چند هایلایت مشابه پیدا شد؛ متن بیشتری انتخاب کنید",
+            { duration: 2500 },
+          );
+          return;
+        }
+
+        removeAnnotation(textCandidates[0].id);
+        toast.success("هایلایت حذف شد", { duration: 2000 });
       }
 
       if (e.key === "b" || e.key === "B") {
@@ -1414,6 +1547,8 @@ export function ChapterReaderV2({
         visible={highlightsVisible}
         underlineThickness={getToolWidth("underline")}
         highlightThickness={getToolWidth("highlight")}
+        onAnnotationRangesCleared={clearAnnotationRanges}
+        onAnnotationRangeRegistered={registerAnnotationRange}
       />
       <NoteMarkerLayer
         annotations={annotations}

@@ -33,6 +33,19 @@ interface Props {
   visible?: boolean;
   underlineThickness?: number;
   highlightThickness?: number;
+  /**
+   * Called once at the start of every repaint and on unmount, before any
+   * `onAnnotationRangeRegistered` calls. Use this to clear any external
+   * `Map<annotationId, Range[]>` registry the caller maintains.
+   */
+  onAnnotationRangesCleared?: () => void;
+  /**
+   * Called once per resolved annotation range during a repaint. The supplied
+   * `Range` is a fresh clone owned by the caller — the layer will not mutate
+   * it after this call. Use it to populate a `Map<annotationId, Range[]>`
+   * registry for downstream consumers (e.g. exact H-key deletion).
+   */
+  onAnnotationRangeRegistered?: (annotationId: string, range: Range) => void;
 }
 
 type PaintKind = "highlight" | "underline";
@@ -885,8 +898,21 @@ export function ReaderHighlightLayer({
   visible = true,
   underlineThickness = 2.5,
   highlightThickness = 2.5,
+  onAnnotationRangesCleared,
+  onAnnotationRangeRegistered,
 }: Props): null {
   const overlayRef = useRef<HTMLDivElement | null>(null);
+
+  // Stable refs for the registry callbacks so they don't retrigger the
+  // main repaint effect when the parent re-renders with new closures.
+  const clearedRef = useRef(onAnnotationRangesCleared);
+  const registerRef = useRef(onAnnotationRangeRegistered);
+  useEffect(() => {
+    clearedRef.current = onAnnotationRangesCleared;
+  }, [onAnnotationRangesCleared]);
+  useEffect(() => {
+    registerRef.current = onAnnotationRangeRegistered;
+  }, [onAnnotationRangeRegistered]);
 
   // Update CSS underline thickness whenever it changes
   useEffect(() => {
@@ -926,6 +952,24 @@ export function ReaderHighlightLayer({
         visible,
         rangeCache,
       );
+
+      // Reset the external annotation-range registry before populating it
+      // with the freshly-resolved ranges for this paint pass. This keeps the
+      // registry in lock-step with what is currently on screen so that
+      // exact-match consumers (e.g. H-key deletion) never see stale ranges.
+      clearedRef.current?.();
+      const registerFn = registerRef.current;
+      if (registerFn) {
+        for (const bucket of buckets.values()) {
+          for (const item of bucket.ranges) {
+            try {
+              registerFn(item.id, item.range.cloneRange());
+            } catch {
+              // Range may belong to a node that was just detached — skip.
+            }
+          }
+        }
+      }
 
       if (registry) {
         paintCssHighlights(registry, buckets);
@@ -1027,6 +1071,10 @@ export function ReaderHighlightLayer({
       if (registry) {
         clearOurBuckets(registry);
       }
+
+      // Clear the external annotation-range registry so it cannot leak
+      // ranges across chapter/route changes.
+      clearedRef.current?.();
 
       const overlay = overlayRef.current as HighlightOverlayElement | null;
       const visualLayer =

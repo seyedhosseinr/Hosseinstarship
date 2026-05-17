@@ -7,10 +7,9 @@ import { useOutlinerStore } from "@/components/outliner/outliner-store";
 import { SP_ROOT_VARS } from "@/components/outliner/study-player/tokens";
 import { StudyTopBar } from "@/components/outliner/study-player/StudyTopBar";
 import { SurfaceHeader } from "@/components/outliner/study-player/SurfaceHeader";
-import { LearningPanel, LearningPanelBottomSheet } from "@/components/outliner/study-player/LearningPanel";
 import { AlgorithmNavigatorDrawer } from "@/components/outliner/study-player/AlgorithmNavigatorDrawer";
 import { ImmersiveHUD } from "@/components/outliner/study-player/ImmersiveHUD";
-import { StepwiseDecisionPlayer } from "@/components/outliner/study-player/StepwiseDecisionPlayer";
+import { StepwiseWalk } from "@/components/outliner/study-player/StepwiseWalk";
 
 interface StudyPlayerShellProps {
   ir: AlgorithmIR;
@@ -23,7 +22,6 @@ export function StudyPlayerShell({ ir: _ir, graphSlot, openSearchResult, onBlock
   const surfaces            = useOutlinerStore((s) => s.surfaces);
   const currentSurfaceIndex = useOutlinerStore((s) => s.currentSurfaceIndex);
   const isFocusMode         = useOutlinerStore((s) => s.isFocusMode);
-  const selectedNodeId      = useOutlinerStore((s) => s.focusedNodeId);
   const isImmersive         = useOutlinerStore((s) => s.isImmersive);
   const toggleImmersive     = useOutlinerStore((s) => s.toggleImmersive);
   const mode                = useOutlinerStore((s) => s.mode);
@@ -35,8 +33,12 @@ export function StudyPlayerShell({ ir: _ir, graphSlot, openSearchResult, onBlock
     <div
       data-outliner="study-player"
       data-outliner-immersive={isImmersive ? "true" : undefined}
-      className="flex min-h-[calc(100vh-32px)] flex-col overflow-hidden"
-      style={SP_ROOT_VARS}
+      className="flex h-full min-h-0 flex-col overflow-hidden"
+      style={{
+        ...(SP_ROOT_VARS as React.CSSProperties),
+        position: "relative",
+        isolation: "isolate",
+      }}
     >
       {/* CSS-only chrome hiding for immersive mode — keeps WebGL canvas alive */}
       <style>{`
@@ -50,64 +52,48 @@ export function StudyPlayerShell({ ir: _ir, graphSlot, openSearchResult, onBlock
       <StudyTopBar openSearchResult={openSearchResult} />
 
       {/* ── Main study area ── */}
-      <main className="flex flex-1 flex-col overflow-hidden" style={{ background: "var(--sp-canvas-bg)" }}>
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden" style={{ background: "var(--sp-canvas-bg)" }}>
 
         {/* Surface header — hidden in focus mode */}
         {!isFocusMode && currentSurface && (
           <SurfaceHeader surface={currentSurface} />
         )}
 
-        {/* ── Stepwise layout: compact graph context + dominant Decision Player ── */}
+        {/* ── Stepwise layout: compact graph context + Clinical Depth Walk ── */}
         {isStepwise && !isFocusMode ? (
-          <div className="flex flex-1 flex-col lg:flex-row overflow-hidden">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
             {/* Compact graph — supporting context only */}
             <div
-              className="shrink-0 overflow-auto h-[240px] lg:h-auto lg:w-72"
-              style={{ background: "var(--sp-canvas-bg)" }}
+              data-outliner-graph-container
+              className="h-[260px] shrink-0 overflow-hidden lg:h-auto lg:w-[360px]"
+              style={{ background: "var(--sp-canvas-bg)", isolation: "isolate" }}
               onDoubleClick={() => { if (isImmersive) toggleImmersive(); }}
             >
               {graphSlot}
             </div>
-            {/* Clinical Decision Player — dominant */}
+            {/* Clinical Depth Walk — dominant */}
             <div
-              className="flex-1 overflow-y-auto border-t lg:border-t-0 lg:border-l"
+              data-outliner-stepwise-nav
+              className="min-h-0 flex-1 overflow-hidden border-t lg:border-t-0 lg:border-l"
               style={{ background: "white", borderColor: "var(--sp-border)" }}
             >
-              {currentSurface ? (
-                <StepwiseDecisionPlayer surface={currentSurface} onBlockClick={onBlockClick} />
-              ) : (
-                <div className="flex items-center justify-center h-full p-8">
-                  <p dir="rtl" lang="fa" style={{ color: "var(--sp-text-muted)", fontSize: 13 }}>
-                    الگوریتمی انتخاب نشده است.
-                  </p>
-                </div>
-              )}
+              <StepwiseWalk onBlockClick={onBlockClick} />
             </div>
           </div>
         ) : (
           /* ── Normal layout: full graph + side LearningPanel ── */
-          <div className="flex flex-1 overflow-hidden">
+          <div className="flex min-h-0 flex-1 overflow-hidden">
             <div
-              className="relative min-w-0 flex-1 overflow-auto"
-              style={{ background: "var(--sp-canvas-bg)" }}
+              data-outliner-graph-container
+              className="relative min-w-0 flex-1 overflow-hidden"
+              style={{ background: "var(--sp-canvas-bg)", isolation: "isolate" }}
               onDoubleClick={() => { if (isImmersive) toggleImmersive(); }}
             >
               {graphSlot}
             </div>
-            {!isFocusMode && selectedNodeId && (
-              <LearningPanel onBlockClick={onBlockClick} />
-            )}
-            {(!selectedNodeId || isFocusMode) && (
-              <aside data-outliner-learning-panel aria-hidden="true" className="hidden" />
-            )}
           </div>
         )}
       </main>
-
-      {/* Mobile learning panel bottom sheet — only in non-stepwise modes */}
-      {!isFocusMode && !isImmersive && !isStepwise && (
-        <LearningPanelBottomSheet onBlockClick={onBlockClick} />
-      )}
 
       {/* ── Navigator drawer ── */}
       <AlgorithmNavigatorDrawer />

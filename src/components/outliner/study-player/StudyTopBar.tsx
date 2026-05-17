@@ -78,7 +78,7 @@ export function StudyTopBar({ openSearchResult }: StudyTopBarProps) {
     <div data-outliner-topbar>
       {/* ── Row 1: Navigation ───────────────────────────────────────────────── */}
       <div
-        className="flex min-h-[52px] items-center gap-2 px-3"
+        className="flex min-h-[52px] items-center gap-2 px-3 lg:px-4"
         style={{ borderBottom: "1px solid var(--sp-border)", background: "var(--sp-surface)" }}
         dir="rtl"
       >
@@ -86,8 +86,8 @@ export function StudyTopBar({ openSearchResult }: StudyTopBarProps) {
         <button
           type="button"
           onClick={() => setNavigatorOpen(true)}
-          className="flex min-h-[44px] items-center gap-1.5 rounded-xl px-3 py-1.5 text-[13px] font-semibold transition hover:bg-gray-50"
-          style={{ color: "var(--sp-text)" }}
+          className="flex min-h-[38px] items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[13px] font-semibold transition hover:bg-slate-50"
+          style={{ color: "var(--sp-text)", borderColor: "var(--sp-border)", background: "var(--sp-surface-alt)" }}
           dir="rtl"
           lang="fa"
         >
@@ -103,7 +103,7 @@ export function StudyTopBar({ openSearchResult }: StudyTopBarProps) {
           type="button"
           onClick={gotoPrevSurface}
           disabled={atFirst}
-          className="flex min-h-[44px] items-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[12px] transition hover:bg-gray-50 disabled:opacity-30"
+          className="flex min-h-[38px] items-center gap-0.5 rounded-lg px-2.5 py-1.5 text-[12px] transition hover:bg-slate-50 disabled:opacity-30"
           style={{ color: "var(--sp-text-muted)" }}
           dir="rtl"
           lang="fa"
@@ -116,7 +116,7 @@ export function StudyTopBar({ openSearchResult }: StudyTopBarProps) {
         {/* Counter + current surface title */}
         <div className="flex min-w-0 flex-1 flex-col items-center gap-0">
           <span
-            className="max-w-[280px] truncate text-[13px] font-semibold"
+            className="max-w-[44vw] truncate text-[13px] font-semibold lg:max-w-[520px]"
             style={{ color: "var(--sp-text)" }}
             dir="rtl"
             lang="fa"
@@ -134,7 +134,7 @@ export function StudyTopBar({ openSearchResult }: StudyTopBarProps) {
           type="button"
           onClick={gotoNextSurface}
           disabled={atLast}
-          className="flex min-h-[44px] items-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[12px] transition hover:bg-gray-50 disabled:opacity-30"
+          className="flex min-h-[38px] items-center gap-0.5 rounded-lg px-2.5 py-1.5 text-[12px] transition hover:bg-slate-50 disabled:opacity-30"
           style={{ color: "var(--sp-text-muted)" }}
           dir="rtl"
           lang="fa"
@@ -147,13 +147,13 @@ export function StudyTopBar({ openSearchResult }: StudyTopBarProps) {
 
       {/* ── Row 2: Mode + tools ─────────────────────────────────────────────── */}
       <div
-        className="flex min-h-[44px] flex-wrap items-center gap-2 px-3 py-1.5"
+        className="flex min-h-[48px] flex-wrap items-center gap-2 px-3 py-2 lg:px-4"
         style={{ borderBottom: "1px solid var(--sp-border)", background: "var(--sp-shell-bg)" }}
         dir="rtl"
       >
         {/* Study mode segmented control */}
         <div
-          className="flex overflow-hidden rounded-xl border"
+          className="flex overflow-hidden rounded-lg border bg-white"
           style={{ borderColor: "var(--sp-border)" }}
           role="group"
           aria-label="حالت یادگیری"
@@ -164,18 +164,18 @@ export function StudyTopBar({ openSearchResult }: StudyTopBarProps) {
               type="button"
               onClick={() => setMode(m)}
               className={cn(
-                "min-h-[36px] px-2.5 py-1 text-[11px] font-medium transition",
+                "min-h-[34px] px-2.5 py-1 text-[11px] font-medium transition",
                 "border-r last:border-r-0",
               )}
               style={
                 mode === m
                   ? {
-                      background: "#0F172A",
+                      background: "var(--sp-accent)",
                       color: "#FFFFFF",
                       borderColor: "var(--sp-border)",
                     }
                   : {
-                      background: "var(--sp-surface)",
+                      background: "transparent",
                       color: "var(--sp-text-muted)",
                       borderColor: "var(--sp-border)",
                     }
@@ -195,10 +195,10 @@ export function StudyTopBar({ openSearchResult }: StudyTopBarProps) {
         <button
           type="button"
           onClick={() => setFocusMode(!isFocusMode)}
-          className="flex min-h-[36px] items-center gap-1.5 rounded-xl px-2.5 py-1 text-[11px] font-medium transition"
+          className="flex min-h-[34px] items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-medium transition"
           style={
             isFocusMode
-              ? { background: "#0F172A", color: "#FFFFFF" }
+              ? { background: "var(--sp-accent)", color: "#FFFFFF" }
               : { background: "var(--sp-surface)", color: "var(--sp-text-muted)", border: "1px solid var(--sp-border)" }
           }
           aria-label="حالت تمرکز"
@@ -212,7 +212,7 @@ export function StudyTopBar({ openSearchResult }: StudyTopBarProps) {
         {/* Search */}
         <div className="relative" dir="ltr">
           <label
-            className="flex items-center gap-1.5 rounded-xl border px-2.5 py-1 transition focus-within:ring-1 focus-within:ring-blue-400"
+            className="flex min-h-[34px] items-center gap-1.5 rounded-lg border px-2.5 py-1 transition focus-within:ring-1 focus-within:ring-teal-500"
             style={{ background: "var(--sp-surface)", borderColor: "var(--sp-border)" }}
           >
             <Search className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--sp-text-muted)" }} />
@@ -223,7 +223,7 @@ export function StudyTopBar({ openSearchResult }: StudyTopBarProps) {
               onChange={(e) => { setSearch(e.target.value); setSearchOpen(true); }}
               onKeyDown={handleSearchKey}
               onFocus={() => setSearchOpen(true)}
-              className="w-36 bg-transparent text-[12px] outline-none"
+              className="w-32 bg-transparent text-[12px] outline-none lg:w-44"
               placeholder="جستجو..."
               dir="rtl"
               lang="fa"
@@ -251,10 +251,10 @@ export function StudyTopBar({ openSearchResult }: StudyTopBarProps) {
         <button
           type="button"
           onClick={toggleImmersive}
-          className="flex min-h-[36px] items-center rounded-xl border px-2.5 py-1 text-[11px] font-medium transition"
+          className="flex min-h-[34px] items-center rounded-lg border px-2.5 py-1 text-[11px] font-medium transition"
           style={
             isImmersive
-              ? { background: "#0F172A", color: "#FFFFFF", borderColor: "#0F172A" }
+              ? { background: "var(--sp-accent)", color: "#FFFFFF", borderColor: "var(--sp-accent)" }
               : { borderColor: "var(--sp-border)", color: "var(--sp-text-muted)", background: "var(--sp-surface)" }
           }
           aria-label="حالت غوطه‌ور"
@@ -263,6 +263,7 @@ export function StudyTopBar({ openSearchResult }: StudyTopBarProps) {
         >
           ⛶
         </button>
+
       </div>
 
       {/* ── Mode banner ─────────────────────────────────────────────────────── */}

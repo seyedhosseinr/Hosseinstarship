@@ -106,14 +106,16 @@ in float v_t;
 in float v_side;
 in float v_hi;
 uniform float u_time;
+uniform float u_intro;
 out vec4 fragColor;
 void main(){
   float aa    = 1.0-smoothstep(0.60,1.0,abs(v_side));
+  float head  = smoothstep(0.0,0.26,u_intro-v_t*0.82);
   float phase = fract(v_t*5.0-u_time*0.45);
   float dash  = smoothstep(0.00,0.10,phase)*(1.0-smoothstep(0.50,0.62,phase));
   float flow  = 0.40+0.60*dash;
   float bright= mix(flow,1.0,v_hi*0.75);
-  vec4 col=v_color; col.rgb*=bright; col.a*=aa;
+  vec4 col=v_color; col.rgb*=bright; col.a*=aa*head*u_intro;
   fragColor=col;
 }`;
 
@@ -139,6 +141,7 @@ in vec2  v_pos;
 in vec2  v_center;
 in float v_risk;
 uniform float u_heat_r;
+uniform float u_intro;
 out vec4 fragColor;
 void main(){
   float dist=length(v_pos-v_center)/u_heat_r;
@@ -149,7 +152,7 @@ void main(){
   vec3 hot =vec3(0.95,0.22,0.22);
   vec3 col =mix(cool,warm,smoothstep(0.0,0.5,v_risk));
       col =mix(col, hot, smoothstep(0.5,1.0,v_risk));
-  fragColor=vec4(col, h*0.14*v_risk);
+  fragColor=vec4(col, h*0.14*v_risk*u_intro);
 }`;
 
 // ·· Particles (gl.POINTS sprites) ·············································
@@ -170,13 +173,14 @@ void main(){
 const PART_FRAG = /* glsl */`#version 300 es
 precision mediump float;
 in vec4 v_color;
+uniform float u_intro;
 out vec4 fragColor;
 void main(){
   vec2 pc=gl_PointCoord-0.5;
   float d=dot(pc,pc)*4.0;
   float alpha=(1.0-d)*(1.0-d)*v_color.a;
   if(alpha<0.01) discard;
-  fragColor=vec4(v_color.rgb,alpha);
+  fragColor=vec4(v_color.rgb,alpha*u_intro);
 }`;
 
 // ·· DOF post-process (16-sample circular bokeh, FBO round-trip) ···············
@@ -228,21 +232,40 @@ void main(){
 // ·· LOD node quads (simple coloured rects replacing DOM cards) ················
 const SIM_VERT = /* glsl */`#version 300 es
 precision highp float;
-in vec2 a_pos;
-in vec4 a_color;
+in vec2  a_pos;
+in vec4  a_color;
+in float a_depthState;
 uniform vec2 u_res;
-out vec4 v_color;
+out vec4  v_color;
+out float v_depthState;
 void main(){
   vec2 ndc=(a_pos/u_res)*2.0-1.0; ndc.y*=-1.0;
   gl_Position=vec4(ndc,0.0,1.0);
   v_color=a_color;
+  v_depthState=a_depthState;
 }`;
 
 const SIM_FRAG = /* glsl */`#version 300 es
 precision mediump float;
-in vec4 v_color;
+in vec4  v_color;
+in float v_depthState;
+uniform bool  u_stepwiseEnabled;
+uniform float u_stepwisePulse;
+uniform float u_intro;
 out vec4 fragColor;
-void main(){ fragColor=v_color; }`;
+void main(){
+  fragColor=vec4(v_color.rgb,v_color.a*u_intro);
+  if(u_stepwiseEnabled){
+    if(v_depthState<0.5){
+      discard;
+    } else if(v_depthState<1.5){
+      fragColor=vec4(fragColor.rgb*0.65,0.50*u_intro);
+    } else {
+      float p=u_stepwisePulse;
+      fragColor=vec4(mix(fragColor.rgb,fragColor.rgb+0.15,p*0.6),u_intro);
+    }
+  }
+}`;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -390,22 +413,24 @@ function buildHeatGeo(nodes: LayoutNode[], eduHeatOverride?: Map<string, number>
   return new Float32Array(data);
 }
 
-// LOD stride = 6: [x, y, r, g, b, a]
-const LS = 6;
+// LOD stride = 7: [x, y, r, g, b, a, depthState]
+const LS = 7;
 
-function buildLODGeo(nodes: LayoutNode[]): Float32Array {
+function buildLODGeo(nodes: LayoutNode[], depthStates?: Float32Array): Float32Array {
   const data: number[] = [];
-  for (const ln of nodes) {
+  for (let ni = 0; ni < nodes.length; ni++) {
+    const ln = nodes[ni];
     const [r,g,b] = NODE_RGBA[ln.node.nodeType] ?? DEFAULT_NODE_RGBA;
     const x0=ln.x, y0=ln.y, x1=ln.x+NODE_W, y1=ln.y+NODE_H;
+    const ds = depthStates ? (depthStates[ni] ?? 2.0) : 2.0;
     // Card body (clear study tint for low-zoom overview)
     const br=r*0.22+0.78, bg=g*0.22+0.78, bb=b*0.22+0.78;
     for (const [px,py] of [[x0,y0],[x1,y0],[x0,y1],[x1,y0],[x1,y1],[x0,y1]] as P2[])
-      data.push(px,py,br,bg,bb,0.98);
+      data.push(px,py,br,bg,bb,0.98,ds);
     // Top stripe (3 CSS px)
     const sy1 = y0+3;
     for (const [px,py] of [[x0,y0],[x1,y0],[x0,sy1],[x1,y0],[x1,sy1],[x0,sy1]] as P2[])
-      data.push(px,py,r,g,b,1.0);
+      data.push(px,py,r,g,b,1.0,ds);
   }
   return new Float32Array(data);
 }
@@ -525,6 +550,9 @@ export interface OutlinerWebGLCanvasProps {
   eduHeat?:      Map<string, number>; // F6: educational heat override per nodeId (0-1)
   // Study mode effects
   highlightNodeIds?: string[];      // traps mode: these nodes stay full opacity; others dim
+  // Stepwise depth state — optional; when present, u_stepwiseEnabled is set true in LOD pass
+  stepwiseEnabled?: boolean;
+  nodeDepthStates?: Float32Array;   // float per layoutNode: 0=hidden, 1=visited, 2=active
 }
 
 export function OutlinerWebGLCanvas({
@@ -540,6 +568,8 @@ export function OutlinerWebGLCanvas({
   nextNodeIds,
   eduHeat,
   highlightNodeIds,
+  stepwiseEnabled = false,
+  nodeDepthStates,
 }: OutlinerWebGLCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const glRef     = useRef<WebGL2RenderingContext | null>(null);
@@ -577,6 +607,7 @@ export function OutlinerWebGLCanvas({
   const rafRef      = useRef(0);
   const t0Ref       = useRef(performance.now());
   const prevTRef    = useRef(performance.now());
+  const introTRef   = useRef(performance.now());
   const particleRef = useRef<Particle[]>([]);
 
   // Props mirrored into refs — draw loop reads these without re-triggering effects
@@ -593,6 +624,11 @@ export function OutlinerWebGLCanvas({
   zoomRef.current     = zoom;
   cssWRef.current     = canvasWidth;
   cssHRef.current     = canvasHeight;
+
+  const stepwiseEnabledRef   = useRef(stepwiseEnabled);
+  const nodeDepthStatesRef   = useRef(nodeDepthStates);
+  stepwiseEnabledRef.current = stepwiseEnabled;
+  nodeDepthStatesRef.current = nodeDepthStates;
 
   const fallback = useCallback(() => onFallback(), [onFallback]);
 
@@ -646,8 +682,9 @@ export function OutlinerWebGLCanvas({
       ]);
 
       simVAO.current = makeVAO(ctx, sp, lb, LS, [
-        { name:"a_pos",   size:2, offset:0 },
-        { name:"a_color", size:4, offset:2 },
+        { name:"a_pos",        size:2, offset:0 },
+        { name:"a_color",      size:4, offset:2 },
+        { name:"a_depthState", size:1, offset:6 },
       ]);
     } catch (err) {
       console.warn("[OutlinerWebGLCanvas] init failed, SVG fallback:", err);
@@ -703,10 +740,10 @@ export function OutlinerWebGLCanvas({
     gl.bufferData(gl.ARRAY_BUFFER, hData, gl.STATIC_DRAW);
     heatLen.current = hData.length / HS;
 
-    // LOD geometry (static per layout)
-    const lData = buildLODGeo(layoutNodes);
+    // LOD geometry — includes depth state when stepwise mode is active
+    const lData = buildLODGeo(layoutNodes, stepwiseEnabled ? nodeDepthStates : undefined);
     gl.bindBuffer(gl.ARRAY_BUFFER, simBuf.current);
-    gl.bufferData(gl.ARRAY_BUFFER, lData, gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, lData, gl.DYNAMIC_DRAW);
     simLen.current = lData.length / LS;
 
     // Particles: re-init on edge layout change
@@ -725,18 +762,25 @@ export function OutlinerWebGLCanvas({
 
     const uERes    = gl.getUniformLocation(ep, "u_res");
     const uETime   = gl.getUniformLocation(ep, "u_time");
+    const uEIntro  = gl.getUniformLocation(ep, "u_intro");
     const uHRes    = gl.getUniformLocation(hp, "u_res");
     const uHHeatR  = gl.getUniformLocation(hp, "u_heat_r");
+    const uHIntro  = gl.getUniformLocation(hp, "u_intro");
     const uPRes    = gl.getUniformLocation(pp, "u_res");
+    const uPIntro  = gl.getUniformLocation(pp, "u_intro");
     const uDScene  = gl.getUniformLocation(dp, "u_scene");
     const uDRes    = gl.getUniformLocation(dp, "u_res");
     const uDFocus  = gl.getUniformLocation(dp, "u_focus_uv");
     const uDStr    = gl.getUniformLocation(dp, "u_strength");
-    const uSRes    = gl.getUniformLocation(sp, "u_res");
+    const uSRes         = gl.getUniformLocation(sp, "u_res");
+    const uSStepEnabled = gl.getUniformLocation(sp, "u_stepwiseEnabled");
+    const uSStepPulse   = gl.getUniformLocation(sp, "u_stepwisePulse");
+    const uSIntro       = gl.getUniformLocation(sp, "u_intro");
 
     const canvas = canvasRef.current!;
     cancelAnimationFrame(rafRef.current);
     prevTRef.current = performance.now();
+    introTRef.current = performance.now();
 
     function draw() {
       const g = glRef.current;
@@ -754,6 +798,8 @@ export function OutlinerWebGLCanvas({
       const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const elapsed = reduceMotion ? 0 : (now - t0Ref.current) / 1000;
       const dt      = reduceMotion ? 0 : Math.min((now - prevTRef.current) / 1000, 0.1);
+      const introRaw = reduceMotion ? 1 : Math.min(1, (now - introTRef.current) / 900);
+      const intro = introRaw * introRaw * (3 - 2 * introRaw);
       prevTRef.current = now;
 
       // Step particles + upload (skip when reduced-motion)
@@ -793,6 +839,7 @@ export function OutlinerWebGLCanvas({
         g.useProgram(hp);
         g.uniform2f(uHRes, cssW, cssH);
         g.uniform1f(uHHeatR, HEAT_RADIUS / Math.max(0.25, zoomRef.current));
+        g.uniform1f(uHIntro, intro);
         g.bindVertexArray(heatVAO.current);
         g.drawArrays(g.TRIANGLES, 0, heatLen.current);
       }
@@ -803,6 +850,7 @@ export function OutlinerWebGLCanvas({
       g.useProgram(ep);
       g.uniform2f(uERes, cssW, cssH);
       g.uniform1f(uETime, elapsed);
+      g.uniform1f(uEIntro, intro);
       if (eStripLen.current > 0) {
         g.bindVertexArray(eStripVAO.current);
         g.drawArrays(g.TRIANGLE_STRIP, 0, eStripLen.current);
@@ -818,6 +866,7 @@ export function OutlinerWebGLCanvas({
         g.blendFuncSeparate(g.SRC_ALPHA, g.ONE, g.ONE, g.ONE);
         g.useProgram(pp);
         g.uniform2f(uPRes, cssW, cssH);
+        g.uniform1f(uPIntro, intro);
         g.bindVertexArray(partVAO.current);
         g.drawArrays(g.POINTS, 0, partLen.current);
       }
@@ -828,6 +877,15 @@ export function OutlinerWebGLCanvas({
         g.blendFuncSeparate(g.SRC_ALPHA, g.ONE_MINUS_SRC_ALPHA, g.ONE, g.ONE_MINUS_SRC_ALPHA);
         g.useProgram(sp);
         g.uniform2f(uSRes, cssW, cssH);
+        g.uniform1f(uSIntro, intro);
+        if (stepwiseEnabledRef.current) {
+          g.uniform1i(uSStepEnabled, 1);
+          const pulse = Math.sin(performance.now() / 900) * 0.5 + 0.5;
+          g.uniform1f(uSStepPulse, pulse);
+        } else {
+          g.uniform1i(uSStepEnabled, 0);
+          g.uniform1f(uSStepPulse, 0.0);
+        }
         g.bindVertexArray(simVAO.current);
         g.drawArrays(g.TRIANGLES, 0, simLen.current);
       }
@@ -863,7 +921,7 @@ export function OutlinerWebGLCanvas({
 
     draw();
     return () => cancelAnimationFrame(rafRef.current);
-  }, [layoutEdges, layoutNodes, selectedNodeId, visitedPath, canvasWidth, canvasHeight, zoom, ancestorPath, nextNodeIds, eduHeat, highlightNodeIds]);
+  }, [layoutEdges, layoutNodes, selectedNodeId, visitedPath, canvasWidth, canvasHeight, zoom, ancestorPath, nextNodeIds, eduHeat, highlightNodeIds, stepwiseEnabled, nodeDepthStates]);
 
   return (
     <canvas

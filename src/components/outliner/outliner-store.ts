@@ -9,6 +9,10 @@ import {
   hydratePGLiteFromCRDT,
 } from "@/lib/outliner/annotation-repository";
 import { crdtManager } from "@/lib/crdt-manager";
+import {
+  computeDepthLayers,
+  buildNodeLayerMap,
+} from "@/components/outliner/study-player/depth-layers";
 
 // ── Canonical study mode (single source of truth) ────────────────────────────
 export type OutlinerMode = "free" | "stepwise" | "traps" | "recall" | "exam";
@@ -97,9 +101,21 @@ interface OutlinerState {
   setImmersive: (on: boolean) => void;
   toggleImmersive: () => void;
 
+
+  // ── Stepwise walk state (session only, not persisted) ──────────────────
+  stepwiseDepth: number;
+  stepwiseMaxDepth: number;
+  depthLayers: string[][];
+  nodeLayerMap: Map<string, number>;
+
   // ── Recall / exam session reveal state (not persisted) ──────────────────
   revealedNodeLabels: Set<string>;
   revealedTestablePoints: Set<string>;
+
+  // ── Stepwise walk actions ────────────────────────────────────────────────
+  stepForward(): void;
+  stepBackward(): void;
+  _recomputeDepthLayers(nodes: Array<{ nodeId: string }>, edges: Array<{ from: string; to: string }>): void;
 
   // ── New actions (Prompt 2) ───────────────────────────────────────────────
   setMode: (next: OutlinerMode) => void;
@@ -150,6 +166,12 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
   isFocusMode: false,
   isImmersive: false,
 
+  // ── Stepwise walk initial state ───────────────────────────────────────────
+  stepwiseDepth: 0,
+  stepwiseMaxDepth: 0,
+  depthLayers: [],
+  nodeLayerMap: new Map<string, number>(),
+
   // ── Existing initial state ────────────────────────────────────────────────
   segmentId: null,
   surfaces: [],
@@ -188,6 +210,9 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
       const newIndex = isSameSegment
         ? Math.min(state.currentSurfaceIndex, Math.max(0, surfaces.length - 1))
         : 0;
+      const activeSurface = surfaces[newIndex];
+      const layers   = activeSurface ? computeDepthLayers(activeSurface.nodes, activeSurface.edges) : [];
+      const layerMap = buildNodeLayerMap(layers);
       return {
         segmentId,
         surfaces,
@@ -199,23 +224,54 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
         searchResults: [],
         activeSearchIndex: 0,
         surfaceTrail: [],
+        depthLayers: layers,
+        nodeLayerMap: layerMap,
+        stepwiseDepth: 0,
+        stepwiseMaxDepth: Math.max(0, layers.length - 1),
       };
     }),
 
   selectSurface: (surfaceId, nodeId = null) =>
     set((state) => {
-      const idx = state.surfaces.findIndex((s) => s.id === surfaceId);
+      const idx     = state.surfaces.findIndex((s) => s.id === surfaceId);
+      const surface = idx >= 0 ? state.surfaces[idx] : null;
+      const layers   = surface ? computeDepthLayers(surface.nodes, surface.edges) : state.depthLayers;
+      const layerMap = surface ? buildNodeLayerMap(layers) : state.nodeLayerMap;
       return {
         selectedSurfaceId: surfaceId,
         currentSurfaceIndex: idx >= 0 ? idx : state.currentSurfaceIndex,
         focusedNodeId: nodeId,
         selectedNodeId: nodeId,
         surfaceTrail: [surfaceId, ...state.surfaceTrail.filter((id) => id !== surfaceId)].slice(0, 8),
+        depthLayers: layers,
+        nodeLayerMap: layerMap,
+        stepwiseDepth: 0,
+        stepwiseMaxDepth: Math.max(0, layers.length - 1),
       };
     }),
 
   // ── New action implementations ────────────────────────────────────────────
-  setMode: (next) =>
+  setMode: (next) => {
+    const curr = get();
+    let layerUpdate: {
+      depthLayers: string[][];
+      nodeLayerMap: Map<string, number>;
+      stepwiseDepth: number;
+      stepwiseMaxDepth: number;
+    } | Record<string, never> = {};
+    if (next === "stepwise") {
+      const surface = curr.surfaces[curr.currentSurfaceIndex];
+      if (surface) {
+        const layers   = computeDepthLayers(surface.nodes, surface.edges);
+        const layerMap = buildNodeLayerMap(layers);
+        layerUpdate = {
+          depthLayers: layers,
+          nodeLayerMap: layerMap,
+          stepwiseDepth: 0,
+          stepwiseMaxDepth: Math.max(0, layers.length - 1),
+        };
+      }
+    }
     set({
       mode: next,
       stepwiseMode: MODE_TO_STEPWISE[next],
@@ -224,12 +280,16 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
       checkpointModeActive: false,
       revealedNodeLabels: new Set<string>(),
       revealedTestablePoints: new Set<string>(),
-    }),
+      ...layerUpdate,
+    });
+  },
 
   setSurfaceIndex: (i) =>
     set((state) => {
       const surface = state.surfaces[i];
       if (!surface) return {};
+      const layers   = computeDepthLayers(surface.nodes, surface.edges);
+      const layerMap = buildNodeLayerMap(layers);
       return {
         currentSurfaceIndex: i,
         selectedSurfaceId: surface.id,
@@ -238,6 +298,10 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
         surfaceTrail: [surface.id, ...state.surfaceTrail.filter((id) => id !== surface.id)].slice(0, 8),
         revealedNodeLabels: new Set<string>(),
         revealedTestablePoints: new Set<string>(),
+        depthLayers: layers,
+        nodeLayerMap: layerMap,
+        stepwiseDepth: 0,
+        stepwiseMaxDepth: Math.max(0, layers.length - 1),
       };
     }),
 
@@ -247,6 +311,8 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
       if (next === state.currentSurfaceIndex) return {};
       const surface = state.surfaces[next];
       if (!surface) return {};
+      const layers   = computeDepthLayers(surface.nodes, surface.edges);
+      const layerMap = buildNodeLayerMap(layers);
       return {
         currentSurfaceIndex: next,
         selectedSurfaceId: surface.id,
@@ -255,6 +321,10 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
         surfaceTrail: [surface.id, ...state.surfaceTrail.filter((id) => id !== surface.id)].slice(0, 8),
         revealedNodeLabels: new Set<string>(),
         revealedTestablePoints: new Set<string>(),
+        depthLayers: layers,
+        nodeLayerMap: layerMap,
+        stepwiseDepth: 0,
+        stepwiseMaxDepth: Math.max(0, layers.length - 1),
       };
     }),
 
@@ -264,6 +334,8 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
       if (prev === state.currentSurfaceIndex) return {};
       const surface = state.surfaces[prev];
       if (!surface) return {};
+      const layers   = computeDepthLayers(surface.nodes, surface.edges);
+      const layerMap = buildNodeLayerMap(layers);
       return {
         currentSurfaceIndex: prev,
         selectedSurfaceId: surface.id,
@@ -272,8 +344,76 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
         surfaceTrail: [surface.id, ...state.surfaceTrail.filter((id) => id !== surface.id)].slice(0, 8),
         revealedNodeLabels: new Set<string>(),
         revealedTestablePoints: new Set<string>(),
+        depthLayers: layers,
+        nodeLayerMap: layerMap,
+        stepwiseDepth: 0,
+        stepwiseMaxDepth: Math.max(0, layers.length - 1),
       };
     }),
+
+  stepForward: () => {
+    const s = get();
+    if (s.stepwiseDepth < s.stepwiseMaxDepth) {
+      set({ stepwiseDepth: s.stepwiseDepth + 1 });
+      return;
+    }
+    // At last layer — advance to next surface
+    const nextIdx = s.currentSurfaceIndex + 1;
+    if (nextIdx >= s.surfaces.length) return;
+    const nextSurface = s.surfaces[nextIdx];
+    if (!nextSurface) return;
+    const layers   = computeDepthLayers(nextSurface.nodes, nextSurface.edges);
+    const layerMap = buildNodeLayerMap(layers);
+    set({
+      currentSurfaceIndex: nextIdx,
+      selectedSurfaceId: nextSurface.id,
+      focusedNodeId: null,
+      selectedNodeId: null,
+      surfaceTrail: [nextSurface.id, ...s.surfaceTrail.filter(id => id !== nextSurface.id)].slice(0, 8),
+      depthLayers: layers,
+      nodeLayerMap: layerMap,
+      stepwiseDepth: 0,
+      stepwiseMaxDepth: Math.max(0, layers.length - 1),
+    });
+  },
+
+  stepBackward: () => {
+    const s = get();
+    if (s.stepwiseDepth > 0) {
+      set({ stepwiseDepth: s.stepwiseDepth - 1 });
+      return;
+    }
+    // At layer 0 — go to prev surface
+    const prevIdx = s.currentSurfaceIndex - 1;
+    if (prevIdx < 0) return;
+    const prevSurface = s.surfaces[prevIdx];
+    if (!prevSurface) return;
+    const layers   = computeDepthLayers(prevSurface.nodes, prevSurface.edges);
+    const layerMap = buildNodeLayerMap(layers);
+    const maxDepth = Math.max(0, layers.length - 1);
+    set({
+      currentSurfaceIndex: prevIdx,
+      selectedSurfaceId: prevSurface.id,
+      focusedNodeId: null,
+      selectedNodeId: null,
+      surfaceTrail: [prevSurface.id, ...s.surfaceTrail.filter(id => id !== prevSurface.id)].slice(0, 8),
+      depthLayers: layers,
+      nodeLayerMap: layerMap,
+      stepwiseDepth: maxDepth,
+      stepwiseMaxDepth: maxDepth,
+    });
+  },
+
+  _recomputeDepthLayers: (nodes, edges) => {
+    const layers   = computeDepthLayers(nodes, edges);
+    const layerMap = buildNodeLayerMap(layers);
+    set({
+      stepwiseDepth: 0,
+      stepwiseMaxDepth: Math.max(0, layers.length - 1),
+      depthLayers: layers,
+      nodeLayerMap: layerMap,
+    });
+  },
 
   setSelectedNodeId: (id) => set({ focusedNodeId: id, selectedNodeId: id }),
 
@@ -283,6 +423,7 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
 
   setImmersive: (on) => set({ isImmersive: on }),
   toggleImmersive: () => set((state) => ({ isImmersive: !state.isImmersive })),
+
 
   // ── Existing actions ─────────────────────────────────────────────────────
   setSearch: (value) => set({ searchQuery: value, activeSearchIndex: 0 }),

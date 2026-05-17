@@ -17,6 +17,8 @@ import { readString } from "@/components/outliner/surface-families";
 import { useOutlinerStore } from "@/components/outliner/outliner-store";
 import type { OutlinerMode } from "@/components/outliner/outliner-store";
 
+const MIN_GRAPH_ZOOM = 0.57;
+
 // ── Node colour / icon table — every nodeType has a distinct entry ────────────
 
 const NODE_COLORS: Record<string, string> = {
@@ -183,6 +185,7 @@ interface NodeCardProps {
   modeOpacity: number;
   modeFilter: string;
   onClick: (nodeId: string) => void;
+  onContextMenu?: (event: React.MouseEvent<HTMLDivElement>, node: AlgorithmNodeV4) => void;
 }
 
 function NodeCard({
@@ -190,7 +193,7 @@ function NodeCard({
   isSelected, isAncestorPath = false, isNextDecision = false,
   hasCheckpoint = false,
   mode, isLabelRevealed, modeOpacity, modeFilter,
-  onClick,
+  onClick, onContextMenu,
 }: NodeCardProps) {
   const color    = nodeColor(node.nodeType);
   const isTrap   = node.nodeType === "trap" || node.memoryRole === "trap";
@@ -200,11 +203,11 @@ function NodeCard({
   const label    = mode === "recall" && !isLabelRevealed ? "؟" : node.label;
 
   // Box shadow per state
-  let shadow = "0 1px 4px rgba(0,0,0,0.06)";
-  if (isSelected) shadow = `0 0 0 2px ${color}, 0 4px 20px rgba(0,0,0,0.12)`;
-  else if (isTrap) shadow = "0 0 0 3px rgba(244,63,94,0.15), 0 4px 16px rgba(0,0,0,0.10)";
+  let shadow = "0 1px 3px rgba(15,23,42,0.08)";
+  if (isSelected) shadow = `0 0 0 2px ${color}, 0 10px 24px rgba(15,23,42,0.14)`;
+  else if (isTrap) shadow = "0 0 0 2px rgba(244,63,94,0.18), 0 8px 20px rgba(15,23,42,0.10)";
   else if (isNextDecision) shadow = "0 0 0 2px #34D399, 0 2px 10px rgba(52,211,153,0.20)";
-  else if (isAncestorPath) shadow = "0 0 0 1px rgba(59,130,246,0.45), 0 1px 4px rgba(0,0,0,0.06)";
+  else if (isAncestorPath) shadow = "0 0 0 1px rgba(15,118,110,0.45), 0 1px 4px rgba(15,23,42,0.08)";
 
   const positionStyle: React.CSSProperties = x !== undefined && y !== undefined
     ? { position: "absolute", left: x, top: y, width: NODE_W, zIndex: 2 }
@@ -222,16 +225,17 @@ function NodeCard({
       data-selected={isSelected ? "true" : undefined}
       data-trap={isTrap ? "true" : undefined}
       onClick={() => onClick(node.nodeId)}
+      onContextMenu={(event) => onContextMenu?.(event, node)}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick(node.nodeId); }}
       style={{
         ...positionStyle,
-        borderRadius: 12,
+        borderRadius: 8,
         padding: "10px 12px",
         minWidth: 180,
         maxWidth: 240,
         background: "white",
         border: `1px solid #E2E8F0`,
-        borderLeft: `3px solid ${color}`,
+        borderRight: `3px solid ${color}`,
         boxShadow: shadow,
         opacity: modeOpacity,
         filter: modeFilter,
@@ -245,7 +249,7 @@ function NodeCard({
         {pill ? (
           <span style={{
             borderRadius: 999, padding: "2px 8px", fontSize: 10, fontWeight: 600,
-            letterSpacing: "0.03em", background: pill.bg, color: pill.text,
+            letterSpacing: 0, background: pill.bg, color: pill.text,
           }}>
             {pill.label}
           </span>
@@ -279,6 +283,83 @@ function NodeCard({
           ✓ چک‌پوینت
         </span>
       )}
+    </div>
+  );
+}
+
+function NodeContextMenu({
+  node,
+  surface,
+  x,
+  y,
+  onClose,
+}: {
+  node: AlgorithmNodeV4;
+  surface: AlgorithmSurface;
+  x: number;
+  y: number;
+  onClose: () => void;
+}) {
+  const thresholds = (surface.thresholds ?? []).filter((item) => {
+    const linked = (item as Record<string, unknown>).linkedNodeIds;
+    return Array.isArray(linked) ? linked.includes(node.nodeId) : node.nodeType === "threshold";
+  });
+  const traps = (surface.boardTraps ?? []).filter((item) => {
+    const linked = (item as Record<string, unknown>).linkedNodeIds;
+    return Array.isArray(linked)
+      ? linked.includes(node.nodeId)
+      : node.nodeType === "trap" || node.memoryRole === "trap";
+  });
+
+  return (
+    <div
+      role="dialog"
+      dir="rtl"
+      lang="fa"
+      className="fixed z-[80] w-[min(360px,calc(100vw-32px))] overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl"
+      style={{
+        left: Math.max(16, x - 340),
+        top: Math.max(16, y),
+      }}
+    >
+      <div className="flex items-start gap-3 border-b border-slate-100 px-4 py-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-bold leading-6 text-slate-950">{node.label}</p>
+          <p className="mt-0.5 text-[11px] text-slate-500">
+            {NODE_TYPE_ROLE_LABELS[node.nodeType] ?? node.nodeType}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-slate-400 hover:bg-slate-50 hover:text-slate-700"
+          aria-label="بستن"
+        >
+          ×
+        </button>
+      </div>
+      <div className="max-h-[260px] overflow-auto px-4 py-3 text-sm leading-7 text-slate-700">
+        {node.testablePoint && (
+          <p className="border-r-2 border-teal-600 bg-teal-50/70 px-3 py-2 text-teal-950">
+            {node.testablePoint}
+          </p>
+        )}
+        {node.detail && <p className="mt-3">{node.detail}</p>}
+        {(thresholds.length > 0 || traps.length > 0) && (
+          <div className="mt-3 space-y-2 text-xs">
+            {thresholds.map((item) => (
+              <p key={item.id} className="rounded-md bg-amber-50 px-3 py-2 text-amber-900">
+                {readString(item, ["variable", "metric", "label", "title"]) ?? "آستانه"}: {readString(item, ["value", "threshold"]) ?? ""}
+              </p>
+            ))}
+            {traps.map((item) => (
+              <p key={item.id} className="rounded-md bg-rose-50 px-3 py-2 text-rose-900">
+                {readString(item, ["trapTitle"]) ?? "دام بوردی"}
+              </p>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -329,7 +410,7 @@ function EdgeConditionLabel({
       dir="rtl"
       style={{
         position: "absolute", left: x, top: y,
-        transform: "translate(-50%,-50%)", zIndex: 25, pointerEvents: "none",
+        transform: "translate(-50%,-50%)", zIndex: 3, pointerEvents: "none",
       }}
     >
       <span style={{
@@ -378,8 +459,7 @@ function SurfaceHeader({ surface }: { surface: AlgorithmSurface }) {
 
 function SurfaceFrame({ surface, children }: { surface: AlgorithmSurface; children: React.ReactNode }) {
   return (
-    <section className="mx-auto max-w-6xl p-3" data-surface-id={surface.id}>
-      <SurfaceHeader surface={surface} />
+    <section className="h-full min-h-0 w-full px-3 py-3 lg:px-5 lg:py-4" data-surface-id={surface.id}>
       {children}
     </section>
   );
@@ -450,9 +530,10 @@ function MiniMap({
     <div style={{
       position: "absolute", bottom: 52, right: 12, zIndex: 10,
       width: W, height: H,
-      background: "rgba(255,255,255,0.88)",
-      border: "1px solid #E2E8F0",
+      background: "rgba(255,255,255,0.92)",
+      border: "1px solid #D7E0E5",
       borderRadius: 8,
+      boxShadow: "0 8px 24px rgba(15,23,42,0.10)",
       overflow: "hidden",
       pointerEvents: "none",
     }}>
@@ -488,8 +569,8 @@ function ZoomPill({ zoom, onReset, onZoomIn, onZoomOut }: {
     <div style={{
       position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)",
       zIndex: 10, display: "flex", alignItems: "center", gap: 0,
-      background: "white", border: "1px solid #E2E8F0",
-      borderRadius: 999, boxShadow: "0 1px 4px rgba(0,0,0,0.10)",
+      background: "rgba(255,255,255,0.94)", border: "1px solid #D7E0E5",
+      borderRadius: 999, boxShadow: "0 8px 24px rgba(15,23,42,0.12)",
       overflow: "hidden",
     }}>
       <button type="button" onClick={onZoomOut}
@@ -531,10 +612,31 @@ export function DagRenderer({
 
   const [visitedPath, setVisitedPath] = useState<string[]>([]);
   const [useWebGL,    setUseWebGL]    = useState(true);
-  const [zoom,        setZoom]        = useState(1.0);
+  const [zoom,        setZoom]        = useState(MIN_GRAPH_ZOOM);
+  const [contextMenu, setContextMenu] = useState<{
+    node: AlgorithmNodeV4;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const panRef = useRef<{
+    pointerId: number;
+    x: number;
+    y: number;
+    left: number;
+    top: number;
+  } | null>(null);
   const handleWebGLFallback = useCallback(() => setUseWebGL(false), []);
+
+  const entryLayoutNode = useMemo(
+    () =>
+      layout.nodes.find((ln) => ln.node.nodeType === "entry") ??
+      layout.nodes.find((ln) => !v4edges.some((edge) => edge.to === ln.node.nodeId)) ??
+      layout.nodes[0] ??
+      null,
+    [layout.nodes, v4edges],
+  );
 
   // ── Memos ────────────────────────────────────────────────────────────────
   const checkpointNodeCounts = useMemo(() => {
@@ -593,11 +695,78 @@ export function DagRenderer({
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       const factor = e.deltaY > 0 ? 0.92 : 1.08;
-      setZoom((z) => Math.max(0.25, Math.min(2.0, z * factor)));
+      setZoom((z) => Math.max(MIN_GRAPH_ZOOM, Math.min(2.0, z * factor)));
     }
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
+
+  const fitCanvas = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const nextZoom = Math.max(
+      MIN_GRAPH_ZOOM,
+      Math.min(
+        1.2,
+        (el.clientWidth - 80) / Math.max(layout.canvasWidth, 1),
+        (el.clientHeight - 80) / Math.max(layout.canvasHeight, 1),
+      ),
+    );
+    setZoom(nextZoom);
+    requestAnimationFrame(() => {
+      const next = scrollRef.current;
+      if (!next) return;
+      const focus = entryLayoutNode;
+      if (!focus) {
+        next.scrollLeft = Math.max(0, (next.scrollWidth - next.clientWidth) / 2);
+        next.scrollTop = 24;
+        return;
+      }
+      const graphW = layout.canvasWidth * nextZoom;
+      const displayW = Math.max(graphW, next.clientWidth);
+      const focusX = displayW / 2 - graphW / 2 + (focus.x + NODE_W / 2) * nextZoom;
+      const focusY = (focus.y + NODE_H / 2) * nextZoom;
+      next.scrollLeft = Math.max(0, focusX - next.clientWidth / 2);
+      next.scrollTop = Math.max(0, focusY - 120);
+    });
+  }, [entryLayoutNode, layout.canvasHeight, layout.canvasWidth]);
+
+  useEffect(() => {
+    fitCanvas();
+  }, [fitCanvas, surface.id]);
+
+  function handleCanvasPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("[data-node-id],button,a,input,textarea,select,[role='button']")) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    panRef.current = {
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      left: el.scrollLeft,
+      top: el.scrollTop,
+    };
+    el.setPointerCapture(event.pointerId);
+    el.dataset.panning = "true";
+  }
+
+  function handleCanvasPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const pan = panRef.current;
+    const el = scrollRef.current;
+    if (!pan || !el || pan.pointerId !== event.pointerId) return;
+    el.scrollLeft = pan.left - (event.clientX - pan.x);
+    el.scrollTop = pan.top - (event.clientY - pan.y);
+  }
+
+  function handleCanvasPointerEnd(event: React.PointerEvent<HTMLDivElement>) {
+    const el = scrollRef.current;
+    if (panRef.current?.pointerId === event.pointerId) panRef.current = null;
+    if (el) {
+      try { el.releasePointerCapture(event.pointerId); } catch { /* already released */ }
+      delete el.dataset.panning;
+    }
+  }
 
   function handleSelectNode(nodeId: string) {
     if (selectedNodeId === nodeId) {
@@ -608,6 +777,13 @@ export function DagRenderer({
     setVisitedPath((prev) => prev.includes(nodeId) ? prev : [...prev, nodeId]);
     activateFocusPath(nodeId);
     if (mode === "recall") revealNodeLabel(nodeId);
+  }
+
+  function handleNodeContextMenu(event: React.MouseEvent<HTMLDivElement>, node: AlgorithmNodeV4) {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({ node, x: event.clientX, y: event.clientY });
+    storeSetSelectedId(node.nodeId);
   }
 
   const connectedIds = new Set<string>();
@@ -623,30 +799,66 @@ export function DagRenderer({
 
   return (
     <SurfaceFrame surface={surface}>
-      <GateBanner surface={surface} />
-
+      <style>{`
+        @keyframes outliner-node-enter {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        [data-panning="true"] { cursor: grabbing !important; }
+      `}</style>
       {/* ── Canvas scroll container ── */}
       <div
         ref={scrollRef}
-        className="overflow-auto rounded-xl border border-border/30 shadow-inner"
+        className="h-full min-h-[520px] overflow-auto rounded-lg border border-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]"
+        onPointerDown={handleCanvasPointerDown}
+        onPointerMove={handleCanvasPointerMove}
+        onPointerUp={handleCanvasPointerEnd}
+        onPointerCancel={handleCanvasPointerEnd}
         style={{
           backgroundColor: "var(--sp-canvas-bg, #FAFAFA)",
           backgroundImage: "radial-gradient(circle, var(--sp-canvas-dot, #E2E8F0) 1px, transparent 1px)",
-          backgroundSize: "24px 24px",
-          minHeight: "clamp(360px, 58vh, 680px)",
+          backgroundSize: "28px 28px",
+          minHeight: "max(560px, calc(100vh - 210px))",
           position: "relative",
+          cursor: "grab",
+          touchAction: "none",
         }}
       >
+        {contextMenu && (
+          <>
+            <button
+              type="button"
+              aria-label="بستن منوی گره"
+              className="fixed inset-0 z-[70] cursor-default bg-transparent"
+              onClick={() => setContextMenu(null)}
+            />
+            <NodeContextMenu
+              node={contextMenu.node}
+              surface={surface}
+              x={contextMenu.x}
+              y={contextMenu.y}
+              onClose={() => setContextMenu(null)}
+            />
+          </>
+        )}
         {/* Size proxy */}
-        <div style={{ width: layout.canvasWidth * zoom, height: layout.canvasHeight * zoom, position: "relative" }}>
+        <div
+          style={{
+            width: layout.canvasWidth * zoom,
+            height: layout.canvasHeight * zoom,
+            minWidth: "100%",
+            margin: "0 auto",
+            position: "relative",
+          }}
+        >
 
           {/* Scaled content layer */}
           <div
             className="relative"
             style={{
-              position: "absolute", top: 0, left: 0,
+              position: "absolute", top: 0, left: "50%",
               width: layout.canvasWidth, height: layout.canvasHeight,
-              transform: `scale(${zoom})`, transformOrigin: "0 0",
+              transform: `translateX(-50%) scale(${zoom})`, transformOrigin: "50% 0",
             }}
             data-surface-id={surface.id}
           >
@@ -704,6 +916,7 @@ export function DagRenderer({
                   modeOpacity={opacity}
                   modeFilter={filter}
                   onClick={handleSelectNode}
+                  onContextMenu={handleNodeContextMenu}
                 />
               );
             })}
@@ -739,13 +952,12 @@ export function DagRenderer({
         {/* Zoom pill */}
         <ZoomPill
           zoom={zoom}
-          onReset={() => setZoom(1.0)}
+          onReset={fitCanvas}
           onZoomIn={() => setZoom((z) => Math.min(2.0, z * 1.08))}
-          onZoomOut={() => setZoom((z) => Math.max(0.25, z * 0.92))}
+          onZoomOut={() => setZoom((z) => Math.max(MIN_GRAPH_ZOOM, z * 0.92))}
         />
       </div>
 
-      <ThresholdSection surface={surface} />
     </SurfaceFrame>
   );
 }
@@ -783,8 +995,8 @@ export function ChainRenderer({
               </div>
               <div
                 dir="rtl" lang="fa" data-node-id={node.nodeId}
-                className="min-w-0 flex-1 overflow-hidden rounded-xl border mb-0.5 shadow-[0_1px_3px_rgba(0,0,0,0.07)] bg-white"
-                style={{ borderLeft: `3px solid ${color}` }}
+                className="mb-0.5 min-w-0 flex-1 overflow-hidden rounded-lg border bg-white shadow-[0_1px_3px_rgba(15,23,42,0.08)]"
+                style={{ borderRight: `3px solid ${color}` }}
               >
                 <div className="px-3 py-2">
                   <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color }}>
@@ -803,7 +1015,6 @@ export function ChainRenderer({
           );
         })}
       </ol>
-      <ThresholdSection surface={surface} />
     </SurfaceFrame>
   );
 }
@@ -821,7 +1032,6 @@ export function CardGridRenderer({
 
   return (
     <SurfaceFrame surface={surface}>
-      <GateBanner surface={surface} />
       <div className="grid gap-2 sm:grid-cols-2">
         {(surface.nodes ?? []).map((node) => {
           const v4    = node as unknown as AlgorithmNodeV4;
@@ -831,8 +1041,8 @@ export function CardGridRenderer({
             <div
               key={node.id}
               dir="rtl" lang="fa" data-node-id={node.id}
-              className="overflow-hidden rounded-xl border text-right shadow-[0_1px_3px_rgba(0,0,0,0.07)] bg-white"
-              style={{ borderLeft: `3px solid ${color}` }}
+              className="overflow-hidden rounded-lg border bg-white text-right shadow-[0_1px_3px_rgba(15,23,42,0.08)]"
+              style={{ borderRight: `3px solid ${color}` }}
             >
               <div className="px-3 py-2">
                 <div className="flex items-center justify-between mb-1">
@@ -855,7 +1065,6 @@ export function CardGridRenderer({
           );
         })}
       </div>
-      <ThresholdSection surface={surface} />
     </SurfaceFrame>
   );
 }
@@ -959,6 +1168,7 @@ export function renderSurface(
   onBlockClick?: (blockId: string) => void,
 ): React.ReactNode | null {
   if (!surface) return null;
+  if ((surface.nodes ?? []).length > 0) return null;
   const shape = `${surface.algorithmShape ?? ""} ${surface.surfaceType ?? ""}`.toLowerCase();
 
   if (shape.includes("trap") || (surface.boardTraps?.length ?? 0) > 0)
