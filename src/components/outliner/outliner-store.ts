@@ -13,9 +13,16 @@ import {
   computeDepthLayers,
   buildNodeLayerMap,
 } from "@/components/outliner/study-player/depth-layers";
+import { getOrderedStudyItems } from "@/components/outliner/surface-families";
 
 // ── Canonical study mode (single source of truth) ────────────────────────────
 export type OutlinerMode = "free" | "stepwise" | "traps" | "recall" | "exam";
+
+function computeStudyLayersForSurface(surface: AlgorithmSurface): string[][] {
+  const graphLayers = computeDepthLayers(surface.nodes, surface.edges);
+  if (graphLayers.length > 0) return graphLayers;
+  return getOrderedStudyItems(surface).map((item) => [item.id]);
+}
 
 // Migration map: old StepwiseMode keys → OutlinerMode
 const MODE_MIGRATION: Record<string, OutlinerMode> = {
@@ -211,7 +218,7 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
         ? Math.min(state.currentSurfaceIndex, Math.max(0, surfaces.length - 1))
         : 0;
       const activeSurface = surfaces[newIndex];
-      const layers   = activeSurface ? computeDepthLayers(activeSurface.nodes, activeSurface.edges) : [];
+      const layers   = activeSurface ? computeStudyLayersForSurface(activeSurface) : [];
       const layerMap = buildNodeLayerMap(layers);
       return {
         segmentId,
@@ -235,7 +242,7 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
     set((state) => {
       const idx     = state.surfaces.findIndex((s) => s.id === surfaceId);
       const surface = idx >= 0 ? state.surfaces[idx] : null;
-      const layers   = surface ? computeDepthLayers(surface.nodes, surface.edges) : state.depthLayers;
+      const layers   = surface ? computeStudyLayersForSurface(surface) : state.depthLayers;
       const layerMap = surface ? buildNodeLayerMap(layers) : state.nodeLayerMap;
       return {
         selectedSurfaceId: surfaceId,
@@ -262,7 +269,7 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
     if (next === "stepwise") {
       const surface = curr.surfaces[curr.currentSurfaceIndex];
       if (surface) {
-        const layers   = computeDepthLayers(surface.nodes, surface.edges);
+        const layers   = computeStudyLayersForSurface(surface);
         const layerMap = buildNodeLayerMap(layers);
         layerUpdate = {
           depthLayers: layers,
@@ -288,7 +295,7 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
     set((state) => {
       const surface = state.surfaces[i];
       if (!surface) return {};
-      const layers   = computeDepthLayers(surface.nodes, surface.edges);
+      const layers   = computeStudyLayersForSurface(surface);
       const layerMap = buildNodeLayerMap(layers);
       return {
         currentSurfaceIndex: i,
@@ -311,7 +318,7 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
       if (next === state.currentSurfaceIndex) return {};
       const surface = state.surfaces[next];
       if (!surface) return {};
-      const layers   = computeDepthLayers(surface.nodes, surface.edges);
+      const layers   = computeStudyLayersForSurface(surface);
       const layerMap = buildNodeLayerMap(layers);
       return {
         currentSurfaceIndex: next,
@@ -334,7 +341,7 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
       if (prev === state.currentSurfaceIndex) return {};
       const surface = state.surfaces[prev];
       if (!surface) return {};
-      const layers   = computeDepthLayers(surface.nodes, surface.edges);
+      const layers   = computeStudyLayersForSurface(surface);
       const layerMap = buildNodeLayerMap(layers);
       return {
         currentSurfaceIndex: prev,
@@ -362,7 +369,7 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
     if (nextIdx >= s.surfaces.length) return;
     const nextSurface = s.surfaces[nextIdx];
     if (!nextSurface) return;
-    const layers   = computeDepthLayers(nextSurface.nodes, nextSurface.edges);
+    const layers   = computeStudyLayersForSurface(nextSurface);
     const layerMap = buildNodeLayerMap(layers);
     set({
       currentSurfaceIndex: nextIdx,
@@ -388,7 +395,7 @@ export const useOutlinerStore = create<OutlinerState>((set, get) => ({
     if (prevIdx < 0) return;
     const prevSurface = s.surfaces[prevIdx];
     if (!prevSurface) return;
-    const layers   = computeDepthLayers(prevSurface.nodes, prevSurface.edges);
+    const layers   = computeStudyLayersForSurface(prevSurface);
     const layerMap = buildNodeLayerMap(layers);
     const maxDepth = Math.max(0, layers.length - 1);
     set({

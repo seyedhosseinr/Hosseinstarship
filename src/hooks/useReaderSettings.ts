@@ -65,7 +65,7 @@ const DEFAULTS: ReaderSettings = {
   showHighYield: true,
   showKeyExam: true,
   showMissedQuestions: false,
-  bgTheme: "paper",
+  bgTheme: "cool",
   toolbarStyle: "popup",
 };
 

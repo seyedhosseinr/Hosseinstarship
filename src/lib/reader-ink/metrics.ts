@@ -50,6 +50,32 @@ export function readContentMetrics({
   return metrics;
 }
 
+/**
+ * Lightweight scroll-only metrics update.
+ * Re-reads content position (getBoundingClientRect + scrollTop) but does NOT
+ * resize the canvas buffers — avoiding the WebGPU context reset that causes
+ * a black-screen flash when iOS URL-bar collapses on first scroll.
+ */
+export function readScrollMetrics(
+  scrollContainer: HTMLElement | null,
+  contentSelector: string,
+  previous: ContentMetrics,
+): ContentMetrics {
+  const content =
+    scrollContainer?.querySelector<HTMLElement>(contentSelector) ?? scrollContainer;
+  const rect = content?.getBoundingClientRect();
+
+  return {
+    ...previous,
+    contentLeft: rect?.left ?? previous.contentLeft,
+    contentTop: rect?.top ?? previous.contentTop,
+    contentWidth: rect?.width ?? previous.contentWidth,
+    contentHeight: rect?.height ?? previous.contentHeight,
+    scrollTop: scrollContainer?.scrollTop ?? window.scrollY,
+    scrollLeft: scrollContainer?.scrollLeft ?? window.scrollX,
+  };
+}
+
 export function toContentX(clientX: number, metrics: ContentMetrics): number {
   return clientX - metrics.contentLeft;
 }

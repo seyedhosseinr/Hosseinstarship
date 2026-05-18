@@ -8,12 +8,27 @@ import {
   Layers, PlayCircle, RefreshCw, Square, TrendingUp, Users, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useAlgorithmLayout, NODE_W, NODE_H } from "@/components/algorithms/useAlgorithmLayout";
+import {
+  useAlgorithmLayout,
+  NODE_W,
+  NODE_H,
+  type LayoutEdge,
+  type LayoutNode,
+} from "@/components/algorithms/useAlgorithmLayout";
 import { AlgorithmEdgeLayer } from "@/components/algorithms/AlgorithmEdgeLayer";
 import { OutlinerWebGLCanvas, LOD_THRESHOLD } from "@/components/outliner/OutlinerWebGLCanvas";
 import type { AlgorithmNodeV4, AlgorithmEdgeV4 } from "@/types/algorithm-ir-v4";
-import type { AlgorithmSurface } from "@/types/algorithm-ir";
-import { readString } from "@/components/outliner/surface-families";
+import type { AlgorithmRecord, AlgorithmSurface } from "@/types/algorithm-ir";
+import {
+  getSurfaceObjectGroups,
+  getSurfaceRendererKey,
+  linkedBlockIds,
+  objectId,
+  readString,
+  recordArray,
+  titleOf,
+  type SurfaceRendererKey,
+} from "@/components/outliner/surface-families";
 import { useOutlinerStore } from "@/components/outliner/outliner-store";
 import type { OutlinerMode } from "@/components/outliner/outliner-store";
 
@@ -155,6 +170,80 @@ function computeAncestorPath(edges: AlgorithmEdgeV4[], targetNodeId: string): Se
   return result;
 }
 
+type RevealEvent =
+  | { kind: "node"; id: string }
+  | { kind: "edge"; id: string };
+
+function buildGraphRevealSequence(
+  nodes: LayoutNode[],
+  edges: LayoutEdge[],
+  entryNodeId?: string,
+): RevealEvent[] {
+  const sequence: RevealEvent[] = [];
+  if (nodes.length === 0) return sequence;
+
+  const nodeIds = new Set(nodes.map((ln) => ln.node.nodeId));
+  const incoming = new Set(edges.map((le) => le.edge.to));
+  const rootId =
+    entryNodeId ??
+    nodes.find((ln) => ln.node.nodeType === "entry")?.node.nodeId ??
+    nodes.find((ln) => !incoming.has(ln.node.nodeId))?.node.nodeId ??
+    nodes[0]?.node.nodeId;
+  if (!rootId) return sequence;
+
+  const nodeById = new Map(nodes.map((ln) => [ln.node.nodeId, ln]));
+  const outgoing = new Map<string, LayoutEdge[]>();
+  for (const edge of edges) {
+    if (!nodeIds.has(edge.edge.from) || !nodeIds.has(edge.edge.to)) continue;
+    const list = outgoing.get(edge.edge.from) ?? [];
+    list.push(edge);
+    outgoing.set(edge.edge.from, list);
+  }
+  for (const list of outgoing.values()) {
+    list.sort((a, b) => (a.toPos.x - b.toPos.x) || (a.toPos.y - b.toPos.y));
+  }
+
+  const seenNodes = new Set<string>();
+  const seenEdges = new Set<string>();
+  const queue: string[] = [rootId];
+  seenNodes.add(rootId);
+  sequence.push({ kind: "node", id: rootId });
+
+  while (queue.length > 0) {
+    const nodeId = queue.shift()!;
+    for (const edge of outgoing.get(nodeId) ?? []) {
+      if (!seenEdges.has(edge.edge.edgeId)) {
+        seenEdges.add(edge.edge.edgeId);
+        sequence.push({ kind: "edge", id: edge.edge.edgeId });
+      }
+      if (!seenNodes.has(edge.edge.to)) {
+        seenNodes.add(edge.edge.to);
+        sequence.push({ kind: "node", id: edge.edge.to });
+        queue.push(edge.edge.to);
+      }
+    }
+  }
+
+  const leftovers = nodes
+    .filter((ln) => !seenNodes.has(ln.node.nodeId))
+    .sort((a, b) => (a.y - b.y) || (a.x - b.x));
+  for (const node of leftovers) {
+    seenNodes.add(node.node.nodeId);
+    sequence.push({ kind: "node", id: node.node.nodeId });
+    for (const edge of outgoing.get(node.node.nodeId) ?? []) {
+      if (seenEdges.has(edge.edge.edgeId)) continue;
+      seenEdges.add(edge.edge.edgeId);
+      sequence.push({ kind: "edge", id: edge.edge.edgeId });
+      if (!seenNodes.has(edge.edge.to) && nodeById.has(edge.edge.to)) {
+        seenNodes.add(edge.edge.to);
+        sequence.push({ kind: "node", id: edge.edge.to });
+      }
+    }
+  }
+
+  return sequence;
+}
+
 function nodeEduHeat(node: AlgorithmNodeV4, cpCount: number): number {
   let h = 0;
   if (node.nodeType === "trap" || node.memoryRole === "trap") h += 0.40;
@@ -184,7 +273,9 @@ interface NodeCardProps {
   isLabelRevealed: boolean;
   modeOpacity: number;
   modeFilter: string;
+  enterIndex?: number;
   onClick: (nodeId: string) => void;
+  onBlockClick?: (blockId: string) => void;
   onContextMenu?: (event: React.MouseEvent<HTMLDivElement>, node: AlgorithmNodeV4) => void;
 }
 
@@ -193,7 +284,7 @@ function NodeCard({
   isSelected, isAncestorPath = false, isNextDecision = false,
   hasCheckpoint = false,
   mode, isLabelRevealed, modeOpacity, modeFilter,
-  onClick, onContextMenu,
+  enterIndex = 0, onClick, onBlockClick, onContextMenu,
 }: NodeCardProps) {
   const color    = nodeColor(node.nodeType);
   const isTrap   = node.nodeType === "trap" || node.memoryRole === "trap";
@@ -212,6 +303,11 @@ function NodeCard({
   const positionStyle: React.CSSProperties = x !== undefined && y !== undefined
     ? { position: "absolute", left: x, top: y, width: NODE_W, zIndex: 2 }
     : {};
+  const nodeStyleVars = {
+    "--node-mode-opacity": modeOpacity,
+    "--node-mode-filter": modeFilter,
+    "--node-selected-transform": isSelected ? "translateY(-2px)" : "translateY(0)",
+  } as React.CSSProperties;
 
   return (
     <div
@@ -229,6 +325,7 @@ function NodeCard({
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick(node.nodeId); }}
       style={{
         ...positionStyle,
+        ...nodeStyleVars,
         borderRadius: 8,
         padding: "10px 12px",
         minWidth: 180,
@@ -237,11 +334,13 @@ function NodeCard({
         border: `1px solid #E2E8F0`,
         borderRight: `3px solid ${color}`,
         boxShadow: shadow,
-        opacity: modeOpacity,
-        filter: modeFilter,
+        opacity: "var(--node-mode-opacity)",
+        filter: "var(--node-mode-filter)",
         transition: "box-shadow 180ms ease, transform 120ms ease, opacity 180ms ease",
+        animation: "outliner-node-enter 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both",
+        animationDelay: `${Math.min(420, enterIndex * 34)}ms`,
         cursor: "pointer",
-        transform: isSelected ? "translateY(-2px)" : undefined,
+        transform: "var(--node-selected-transform)",
       }}
     >
       {/* Top row: memory role pill + icon */}
@@ -283,6 +382,7 @@ function NodeCard({
           ✓ چک‌پوینت
         </span>
       )}
+      <SourceChips item={node} onBlockClick={onBlockClick} compact />
     </div>
   );
 }
@@ -459,9 +559,108 @@ function SurfaceHeader({ surface }: { surface: AlgorithmSurface }) {
 
 function SurfaceFrame({ surface, children }: { surface: AlgorithmSurface; children: React.ReactNode }) {
   return (
-    <section className="h-full min-h-0 w-full px-3 py-3 lg:px-5 lg:py-4" data-surface-id={surface.id}>
+    <section
+      className="h-full min-h-0 w-full px-3 py-3 lg:px-5 lg:py-4"
+      data-surface-id={surface.id}
+      data-surface-type={surface.surfaceType}
+      data-algorithm-shape={surface.algorithmShape}
+      dir="rtl"
+      lang="fa"
+    >
       {children}
     </section>
+  );
+}
+
+function SourceChips({
+  item,
+  onBlockClick,
+  compact = false,
+}: {
+  item: unknown;
+  onBlockClick?: (blockId: string) => void;
+  compact?: boolean;
+}) {
+  const blocks = linkedBlockIds(item);
+  if (blocks.length === 0) return null;
+  return (
+    <div className="mt-2 flex flex-wrap gap-1">
+      {blocks.map((blockId, index) => (
+        <button
+          key={`${blockId}-${index}`}
+          type="button"
+          data-linked-block-id={blockId}
+          onClick={() => onBlockClick?.(blockId)}
+          className={cn(
+            "rounded-md border border-slate-200 bg-white text-slate-600 shadow-sm transition hover:border-teal-300 hover:text-teal-700",
+            compact ? "min-h-6 px-2 text-[10px]" : "min-h-7 px-2.5 text-[11px]",
+          )}
+        >
+          Source {index + 1}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function RecordLine({
+  label,
+  value,
+  tone = "slate",
+}: {
+  label: string;
+  value: unknown;
+  tone?: "slate" | "emerald" | "rose" | "amber" | "teal";
+}) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const colors: Record<typeof tone, string> = {
+    slate: "border-slate-200 bg-slate-50 text-slate-700",
+    emerald: "border-emerald-200 bg-emerald-50 text-emerald-800",
+    rose: "border-rose-200 bg-rose-50 text-rose-800",
+    amber: "border-amber-200 bg-amber-50 text-amber-900",
+    teal: "border-teal-200 bg-teal-50 text-teal-900",
+  };
+  return (
+    <div className={cn("rounded-lg border px-3 py-2", colors[tone])}>
+      <p className="text-[10px] font-bold uppercase tracking-wide opacity-70">{label}</p>
+      <p className="mt-0.5 text-[12px] leading-6">{value}</p>
+    </div>
+  );
+}
+
+function RelatedObjectsPanel({
+  surface,
+  onBlockClick,
+}: {
+  surface: AlgorithmSurface;
+  onBlockClick?: (blockId: string) => void;
+}) {
+  const groups = getSurfaceObjectGroups(surface);
+  const hasContext =
+    groups.nodes + groups.thresholds + groups.gates + groups.boardTraps + groups.checkpoints + groups.followUpRules + groups.complicationRules + groups.mediaLinks > 0;
+  if (!hasContext) return null;
+  return (
+    <div className="mt-5 rounded-lg border border-slate-200 bg-white/80 p-3 shadow-sm">
+      <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-slate-500">Clinical context</p>
+      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        {(surface.nodes ?? []).slice(0, 8).map((node) => (
+          <div key={node.nodeId} data-node-id={node.nodeId} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+            <p className="text-[12px] font-semibold text-slate-900">{node.label}</p>
+            {node.testablePoint && <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-600">{node.testablePoint}</p>}
+            <SourceChips item={node} onBlockClick={onBlockClick} compact />
+          </div>
+        ))}
+        {[...(surface.thresholds ?? []), ...(surface.gates ?? []), ...(surface.boardTraps ?? []), ...(surface.checkpoints ?? [])].slice(0, 12).map((item, index) => (
+          <div key={objectId(item, `context-${index + 1}`)} className="rounded-lg border border-slate-100 bg-white px-3 py-2">
+            <p className="text-[12px] font-semibold text-slate-900">{titleOf(item, `Item ${index + 1}`)}</p>
+            <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-600">
+              {readString(item, ["conditionText", "entryCondition", "wrongPath", "prompt", "decisionImpact", "whyItMatters"]) ?? ""}
+            </p>
+            <SourceChips item={item} onBlockClick={onBlockClick} compact />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -613,6 +812,7 @@ export function DagRenderer({
   const [visitedPath, setVisitedPath] = useState<string[]>([]);
   const [useWebGL,    setUseWebGL]    = useState(true);
   const [zoom,        setZoom]        = useState(MIN_GRAPH_ZOOM);
+  const [revealCursor, setRevealCursor] = useState(0);
   const [contextMenu, setContextMenu] = useState<{
     node: AlgorithmNodeV4;
     x: number;
@@ -637,6 +837,44 @@ export function DagRenderer({
       null,
     [layout.nodes, v4edges],
   );
+
+  const revealSequence = useMemo(
+    () => buildGraphRevealSequence(layout.nodes, layout.edges, entryLayoutNode?.node.nodeId),
+    [entryLayoutNode?.node.nodeId, layout.edges, layout.nodes],
+  );
+
+  useEffect(() => {
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) {
+      setRevealCursor(revealSequence.length);
+      return;
+    }
+
+    setRevealCursor(0);
+    const timers = revealSequence.map((_, index) =>
+      window.setTimeout(() => {
+        setRevealCursor(index + 1);
+      }, 140 + index * 280),
+    );
+    return () => {
+      for (const timer of timers) window.clearTimeout(timer);
+    };
+  }, [revealSequence, surface.id]);
+
+  const visibleGraph = useMemo(() => {
+    const nodeIds = new Set<string>();
+    const edgeIds = new Set<string>();
+    for (const event of revealSequence.slice(0, revealCursor)) {
+      if (event.kind === "node") nodeIds.add(event.id);
+      else edgeIds.add(event.id);
+    }
+    return {
+      nodeIds,
+      edgeIds,
+      nodes: layout.nodes.filter((ln) => nodeIds.has(ln.node.nodeId)),
+      edges: layout.edges.filter((le) => edgeIds.has(le.edge.edgeId)),
+    };
+  }, [layout.edges, layout.nodes, revealCursor, revealSequence]);
 
   // ── Memos ────────────────────────────────────────────────────────────────
   const checkpointNodeCounts = useMemo(() => {
@@ -801,8 +1039,21 @@ export function DagRenderer({
     <SurfaceFrame surface={surface}>
       <style>{`
         @keyframes outliner-node-enter {
-          from { opacity: 0; }
-          to { opacity: 1; }
+          from {
+            opacity: 0;
+            filter: blur(5px) saturate(0.94);
+            transform: translateY(14px) scale(0.965);
+          }
+          to {
+            opacity: var(--node-mode-opacity, 1);
+            filter: var(--node-mode-filter, none);
+            transform: var(--node-selected-transform, translateY(0));
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [data-node-id] {
+            animation: none !important;
+          }
         }
         [data-panning="true"] { cursor: grabbing !important; }
       `}</style>
@@ -865,8 +1116,8 @@ export function DagRenderer({
             {/* ── GPU layer ── */}
             {useWebGL ? (
               <OutlinerWebGLCanvas
-                layoutEdges={layout.edges}
-                layoutNodes={layout.nodes}
+                layoutEdges={visibleGraph.edges}
+                layoutNodes={visibleGraph.nodes}
                 canvasWidth={layout.canvasWidth}
                 canvasHeight={layout.canvasHeight}
                 selectedNodeId={selectedNodeId}
@@ -880,7 +1131,7 @@ export function DagRenderer({
               />
             ) : (
               <AlgorithmEdgeLayer
-                layoutEdges={layout.edges}
+                layoutEdges={visibleGraph.edges}
                 surfaceId={surface.id}
                 selectedNodeId={selectedNodeId}
                 visitedPath={visitedPath}
@@ -890,7 +1141,7 @@ export function DagRenderer({
             )}
 
             {/* ── DOM node cards ── */}
-            {!lodMode && layout.nodes.map((ln) => {
+            {!lodMode && visibleGraph.nodes.map((ln) => {
               const isSelected    = ln.node.nodeId === selectedNodeId;
               const isOutgoing    = nextDecisionNodes.has(ln.node.nodeId);
               const isAncPath     = ancestorPath.has(ln.node.nodeId) && !isSelected;
@@ -915,14 +1166,16 @@ export function DagRenderer({
                   isLabelRevealed={labelRevealed}
                   modeOpacity={opacity}
                   modeFilter={filter}
+                  enterIndex={0}
                   onClick={handleSelectNode}
+                  onBlockClick={onBlockClick}
                   onContextMenu={handleNodeContextMenu}
                 />
               );
             })}
 
             {/* ── Edge condition labels ── */}
-            {!lodMode && layout.edges
+            {!lodMode && visibleGraph.edges
               .filter((le) => {
                 if (!le.edge.condition) return false;
                 return visitedSet.has(le.edge.from)
@@ -1009,6 +1262,7 @@ export function ChainRenderer({
                       {node.testablePoint}
                     </p>
                   )}
+                  <SourceChips item={node} onBlockClick={onBlockClick} compact />
                 </div>
               </div>
             </li>
@@ -1040,7 +1294,7 @@ export function CardGridRenderer({
           return (
             <div
               key={node.id}
-              dir="rtl" lang="fa" data-node-id={node.id}
+              dir="rtl" lang="fa" data-node-id={v4.nodeId}
               className="overflow-hidden rounded-lg border bg-white text-right shadow-[0_1px_3px_rgba(15,23,42,0.08)]"
               style={{ borderRight: `3px solid ${color}` }}
             >
@@ -1060,6 +1314,7 @@ export function CardGridRenderer({
                 {mode !== "recall" && mode !== "exam" && v4.testablePoint && (
                   <p className="mt-1 text-[10px] font-medium" style={{ color: "#92400E" }}>{v4.testablePoint}</p>
                 )}
+                <SourceChips item={v4} onBlockClick={onBlockClick} compact />
               </div>
             </div>
           );
@@ -1161,6 +1416,337 @@ function MatrixSurfaceRenderer({
   );
 }
 
+export function DecisionTreeRenderer(props: { surface: AlgorithmSurface; onBlockClick?: (blockId: string) => void }) {
+  return <DagRenderer {...props} />;
+}
+
+export function BranchingPathwayRenderer({
+  surface,
+  onBlockClick,
+}: {
+  surface: AlgorithmSurface;
+  onBlockClick?: (blockId: string) => void;
+}) {
+  const branchEdges = (surface.edges ?? []).filter((edge) =>
+    ["yes_no", "threshold_split", "risk_split", "classification_branch", "exception_branch", "failure_branch"].includes(`${edge.edgeType ?? ""}`) || Boolean(edge.condition),
+  );
+  return (
+    <SurfaceFrame surface={surface}>
+      {branchEdges.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {branchEdges.slice(0, 10).map((edge) => (
+            <span key={edge.edgeId} className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-700 shadow-sm">
+              {edge.condition ?? edge.edgeType ?? "branch"}
+            </span>
+          ))}
+        </div>
+      )}
+      <DagRenderer surface={surface} onBlockClick={onBlockClick} />
+    </SurfaceFrame>
+  );
+}
+
+export function LinearPathwayRenderer(props: { surface: AlgorithmSurface; onBlockClick?: (blockId: string) => void }) {
+  return <ChainRenderer {...props} />;
+}
+
+export function MatrixRenderer({
+  surface,
+  onBlockClick,
+}: {
+  surface: AlgorithmSurface;
+  onBlockClick?: (blockId: string) => void;
+}) {
+  return (
+    <SurfaceFrame surface={surface}>
+      {(surface.matrices ?? []).map((matrix) => (
+        <div key={matrix.id} className="mb-4 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 bg-slate-50 px-4 py-2.5 text-[13px] font-bold text-slate-950" dir="rtl" lang="fa">
+            {matrix.title}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[12px]">
+              <thead>
+                <tr className="border-b border-slate-200 bg-white text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  <th className="px-3 py-2 text-right">Condition</th>
+                  <th className="px-3 py-2 text-right">Decision</th>
+                  <th className="px-3 py-2 text-right">Reason</th>
+                  <th className="px-3 py-2 text-right">Trap</th>
+                  <th className="px-3 py-2 text-right">Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(matrix.rows ?? []).map((row, i) => (
+                  <tr key={`${matrix.id ?? "matrix"}-${i}`} className="border-b border-slate-100 hover:bg-slate-50">
+                    <td className="px-3 py-2 text-slate-700" dir="rtl">{row.condition ?? "-"}</td>
+                    <td className="px-3 py-2 font-semibold text-slate-950" dir="rtl">{row.decision ?? "-"}</td>
+                    <td className="px-3 py-2 text-slate-700" dir="rtl">{row.reason ?? "-"}</td>
+                    <td className="px-3 py-2 text-rose-700" dir="rtl">{row.trap ?? "-"}</td>
+                    <td className="px-3 py-2"><SourceChips item={row} onBlockClick={onBlockClick} compact /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+      <RelatedObjectsPanel surface={{ ...surface, matrices: [] }} onBlockClick={onBlockClick} />
+    </SurfaceFrame>
+  );
+}
+
+export function LadderRenderer({
+  surface,
+  onBlockClick,
+}: {
+  surface: AlgorithmSurface;
+  onBlockClick?: (blockId: string) => void;
+}) {
+  const thresholdNodes = (surface.nodes ?? []).filter((node) => ["threshold", "risk_group", "classification"].includes(`${node.nodeType ?? ""}`));
+  const steps: AlgorithmRecord[] = [...(surface.thresholds ?? []), ...thresholdNodes];
+  return (
+    <SurfaceFrame surface={surface}>
+      <div className="relative mx-auto max-w-4xl space-y-3 before:absolute before:right-[15px] before:top-2 before:h-[calc(100%-16px)] before:w-px before:bg-amber-200">
+        {steps.map((step, index) => (
+          <article key={objectId(step, `ladder-${index + 1}`)} data-node-id={typeof step.nodeId === "string" ? step.nodeId : undefined} className="relative mr-10 rounded-lg border border-amber-200 bg-white p-4 shadow-sm">
+            <span className="absolute -right-10 top-4 grid h-8 w-8 place-items-center rounded-full border border-amber-300 bg-amber-50 text-[11px] font-black text-amber-700">{index + 1}</span>
+            <p className="text-[14px] font-bold text-slate-950">{readString(step, ["variable", "label", "title"]) ?? `Step ${index + 1}`}</p>
+            <div className="mt-2 grid gap-2 md:grid-cols-3">
+              <RecordLine label="Value" value={readString(step, ["value", "threshold"])} tone="amber" />
+              <RecordLine label="Condition" value={readString(step, ["conditionText", "condition", "detail"])} />
+              <RecordLine label="Decision impact" value={readString(step, ["decisionImpact", "impact", "testablePoint"])} tone="teal" />
+            </div>
+            <SourceChips item={step} onBlockClick={onBlockClick} />
+          </article>
+        ))}
+      </div>
+      <RelatedObjectsPanel surface={{ ...surface, thresholds: [], nodes: (surface.nodes ?? []).filter((node) => !thresholdNodes.includes(node)) }} onBlockClick={onBlockClick} />
+    </SurfaceFrame>
+  );
+}
+
+export function TimelineRenderer({ surface, onBlockClick }: { surface: AlgorithmSurface; onBlockClick?: (blockId: string) => void }) {
+  const items: AlgorithmRecord[] = [...recordArray(surface.followUpRules), ...(surface.nodes ?? []).filter((node) => node.nodeType === "follow_up")];
+  return (
+    <SurfaceFrame surface={surface}>
+      <div className="grid gap-3 lg:grid-cols-2">
+        {items.map((item, index) => (
+          <article key={objectId(item, `timeline-${index + 1}`)} data-node-id={typeof item.nodeId === "string" ? item.nodeId : undefined} className="rounded-lg border border-teal-200 bg-white p-4 shadow-sm">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-teal-600">Follow-up {index + 1}</p>
+            <p className="mt-1 text-[14px] font-bold text-slate-950">{readString(item, ["startPoint", "label", "title"]) ?? "Timeline item"}</p>
+            <div className="mt-3 grid gap-2">
+              <RecordLine label="Interval" value={readString(item, ["interval"])} tone="teal" />
+              <RecordLine label="Monitor" value={readString(item, ["monitor", "detail"])} />
+              <RecordLine label="Trigger" value={readString(item, ["trigger"])} tone="amber" />
+              <RecordLine label="Action if triggered" value={readString(item, ["actionIfTriggered", "testablePoint"])} tone="emerald" />
+            </div>
+            <SourceChips item={item} onBlockClick={onBlockClick} />
+          </article>
+        ))}
+      </div>
+      <RelatedObjectsPanel surface={{ ...surface, followUpRules: [], nodes: (surface.nodes ?? []).filter((node) => node.nodeType !== "follow_up") }} onBlockClick={onBlockClick} />
+    </SurfaceFrame>
+  );
+}
+
+export function ContrastMapRenderer({ surface, onBlockClick }: { surface: AlgorithmSurface; onBlockClick?: (blockId: string) => void }) {
+  return (
+    <SurfaceFrame surface={surface}>
+      <div className="space-y-3">
+        {(surface.boardTraps ?? []).map((trap, index) => (
+          <article key={objectId(trap, `trap-${index + 1}`)} className="overflow-hidden rounded-lg border border-rose-200 bg-white shadow-sm">
+            <div className="border-b border-rose-100 bg-rose-50 px-4 py-2.5">
+              <p className="text-[13px] font-bold text-rose-700">{readString(trap, ["trapTitle"]) ?? "Board trap"}</p>
+            </div>
+            <div className="grid gap-0 md:grid-cols-3">
+              <div className="border-b border-slate-100 p-3 md:border-b-0 md:border-l"><RecordLine label="Wrong path" value={trap.wrongPath} tone="rose" /></div>
+              <div className="border-b border-slate-100 p-3 md:border-b-0 md:border-l"><RecordLine label="Correct path" value={trap.correctPath} tone="emerald" /></div>
+              <div className="p-3">
+                <RecordLine label="Why it matters" value={trap.whyItMatters} tone="amber" />
+                <SourceChips item={trap} onBlockClick={onBlockClick} />
+              </div>
+            </div>
+          </article>
+        ))}
+      </div>
+      {(surface.nodes ?? []).length > 0 && (
+        <div className="mt-5">
+          <ChainRenderer surface={{ ...surface, boardTraps: [] }} onBlockClick={onBlockClick} />
+        </div>
+      )}
+    </SurfaceFrame>
+  );
+}
+
+export function ClusterRenderer({ surface, onBlockClick }: { surface: AlgorithmSurface; onBlockClick?: (blockId: string) => void }) {
+  const cards = [
+    ...(surface.checkpoints ?? []),
+    ...(surface.nodes ?? []).filter((node) => ["concept", "mechanism", "clinical_effect"].includes(node.nodeType)),
+    ...recordArray(surface.mediaLinks),
+    ...(surface.boardTraps ?? []),
+  ];
+  return (
+    <SurfaceFrame surface={surface}>
+      <div className="mx-auto grid max-w-6xl gap-4 lg:grid-cols-[minmax(220px,0.7fr)_minmax(0,1.3fr)]">
+        <div className="grid place-items-center rounded-lg border border-teal-200 bg-teal-50 p-6 text-center">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-teal-700">Core concept</p>
+            <p className="mt-2 text-[18px] font-black leading-8 text-slate-950">{surface.title}</p>
+            {surface.memoryAnchor && <p className="mt-2 text-[12px] leading-6 text-teal-900">{surface.memoryAnchor}</p>}
+          </div>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {cards.map((card, index) => (
+            <article key={objectId(card, `cluster-${index + 1}`)} data-node-id={typeof card.nodeId === "string" ? card.nodeId : undefined} className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+              <p className="text-[13px] font-bold text-slate-950">{titleOf(card, `Memory card ${index + 1}`)}</p>
+              <p className="mt-1 line-clamp-3 text-[12px] leading-6 text-slate-600">{readString(card, ["detail", "answer", "whyItMatters", "testablePoint", "caption", "wrongPath"]) ?? ""}</p>
+              <SourceChips item={card} onBlockClick={onBlockClick} compact />
+            </article>
+          ))}
+        </div>
+      </div>
+    </SurfaceFrame>
+  );
+}
+
+export function GateRenderer({ surface, onBlockClick }: { surface: AlgorithmSurface; onBlockClick?: (blockId: string) => void }) {
+  return (
+    <SurfaceFrame surface={surface}>
+      <div className="grid gap-3 lg:grid-cols-2">
+        {(surface.gates ?? []).map((gate, index) => (
+          <article key={objectId(gate, `gate-${index + 1}`)} className="rounded-lg border border-amber-200 bg-white p-4 shadow-sm">
+            <p className="text-[14px] font-bold text-slate-950">{gate.title ?? `Gate ${index + 1}`}</p>
+            <RecordLine label="Entry condition" value={gate.entryCondition} tone="amber" />
+            <div className="mt-2 grid gap-2 md:grid-cols-2">
+              {(gate.includeCriteria ?? []).length > 0 && (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">Include</p>
+                  {(gate.includeCriteria ?? []).map((item) => <p key={item} className="mt-1 text-[12px] leading-5 text-emerald-900">{item}</p>)}
+                </div>
+              )}
+              {(gate.excludeCriteria ?? []).length > 0 && (
+                <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-rose-700">Exclude</p>
+                  {(gate.excludeCriteria ?? []).map((item) => <p key={item} className="mt-1 text-[12px] leading-5 text-rose-900">{item}</p>)}
+                </div>
+              )}
+            </div>
+            <div className="mt-2 grid gap-2 md:grid-cols-2">
+              <RecordLine label="Pass" value={gate.actionIfPass} tone="emerald" />
+              <RecordLine label="Fail" value={gate.actionIfFail} tone="rose" />
+            </div>
+            {(gate.exceptions ?? []).length > 0 && (
+              <div className="mt-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-orange-700">Exceptions</p>
+                {(gate.exceptions ?? []).map((item) => <p key={item} className="mt-1 text-[12px] leading-5 text-orange-900">{item}</p>)}
+              </div>
+            )}
+            <SourceChips item={gate} onBlockClick={onBlockClick} />
+          </article>
+        ))}
+      </div>
+      <RelatedObjectsPanel surface={{ ...surface, gates: [] }} onBlockClick={onBlockClick} />
+    </SurfaceFrame>
+  );
+}
+
+export function ComplicationEscalationRenderer({ surface, onBlockClick }: { surface: AlgorithmSurface; onBlockClick?: (blockId: string) => void }) {
+  const items: AlgorithmRecord[] = [...recordArray(surface.complicationRules), ...(surface.nodes ?? []).filter((node) => ["complication", "escalation", "action"].includes(node.nodeType))];
+  return (
+    <SurfaceFrame surface={surface}>
+      <div className="space-y-3">
+        {items.map((item, index) => (
+          <article key={objectId(item, `complication-${index + 1}`)} data-node-id={typeof item.nodeId === "string" ? item.nodeId : undefined} className="rounded-lg border border-rose-200 bg-white p-4 shadow-sm">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-rose-600">Escalation path {index + 1}</p>
+            <p className="mt-1 text-[14px] font-bold text-slate-950">{readString(item, ["label", "title", "recognition"]) ?? "Complication rule"}</p>
+            <div className="mt-3 grid gap-2 md:grid-cols-4">
+              <RecordLine label="Recognition" value={readString(item, ["recognition", "detail"])} />
+              <RecordLine label="Severity" value={readString(item, ["severity"])} tone="amber" />
+              <RecordLine label="Immediate action" value={readString(item, ["immediateAction", "testablePoint"])} tone="rose" />
+              <RecordLine label="Escalation" value={readString(item, ["escalationPath", "actionIfTriggered"])} tone="rose" />
+            </div>
+            <SourceChips item={item} onBlockClick={onBlockClick} />
+          </article>
+        ))}
+      </div>
+      <RelatedObjectsPanel surface={{ ...surface, complicationRules: [], nodes: (surface.nodes ?? []).filter((node) => !["complication", "escalation", "action"].includes(node.nodeType)) }} onBlockClick={onBlockClick} />
+    </SurfaceFrame>
+  );
+}
+
+export function MediaRecognitionRenderer({ surface, onBlockClick }: { surface: AlgorithmSurface; onBlockClick?: (blockId: string) => void }) {
+  const media = [...recordArray(surface.mediaLinks), ...recordArray(surface.mediaRefs)];
+  return (
+    <SurfaceFrame surface={surface}>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {media.map((item, index) => (
+          <article key={objectId(item, `media-${index + 1}`)} className="rounded-lg border border-sky-200 bg-white p-4 shadow-sm">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-sky-600">{readString(item, ["type"]) ?? "Media anchor"}</p>
+            <p className="mt-1 text-[14px] font-bold text-slate-950">{readString(item, ["title", "label"]) ?? `Media ${index + 1}`}</p>
+            <p className="mt-2 min-h-12 rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-[12px] leading-6 text-sky-900">
+              {readString(item, ["caption", "detail", "uri"]) ?? "Image/table asset is not available in this viewer yet."}
+            </p>
+            <SourceChips item={item} onBlockClick={onBlockClick} />
+          </article>
+        ))}
+      </div>
+      <RelatedObjectsPanel surface={{ ...surface, mediaLinks: [], mediaRefs: [] }} onBlockClick={onBlockClick} />
+    </SurfaceFrame>
+  );
+}
+
+export function CombinedSurfaceRenderer({ surface, onBlockClick }: { surface: AlgorithmSurface; onBlockClick?: (blockId: string) => void }) {
+  const groups = getSurfaceObjectGroups(surface);
+  const sections: Array<{ key: string; label: string; show: boolean; node: React.ReactNode }> = [
+    { key: "pathway", label: "Pathway", show: groups.nodes > 0, node: groups.edges > 0 ? <DagRenderer surface={surface} onBlockClick={onBlockClick} /> : <ChainRenderer surface={surface} onBlockClick={onBlockClick} /> },
+    { key: "matrix", label: "Matrix", show: groups.matrices > 0, node: <MatrixRenderer surface={surface} onBlockClick={onBlockClick} /> },
+    { key: "gates", label: "Gates", show: groups.gates > 0, node: <GateRenderer surface={surface} onBlockClick={onBlockClick} /> },
+    { key: "thresholds", label: "Thresholds", show: groups.thresholds > 0, node: <LadderRenderer surface={surface} onBlockClick={onBlockClick} /> },
+    { key: "traps", label: "Traps", show: groups.boardTraps > 0, node: <ContrastMapRenderer surface={surface} onBlockClick={onBlockClick} /> },
+    { key: "follow-up", label: "Follow-up", show: groups.followUpRules > 0, node: <TimelineRenderer surface={surface} onBlockClick={onBlockClick} /> },
+    { key: "complications", label: "Complications", show: groups.complicationRules > 0, node: <ComplicationEscalationRenderer surface={surface} onBlockClick={onBlockClick} /> },
+    { key: "checkpoints", label: "Checkpoints", show: groups.checkpoints > 0, node: <ClusterRenderer surface={surface} onBlockClick={onBlockClick} /> },
+    { key: "media", label: "Media", show: groups.mediaLinks > 0, node: <MediaRecognitionRenderer surface={surface} onBlockClick={onBlockClick} /> },
+  ].filter((section) => section.show);
+  const [active, setActive] = useState(sections[0]?.key ?? "pathway");
+  const activeSection = sections.find((section) => section.key === active) ?? sections[0];
+  return (
+    <SurfaceFrame surface={surface}>
+      <div className="mb-3 flex gap-1 overflow-x-auto rounded-lg border border-slate-200 bg-white p-1">
+        {sections.map((section) => (
+          <button key={section.key} type="button" onClick={() => setActive(section.key)} className={cn("min-h-8 shrink-0 rounded-md px-3 text-[11px] font-semibold transition", activeSection?.key === section.key ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50")}>
+            {section.label}
+          </button>
+        ))}
+      </div>
+      {activeSection?.node ?? <CardGridRenderer surface={surface} onBlockClick={onBlockClick} />}
+    </SurfaceFrame>
+  );
+}
+
+export const SurfaceRendererRegistry: Record<SurfaceRendererKey, React.FC<{
+  surface: AlgorithmSurface;
+  onBlockClick?: (blockId: string) => void;
+}>> = {
+  decision_tree: DecisionTreeRenderer,
+  branching_pathway: BranchingPathwayRenderer,
+  linear_pathway: LinearPathwayRenderer,
+  matrix: MatrixRenderer,
+  ladder: LadderRenderer,
+  timeline: TimelineRenderer,
+  contrast_map: ContrastMapRenderer,
+  chain: ChainRenderer,
+  cluster: ClusterRenderer,
+  combined: CombinedSurfaceRenderer,
+  trap_map: ContrastMapRenderer,
+  gate: GateRenderer,
+  follow_up: TimelineRenderer,
+  complication_escalation: ComplicationEscalationRenderer,
+  media_recognition: MediaRecognitionRenderer,
+  generic_graph: DagRenderer,
+  card_grid: CardGridRenderer,
+};
+
 // ── renderSurface dispatcher ──────────────────────────────────────────────────
 
 export function renderSurface(
@@ -1168,16 +1754,12 @@ export function renderSurface(
   onBlockClick?: (blockId: string) => void,
 ): React.ReactNode | null {
   if (!surface) return null;
-  if ((surface.nodes ?? []).length > 0) return null;
-  const shape = `${surface.algorithmShape ?? ""} ${surface.surfaceType ?? ""}`.toLowerCase();
-
-  if (shape.includes("trap") || (surface.boardTraps?.length ?? 0) > 0)
-    return <TrapSurfaceRenderer surface={surface} onBlockClick={onBlockClick} />;
-  if (shape.includes("matrix") || (surface.matrices?.length ?? 0) > 0)
-    return <MatrixSurfaceRenderer surface={surface} onBlockClick={onBlockClick} />;
-
-  return null;
+  const key = getSurfaceRendererKey(surface);
+  const Renderer = SurfaceRendererRegistry[key] ?? CardGridRenderer;
+  return <Renderer surface={surface} onBlockClick={onBlockClick} />;
 }
+
+export const renderAlgorithmSurface = renderSurface;
 
 // ── Re-export nodeType role labels for use in LearningPanel ──────────────────
 export { NODE_TYPE_ROLE_LABELS, NODE_COLORS, MEMORY_ROLE_PILLS, EDGE_STYLES, DEFAULT_EDGE_STYLE };

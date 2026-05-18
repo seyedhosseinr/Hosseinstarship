@@ -5,14 +5,11 @@ import { useOutlinerStore } from "@/components/outliner/outliner-store";
 import type { AlgorithmNodeV4, AlgorithmEdgeV4 } from "@/types/algorithm-ir-v4";
 import type { AlgorithmSurface } from "@/types/algorithm-ir";
 import {
-  NODE_TYPE_ROLE_LABELS, NODE_COLORS, MEMORY_ROLE_PILLS, EDGE_STYLES, DEFAULT_EDGE_STYLE,
+  NODE_TYPE_ROLE_LABELS, MEMORY_ROLE_PILLS, EDGE_STYLES, DEFAULT_EDGE_STYLE,
 } from "@/components/outliner/renderers";
+import { getLinkedObjectsForNode, readString, titleOf } from "@/components/outliner/surface-families";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function nodeColorOf(nodeType: string): string {
-  return NODE_COLORS[nodeType] ?? "#94A3B8";
-}
 
 // ── Section wrapper ───────────────────────────────────────────────────────────
 
@@ -23,6 +20,39 @@ function Section({ title, children }: { title: string; children: React.ReactNode
         {title}
       </p>
       {children}
+    </div>
+  );
+}
+
+function ObjectMiniCard({ item }: { item: Record<string, unknown> }) {
+  return (
+    <div style={{ border: "1px solid #E2E8F0", borderRadius: 10, overflow: "hidden", marginBottom: 8, background: "white" }}>
+      <div style={{ padding: "9px 12px", background: "#F8FAFC" }}>
+        <p style={{ fontSize: 12, fontWeight: 700, color: "#0F172A" }}>
+          {titleOf(item)}
+        </p>
+      </div>
+      <div style={{ padding: "9px 12px" }}>
+        <p style={{ fontSize: 12, color: "#475569", lineHeight: 1.7 }}>
+          {readString(item, [
+            "condition",
+            "decision",
+            "reason",
+            "entryCondition",
+            "startPoint",
+            "interval",
+            "monitor",
+            "trigger",
+            "actionIfTriggered",
+            "recognition",
+            "severity",
+            "immediateAction",
+            "escalationPath",
+            "caption",
+            "uri",
+          ]) ?? "—"}
+        </p>
+      </div>
     </div>
   );
 }
@@ -136,11 +166,10 @@ export function LearningPanelBody({
 }) {
   const mode              = useOutlinerStore((s) => s.mode);
   const setSelectedNodeId = useOutlinerStore((s) => s.setSelectedNodeId);
-  const [examRevealed, setExamRevealed] = useState(false);
 
-  const color = nodeColorOf(node.nodeType);
   const pill  = node.memoryRole ? MEMORY_ROLE_PILLS[node.memoryRole] : null;
   const v4edges = surface.edges as unknown as AlgorithmEdgeV4[];
+  const linkedObjects = getLinkedObjectsForNode(surface, node);
 
   // Outgoing edges and their target nodes
   const outgoingEdges = v4edges.filter((e) => e.from === node.nodeId);
@@ -148,42 +177,17 @@ export function LearningPanelBody({
     (surface.nodes as unknown as AlgorithmNodeV4[]).map((n) => [n.nodeId, n]),
   );
 
-  // Linked thresholds
-  const linkedThresholds = (surface.thresholds ?? []).filter((t) => {
-    const lnids = (t as Record<string, unknown>).linkedNodeIds as string[] | undefined;
-    return lnids?.includes(node.nodeId) || node.nodeType === "threshold";
-  });
-
-  // Linked boardTraps
-  const linkedTraps = (surface.boardTraps ?? []).filter((trap) => {
-    const lnids = (trap as Record<string, unknown>).linkedNodeIds as string[] | undefined;
-    return lnids?.includes(node.nodeId)
-      || node.memoryRole === "trap"
-      || node.nodeType === "trap";
-  });
-
-  // Linked checkpoints
-  const linkedCheckpoints = (surface.checkpoints ?? []).filter((cp) => {
-    const lnids = (cp as Record<string, unknown>).linkedNodeIds as string[] | undefined;
-    return lnids?.includes(node.nodeId);
-  });
-
-  // Linked gates (entry node OR linkedBlockIds overlap)
-  const nodeBlockIds = new Set(node.linkedBlockIds ?? []);
-  const linkedGates = (surface.gates ?? []).filter((gate) => {
-    const gateBlocks = (gate as Record<string, unknown>).linkedBlockIds as string[] | undefined;
-    return node.nodeType === "entry"
-      || (gateBlocks ?? []).some((b) => nodeBlockIds.has(b));
-  });
-
-  // Linked matrices (linkedBlockIds overlap)
-  const linkedMatrices = (surface.matrices ?? []).filter((matrix) => {
-    const rows = matrix.rows ?? [];
-    return rows.some((row) => {
-      const rowBlocks = (row as Record<string, unknown>).linkedBlockIds as string[] | undefined;
-      return (rowBlocks ?? []).some((b) => nodeBlockIds.has(b));
-    });
-  });
+  const linkedThresholds = linkedObjects.thresholds;
+  const linkedTraps = linkedObjects.boardTraps;
+  const linkedCheckpoints = linkedObjects.checkpoints;
+  const linkedGates = node.nodeType === "entry" && linkedObjects.gates.length === 0 ? (surface.gates ?? []) : linkedObjects.gates;
+  const linkedMatrixRows = linkedObjects.matrixRows;
+  const linkedMatrices = linkedMatrixRows.length > 0
+    ? [{ id: "linked-matrix-rows", title: "Linked rows", rows: linkedMatrixRows }]
+    : [];
+  const linkedFollowUps = linkedObjects.followUpRules;
+  const linkedComplications = linkedObjects.complicationRules;
+  const linkedMedia = linkedObjects.mediaLinks;
 
   return (
     <div style={{ padding: "18px 18px 14px", display: "flex", flexDirection: "column", gap: 0, overflowY: "auto", flex: 1 }} dir="rtl" lang="fa">
@@ -309,6 +313,30 @@ export function LearningPanelBody({
       )}
 
       {/* 11. بازگشت به جزوه */}
+      {linkedFollowUps.length > 0 && (
+        <Section title="Follow-up">
+          {linkedFollowUps.map((item, i) => (
+            <ObjectMiniCard key={String(item.id ?? i)} item={item} />
+          ))}
+        </Section>
+      )}
+
+      {linkedComplications.length > 0 && (
+        <Section title="Complications">
+          {linkedComplications.map((item, i) => (
+            <ObjectMiniCard key={String(item.id ?? i)} item={item} />
+          ))}
+        </Section>
+      )}
+
+      {linkedMedia.length > 0 && (
+        <Section title="Media">
+          {linkedMedia.map((item, i) => (
+            <ObjectMiniCard key={String(item.id ?? i)} item={item} />
+          ))}
+        </Section>
+      )}
+
       {(node.linkedBlockIds ?? []).length > 0 && onBlockClick && (
         <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid #E2E8F0" }}>
           <button

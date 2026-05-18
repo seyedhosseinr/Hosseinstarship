@@ -14,7 +14,6 @@ import {
 } from "@/components/outliner/outliner-store";
 import { CRDTStatusBar } from "@/components/outliner/CRDTStatusBar";
 import {
-  familyOfSurface,
   linkedBlockIds,
   readString,
   titleOf,
@@ -24,10 +23,7 @@ import {
   nodeDisplayTitle,
 } from "@/components/outliner/navigation-labels";
 import {
-  CardGridRenderer,
-  ChainRenderer,
-  DagRenderer,
-  renderSurface,
+  renderAlgorithmSurface,
 } from "@/components/outliner/renderers";
 import {
   buildSearchResults,
@@ -361,19 +357,11 @@ function MainCanvas({
     </div>
   );
 
-  const special = renderSurface(surface, onBlockClick);
-  const surfaceContent = special ? (
-    <div className="outliner-surface-transition">{special}</div>
-  ) : (() => {
-    const family = familyOfSurface(surface);
-    return (
-      <div className="outliner-surface-transition">
-        {family === "chain" ? <ChainRenderer surface={surface} onBlockClick={onBlockClick} />
-          : family === "flat" ? <CardGridRenderer surface={surface} onBlockClick={onBlockClick} />
-          : <DagRenderer surface={surface} onBlockClick={onBlockClick} />}
-      </div>
-    );
-  })();
+  const surfaceContent = (
+    <div className="outliner-surface-transition">
+      {renderAlgorithmSurface(surface, onBlockClick)}
+    </div>
+  );
 
   return (
     <div ref={containerRef} className="relative">

@@ -1,5 +1,5 @@
 import { Canvas2dInkRenderer } from "./Canvas2dInkRenderer";
-import { readContentMetrics } from "./metrics";
+import { readContentMetrics, readScrollMetrics } from "./metrics";
 import { StrokeBuffer } from "./StrokeBuffer";
 import { WebGpuInkRenderer } from "./WebGpuInkRenderer";
 import {
@@ -77,7 +77,10 @@ export class InkController {
     window.addEventListener("orientationchange", this.onMetricsInvalidated, {
       passive: true,
     });
-    this.config.scrollContainer?.addEventListener("scroll", this.onMetricsInvalidated, {
+    // Scroll only updates content-position metrics — it must NOT resize canvas
+    // buffers, which would reset the WebGPU context and cause a black flash on
+    // iOS when the URL bar collapses on first scroll.
+    this.config.scrollContainer?.addEventListener("scroll", this.onScrollMetricsUpdate, {
       passive: true,
     });
 
@@ -96,7 +99,7 @@ export class InkController {
 
     window.removeEventListener("resize", this.onMetricsInvalidated);
     window.removeEventListener("orientationchange", this.onMetricsInvalidated);
-    this.config.scrollContainer?.removeEventListener("scroll", this.onMetricsInvalidated);
+    this.config.scrollContainer?.removeEventListener("scroll", this.onScrollMetricsUpdate);
     this.resizeObserver?.disconnect();
     this.resizeObserver = null;
   }
@@ -109,6 +112,11 @@ export class InkController {
       canvas.style.touchAction = "none";
       canvas.style.userSelect = "none";
     }
+    // gpuCanvas starts hidden: its WebGPU context can briefly render black
+    // when canvas.height is reset (e.g. iOS URL-bar collapse on first scroll).
+    // selectRenderer() reveals it only after WebGPU is confirmed ready.
+    this.config.gpuCanvas.style.opacity = "0";
+    this.config.fallbackCanvas.style.opacity = "1";
   }
 
   private refreshMetrics(): void {
@@ -179,6 +187,19 @@ export class InkController {
 
   private onMetricsInvalidated = (): void => {
     this.refreshMetrics();
+  };
+
+  /** Scroll-only update: repositions ink without resizing canvas buffers. */
+  private onScrollMetricsUpdate = (): void => {
+    if (this.destroyed || !this.metrics) return;
+    this.metrics = readScrollMetrics(
+      this.config.scrollContainer,
+      this.config.contentSelector,
+      this.metrics,
+    );
+    if (this.stroke) {
+      this.renderer.appendStroke(this.stroke, 0);
+    }
   };
 
   private onStart = (event: PencilEvent): void => {

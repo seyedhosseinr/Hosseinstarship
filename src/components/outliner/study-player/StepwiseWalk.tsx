@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useOutlinerStore } from "@/components/outliner/outliner-store";
 import { toFa } from "@/components/outliner/study-player/tokens";
 import { MEMORY_ROLE_PILLS, EDGE_STYLES, DEFAULT_EDGE_STYLE } from "@/components/outliner/renderers";
+import { getOrderedStudyItems, linkedBlockIds, readString, titleOf, type OrderedStudyItem } from "@/components/outliner/surface-families";
 import type { AlgorithmNode, AlgorithmEdge } from "@/types/algorithm-ir";
 
 // ── Node-type icon map ────────────────────────────────────────────────────────
@@ -160,6 +161,91 @@ function GateCard({ gate }: { gate: Record<string, unknown> }) {
   );
 }
 
+function GenericStudyItemCard({
+  item,
+  onBlockClick,
+}: {
+  item: OrderedStudyItem;
+  onBlockClick?: (blockId: string) => void;
+}) {
+  const record = item.record;
+  const blocks = linkedBlockIds(record);
+  const primary = readString(record, [
+    "condition",
+    "decision",
+    "reason",
+    "entryCondition",
+    "wrongPath",
+    "correctPath",
+    "conditionText",
+    "answer",
+    "caption",
+    "detail",
+  ]);
+  const secondary = readString(record, [
+    "decisionImpact",
+    "actionIfPass",
+    "actionIfFail",
+    "whyItMatters",
+    "memoryAnchor",
+    "actionIfTriggered",
+    "escalationPath",
+  ]);
+
+  return (
+    <div
+      data-node-id={item.nodeId}
+      style={{
+        background: "white",
+        border: "1px solid #E2E8F0",
+        borderRight: "3px solid #0F766E",
+        borderRadius: 14,
+        padding: "16px 18px",
+        boxShadow: "0 1px 6px rgba(0,0,0,0.05)",
+        marginBottom: 10,
+      }}
+    >
+      <p style={{ fontSize: 10, fontWeight: 700, color: "#0F766E", marginBottom: 4, letterSpacing: "0.04em" }}>
+        {item.kind}
+      </p>
+      <p style={{ fontSize: 16, fontWeight: 700, color: "#0F172A", lineHeight: 1.5 }}>
+        {item.label || titleOf(record)}
+      </p>
+      {primary && <p style={{ marginTop: 8, fontSize: 13, color: "#475569", lineHeight: 1.8 }}>{primary}</p>}
+      {secondary && (
+        <div style={{ marginTop: 8, borderRadius: 8, background: "#F0FDF4", borderRight: "3px solid #10B981", padding: "9px 11px" }}>
+          <p style={{ fontSize: 12, color: "#064E3B", lineHeight: 1.7 }}>{secondary}</p>
+        </div>
+      )}
+      {blocks.length > 0 && onBlockClick && (
+        <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {blocks.map((blockId, index) => (
+            <button
+              key={`${blockId}-${index}`}
+              type="button"
+              data-linked-block-id={blockId}
+              onClick={() => onBlockClick(blockId)}
+              style={{
+                minHeight: 30,
+                borderRadius: 8,
+                border: "1px solid #CBD5E1",
+                background: "white",
+                color: "#334155",
+                fontSize: 11,
+                fontWeight: 600,
+                padding: "4px 9px",
+                cursor: "pointer",
+              }}
+            >
+              Source {index + 1}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ActiveNodeCard({
   node,
   activeThresholds,
@@ -288,6 +374,14 @@ export function StepwiseWalk({ onBlockClick }: { onBlockClick?: (blockId: string
     [currentSurface],
   );
   const nodeMap = useMemo(() => new Map(nodes.map(n => [n.nodeId, n])), [nodes]);
+  const studyItems = useMemo(
+    () => currentSurface ? getOrderedStudyItems(currentSurface) : [],
+    [currentSurface],
+  );
+  const studyItemMap = useMemo(
+    () => new Map(studyItems.map((item) => [item.id, item])),
+    [studyItems],
+  );
 
   const activeLayerIds = depthLayers[stepwiseDepth] ?? [];
   const prevLayerIds   = depthLayers[stepwiseDepth - 1] ?? [];
@@ -295,6 +389,12 @@ export function StepwiseWalk({ onBlockClick }: { onBlockClick?: (blockId: string
 
   const activeNodes = activeLayerIds.map(id => nodeMap.get(id)).filter((n): n is AlgorithmNode => Boolean(n));
   const nextNodes   = nextLayerIds.map(id => nodeMap.get(id)).filter((n): n is AlgorithmNode => Boolean(n));
+  const activeStudyItems = activeNodes.length > 0
+    ? []
+    : activeLayerIds.map((id) => studyItemMap.get(id)).filter((item): item is OrderedStudyItem => Boolean(item));
+  const nextStudyItems = nextNodes.length > 0
+    ? []
+    : nextLayerIds.map((id) => studyItemMap.get(id)).filter((item): item is OrderedStudyItem => Boolean(item));
 
   // Incoming edges to active layer (for transition reason strip)
   const incomingEdges = useMemo(
@@ -351,8 +451,12 @@ export function StepwiseWalk({ onBlockClick }: { onBlockClick?: (blockId: string
     for (const n of activeNodes) {
       if (n.linkedBlockIds?.length) return n.linkedBlockIds[0];
     }
+    for (const item of activeStudyItems) {
+      const blocks = linkedBlockIds(item.record);
+      if (blocks.length > 0) return blocks[0];
+    }
     return null;
-  }, [activeNodes]);
+  }, [activeNodes, activeStudyItems]);
 
   // Navigation boundary flags
   const atFirstStep = stepwiseDepth === 0 && currentSurfaceIndex === 0;
@@ -447,6 +551,10 @@ export function StepwiseWalk({ onBlockClick }: { onBlockClick?: (blockId: string
             />
           ))}
 
+          {activeStudyItems.map((item) => (
+            <GenericStudyItemCard key={item.id} item={item} onBlockClick={onBlockClick} />
+          ))}
+
           {/* ── Gate cards (if active layer has linked gates) ── */}
           {activeGates.map((gate, i) => (
             <GateCard key={String(gate.gateId ?? gate.id ?? i)} gate={gate} />
@@ -481,6 +589,21 @@ export function StepwiseWalk({ onBlockClick }: { onBlockClick?: (blockId: string
               </p>
               <p style={{ fontSize: 12, color: "#CBD5E1", lineHeight: 1.5 }}>
                 {nextNodes.map(n => n.label).join(" · ")}
+              </p>
+            </div>
+          )}
+
+          {nextStudyItems.length > 0 && (
+            <div style={{
+              padding: "12px 14px",
+              borderTop: "1px dashed #E2E8F0",
+              marginTop: 8,
+            }}>
+              <p style={{ fontSize: 10, color: "#CBD5E1", fontWeight: 700, marginBottom: 4, letterSpacing: "0.05em" }}>
+                Ù‚Ø¯Ù… Ø¨Ø¹Ø¯ÛŒ:
+              </p>
+              <p style={{ fontSize: 12, color: "#CBD5E1", lineHeight: 1.5 }}>
+                {nextStudyItems.map((item) => item.label).join(" Â· ")}
               </p>
             </div>
           )}
